@@ -14,6 +14,9 @@ SIM_DATA_NAME = "datacube.fits"
 SIM_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"sims/"+SIM_NAME+"/")
 SIM_FILE = os.path.join(SIM_FOLDER,SIM_DATA_NAME)
 
+EXPORT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"export/")
+
+TRAINING_BATCH_FOLDER = os.path.join(EXPORT_FOLDER,"training_batchs")
 
 file = fits.open(SIM_FILE)
 DATA = file[0].data
@@ -32,3 +35,6 @@ SIM_cell_size = SIM_cell_size.to(u.cm)
 
 SIM_size = SIM_SIZE*SIM_relative_size
 SIM_axis = ([SIM_center[0]*SIM_SIZE-SIM_size/2,SIM_center[0]*SIM_SIZE+SIM_size/2],[SIM_center[1]*SIM_SIZE-SIM_size/2,SIM_center[1]*SIM_SIZE+SIM_size/2],[SIM_center[2]*SIM_SIZE-SIM_size/2,SIM_center[2]*SIM_SIZE+SIM_size/2])
+
+RANDOM_BATCH_SCORE_offset = 1.
+RANDOM_BATCH_SCORE_fct = lambda x: 1./(1+np.exp(-2.*(x-RANDOM_BATCH_SCORE_offset)))

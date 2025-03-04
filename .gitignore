@@ -2,3 +2,13 @@
 sims/
 
 todo.txt
+
+*.pyc
+
+export/
+
+model/
+
+hellokan.ipynb
+
+figures/
