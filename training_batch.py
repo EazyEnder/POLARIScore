@@ -72,7 +72,10 @@ def generate_batch(data_cube,method=compute_mass_weighted_density,number=8,size=
         c_x, c_y = center
         c_x = convert_pc_to_index(c_x)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
         c_y = convert_pc_to_index(c_y)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
-        s = convert_pc_to_index(size)
+
+        #todo find the neareast 2^x
+        #s = int(np.floor(convert_pc_to_index(size)/2)*2)
+        s = 128
         start_x = c_x - s // 2
         start_y = c_y - s // 2
         end_x = c_x + s // 2 + s%2
@@ -151,6 +154,12 @@ def save_batch(batch, settings):
 
     return True
 
+def rebuild_batch(cdens, vdens):
+    batch = []
+    for i in range(len(cdens)):
+        batch.append((cdens[i], vdens[i]))
+    return batch
+
 def open_batch(batch_name):
     if not(os.path.exists(TRAINING_BATCH_FOLDER)):
         return
@@ -184,7 +193,7 @@ def open_batch(batch_name):
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-def plot_batch(batch, b_name=""):
+def plot_batch(batch, b_name="",same_limits=False):
     batch_nbr = len(batch)
     fig, axes = plt.subplots(int(2*np.ceil(batch_nbr/8)),8)
     fig.suptitle(b_name)
@@ -193,8 +202,10 @@ def plot_batch(batch, b_name=""):
         data2 = batch[i][1]
         #score = 0.
         #axes[2*(i//8)][i%8].set_title(str(np.round(score[0],3)))
+        min_dat1 = np.min(data1)
+        max_dat1 = np.max(data1) 
         d1 = axes[2*(i//8)][i%8].imshow(data1, cmap="jet", norm=LogNorm(vmin=np.min(data1), vmax=np.max(data1)))
-        d2 = axes[2*(i//8)+1][i%8].imshow(data2, cmap="jet", norm=LogNorm(vmin=np.min(data2), vmax=np.max(data2)))
+        d2 = axes[2*(i//8)+1][i%8].imshow(data2, cmap="jet", norm=(LogNorm(vmin=np.min(data2), vmax=np.max(data2)) if not(same_limits) else LogNorm(min_dat1, max_dat1)))
     fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
 
 def plot_batch_correlation(batch):
@@ -206,8 +217,9 @@ def plot_batch_correlation(batch):
     fig.tight_layout()
 
 if __name__ == "__main__":
-    b_name = "batch_4a20fa23-4833-434d-b06a-72589b5201d6"
+    b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"
     b = open_batch(b_name)
-    #b, _ = generate_batch(DATA, method=compute_mass_weighted_density)
-    plot_batch_correlation(b)
+    #b, settings = generate_batch(DATA, method=compute_mass_weighted_density, number=64)
+    #save_batch(b, settings)
+    plot_batch(b)
     plt.show()

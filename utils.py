@@ -9,7 +9,7 @@ def compute_column_density(data_cube, axis=0, cell_size=SIM_cell_size):
 def compute_volume_weighted_density(data_cube, axis=0):
     return np.sum(data_cube, axis=axis) / data_cube.shape[0]
 def compute_mass_weighted_density(data_cube, axis=0):
-    return np.sum(np.pow(data_cube,2), axis=axis) / np.sum(data_cube, axis= axis)
+    return np.sum(np.power(data_cube,2), axis=axis) / np.sum(data_cube, axis= axis)
 def compute_mean_density(data_cube, axis=0):
     return np.mean(data_cube, axis=axis)
 def compute_max_density(data_cube, axis=0):
