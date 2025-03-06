@@ -17,6 +17,7 @@ SIM_FILE = os.path.join(SIM_FOLDER,SIM_DATA_NAME)
 EXPORT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"export/")
 
 TRAINING_BATCH_FOLDER = os.path.join(EXPORT_FOLDER,"training_batchs")
+MODEL_FOLDER = os.path.join(EXPORT_FOLDER,"models")
 
 file = fits.open(SIM_FILE)
 DATA = file[0].data
