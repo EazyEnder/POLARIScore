@@ -73,9 +73,7 @@ def generate_batch(data_cube,method=compute_mass_weighted_density,number=8,size=
         c_x = convert_pc_to_index(c_x)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
         c_y = convert_pc_to_index(c_y)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
 
-        #todo find the neareast 2^x
-        #s = int(np.floor(convert_pc_to_index(size)/2)*2)
-        s = 128
+        s = int(2**round(np.log2(np.floor(convert_pc_to_index(size)/2)*2)))
         start_x = c_x - s // 2
         start_y = c_y - s // 2
         end_x = c_x + s // 2 + s%2
@@ -126,7 +124,13 @@ def generate_batch(data_cube,method=compute_mass_weighted_density,number=8,size=
     }
     return (imgs,settings)
 
+def split_batch(batch, cutoff=0.7):
+    batch = np.array(batch)
+    cut_index = int(cutoff * len(batch))
+    return (batch[:cut_index],batch[cut_index:])
+
 def check_if_batch_exists(settings):
+    """todo"""
     return False
 
 def save_batch(batch, settings):
@@ -208,11 +212,14 @@ def plot_batch(batch, b_name="",same_limits=False):
         d2 = axes[2*(i//8)+1][i%8].imshow(data2, cmap="jet", norm=(LogNorm(vmin=np.min(data2), vmax=np.max(data2)) if not(same_limits) else LogNorm(min_dat1, max_dat1)))
     fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
 
-def plot_batch_correlation(batch):
-    fig, ax = plt.subplots(1,1)
+def plot_batch_correlation(batch, ax=None, bins_number=256):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
     column_density = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
     volume_density = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
-    _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
+    _, _, _,hist = ax.hist2d(column_density, volume_density, bins=(bins_number,bins_number), norm=LogNorm())
     plt.colorbar(hist, ax=ax)
     fig.tight_layout()
 
