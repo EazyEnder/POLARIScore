@@ -8,13 +8,13 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from training_batch import *
 from config import *
 import uuid
 from nn_UNet import UNet
 from nn_FCN import FCN
 from nn_KNet import KNet
+from networks.utils.nn_utils import compute_batch_accuracy
 import json
 
 class Trainer():
@@ -66,6 +66,15 @@ class Trainer():
         return False
 
     def train(self, epoch_number=50, compute_validation=10):
+        """
+        Train the model (check trainer variables for settings)
+
+        Args:
+            epoch_number(int, default: 50): train the model for x epochs.
+            compute_validation(int, default:10): compute validation losses each x epochs.
+
+        """
+
         training_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         training_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
@@ -95,6 +104,16 @@ class Trainer():
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
     def plot_losses(self, ax=None ,log10=True):
+        """
+        Plot training and validation losses.
+
+        Args:
+            ax (matplotlib.axes.Axes, default:None): Axis to plot on. If None, a new figure is created.
+            log10 (bool, default:True): Whether to express losses in log10 scale. Default is True.
+
+        Returns:
+            figure and ax
+        """
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -105,9 +124,12 @@ class Trainer():
         y_training = [i[1] for i in self.training_losses]
         y_validation = [i[1] for i in self.validation_losses]
         
+        loss_method_name = getattr(self.loss_method, "_get_name", lambda: "Custom")()
+        ax.set_ylabel(loss_method_name)
         if log10:
             y_training = np.log10(y_training)
             y_validation = np.log10(y_validation)
+            ax.set_ylabel(loss_method_name + " (log10)")
 
         ax.scatter(x_training, y_training, label="training losses")
         ax.scatter(x_validation, y_validation, label="validation losses")
@@ -115,15 +137,15 @@ class Trainer():
         ax.plot(x_validation, y_validation)
 
         ax.set_xlabel("epoch")
-
-        loss_method_name = getattr(self.loss_method, "_get_name", lambda: "Custom")()
-        ax.set_ylabel(loss_method_name)
-
         ax.legend()
         
         return fig, ax
 
     def get_validation_batch(self):
+        """
+        Returns:
+            validation_batch:[(target_img1, prediction_img1), (target_img2, prediction_img2), ...]
+        """
         self.model.eval()
         validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
@@ -135,16 +157,32 @@ class Trainer():
         return validation_batch
 
     def plot_validation(self):
+        """
+        Show target and model prediction images
+        """
         plot_batch(self.get_validation_batch(), same_limits=True)
 
-    def plot_residuals(self, ax, violinplot=True, color="blue", bins_inter=(None,None)):
+    def plot_residuals(self, ax, plot_distribution=True, color="blue", bins_inter=(None,None)):
+        """
+        Plot model predictions residuals
+
+        Args:
+            ax (matplotlib.axes.Axes, optional): Axis to plot on. If None, a new figure is created.
+            plot_distribution (bool, optional): Whether to plot the residuals distribution. Default is True.
+            color (str, optional): Residuals distribution color. Default is blue
+            bins_inter (tuple (x,x), optional): Set the plot min and max (min,max), min can be None when max takes a value.
+
+        Returns:
+            figure and ax
+        """
+
         if ax is None:
                     fig, ax = plt.subplots()
         else:
             fig = ax.figure
         batch = self.get_validation_batch()
-        d_prediction = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
-        d_target = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
+        d_target = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
+        d_prediction = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
 
         residuals = d_prediction-d_target
         violin_num_bins = 5
@@ -152,7 +190,7 @@ class Trainer():
         bin_centers = (bins[:-1] + bins[1:]) / 2 
         bin_indices = np.digitize(d_target, bins) - 1 
         binned_residuals = [residuals[bin_indices == i] for i in range(violin_num_bins)]
-        if violinplot:
+        if plot_distribution:
             vp = ax.violinplot(binned_residuals, positions=bin_centers, showmeans=False, showmedians=True)
             for i, body in enumerate(vp['bodies']):
                 body.set_facecolor(color)
@@ -172,12 +210,17 @@ class Trainer():
         return fig, ax
 
     def plot(self):
+        """
+        Plot all in one figure: validation correlation, residuals and losses.
+        """
+        plt.figure()
+        plt.suptitle(self.model_name)
         batch = self.get_validation_batch()
         plt.subplot(2,2,1)
         ax1 = plt.subplot(2,2,1)
         plot_batch_correlation(batch, ax=ax1)
-        ax1.set_xlabel("Prediction")
-        ax1.set_ylabel("Target")
+        ax1.set_xlabel("Target")
+        ax1.set_ylabel("Prediction")
 
         ax2 = plt.subplot(2,2,2)
         self. plot_residuals(ax=ax2)
@@ -188,6 +231,15 @@ class Trainer():
         plt.tight_layout()
 
     def save(self, model_name=None):
+        """
+        Save model and model settings in a new folder
+
+        Args:
+            model_name (str, optional): set model name, if None it will take the trainer model_name if user had set it or a random uuid
+
+        Returns:
+            bool: If this is a success
+        """
         if(not(model_name is None)):
             self.model_name = model_name
         
@@ -264,7 +316,7 @@ def load_trainer(model_name):
 
     return trainer
 
-def plot_models_violinplot(trainers = [], ax=None):
+def plot_models_residuals(trainers = [], ax=None):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -274,8 +326,8 @@ def plot_models_violinplot(trainers = [], ax=None):
     models_targets = []
     for t in trainers:
         batch = t.get_validation_batch()
-        d_prediction = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
-        d_target = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
+        d_target = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
+        d_prediction = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
         models_residuals.append(d_prediction-d_target)
         models_targets.append(d_target)
     models_name = [t.model_name for t in trainers]
@@ -283,7 +335,7 @@ def plot_models_violinplot(trainers = [], ax=None):
     positions = np.arange(len(models_name))
 
     vp = ax.violinplot(models_residuals, positions=positions, showmeans=True, showmedians=True)
-    colors = cm.jet(np.linspace(0, 1, len(models_name)))
+    colors = FIGURE_CMAP(np.linspace(FIGURE_CMAP_MIN, FIGURE_CMAP_MAX, len(models_name)))
     for i, body in enumerate(vp['bodies']):
         body.set_facecolor(colors[i])
         body.set_alpha(0.8)
@@ -300,16 +352,47 @@ def plot_models_violinplot(trainers = [], ax=None):
 
     return fig, ax, colors
 
-def plot_models_comparisons(trainers = []):
+def plot_models_residuals_extended(trainers = []):
+    plt.figure()
+
     ax1 = plt.subplot(len(trainers),2, (1,len(trainers)))
-    _,_, colors = plot_models_violinplot(trainers=trainers, ax=ax1)
+    _,_, colors = plot_models_residuals(trainers=trainers, ax=ax1)
     ax1.set_title("Comparison of different models")
 
     for i,t in enumerate(trainers):
         ax = plt.subplot(len(trainers),2, (i+1)*2)
         t.plot_residuals(ax=ax, color=colors[i], bins_inter=(1.5,7.5))
         ax.set_ylim((-1.25, 1.25))
+        ax.set_ylabel("")
 
+    plt.tight_layout()
+
+def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_errors = False):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    colors = FIGURE_CMAP(np.linspace(FIGURE_CMAP_MIN, FIGURE_CMAP_MAX, len(trainers)))
+    ax = plt.subplot(1,1,1)
+    sigmas = np.linspace(sigmas[0],sigmas[1],sigmas[2])
+    for i,t in enumerate(trainers):
+        accuracies = []
+        accuracies_error = []
+        for s in sigmas:
+            acc_mean, acc_std = compute_batch_accuracy(t.get_validation_batch(),sigma=s)
+            accuracies.append(acc_mean)
+            accuracies_error.append(acc_std)
+        accuracies = np.array(accuracies)
+        accuracies_error = np.array(accuracies_error)
+        if show_errors:
+            ax.fill_between(sigmas,np.clip(accuracies-accuracies_error,0.,1.),np.clip(accuracies+accuracies_error,0.,1.), color=colors[i], alpha=0.2)
+        ax.scatter(sigmas, accuracies, color=colors[i], label=t.model_name)
+        #ax.errorbar(sigmas, accuracies, yerr=accuracies_error, color=colors[i])
+        ax.plot(sigmas, accuracies, color=colors[i])
+    ax.set_xlabel("Error allowed (in log10)")
+    ax.set_ylabel("Accuracy")
+    plt.legend()
     plt.tight_layout()
 
 if __name__ == "__main__":
@@ -320,10 +403,10 @@ if __name__ == "__main__":
     validation_b = open_batch("batch_92b49d92-369a-45a0-b4eb-385658b05f41")
     
     trainer_knet = load_trainer("KNet")
-    trainer__unet = load_trainer("UNet")
+    trainer_unet = load_trainer("UNet")
     trainer_knet_customloss = load_trainer("KNet_customloss")
 
-    trainer_list = [trainer__unet, trainer_knet, trainer_knet_customloss]
+    trainer_list = [trainer_unet,trainer_knet,trainer_knet_customloss]
     for t in trainer_list:
         t.training_batch = trainer_batch
         t.validation_batch = validation_b
@@ -339,9 +422,7 @@ if __name__ == "__main__":
     #trainer.train(500)
     #trainer.save()
 
-    #plot_batch(train_b)
-    #plot_batch_correlation(trainer.get_validation_batch())
-    #trainer.plot_validation()
-    #trainer.plot()
-    plot_models_comparisons(trainer_list)
+    trainer_unet.plot()
+    plot_models_accuracy(trainer_list, show_errors=True)
+    plot_models_residuals_extended(trainer_list)
     plt.show()

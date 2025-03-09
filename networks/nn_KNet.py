@@ -16,6 +16,7 @@ class ConvBlock(nn.Module):
         return x
 
 class KNet(nn.Module):
+    """Same as a UNet network but the final convolution layer is a Kolmogorov Arnold layer"""
     def __init__(self):
         super(KNet, self).__init__()
         

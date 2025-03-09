@@ -212,7 +212,7 @@ def plot_batch(batch, b_name="",same_limits=False):
         d2 = axes[2*(i//8)+1][i%8].imshow(data2, cmap="jet", norm=(LogNorm(vmin=np.min(data2), vmax=np.max(data2)) if not(same_limits) else LogNorm(min_dat1, max_dat1)))
     fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
 
-def plot_batch_correlation(batch, ax=None, bins_number=256):
+def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -220,6 +220,11 @@ def plot_batch_correlation(batch, ax=None, bins_number=256):
     column_density = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
     volume_density = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
     _, _, _,hist = ax.hist2d(column_density, volume_density, bins=(bins_number,bins_number), norm=LogNorm())
+    if show_yx:
+        yx = np.linspace(np.min(column_density), np.max(column_density), 10)
+        plt.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
+        plt.legend()
+
     plt.colorbar(hist, ax=ax)
     fig.tight_layout()
 

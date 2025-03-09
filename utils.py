@@ -18,6 +18,18 @@ def rotate_cube(data_cube, angle, axis):
     """Rotates the cube around a given axis (0=X, 1=Y, 2=Z) by a given angle in degrees."""
     return rotate(data_cube, angle, axes=axis, reshape=False, mode="nearest")
 def compute_pdf(data_slice, bins=100, func=lambda x: np.log(x)/np.log(10), center=False):
+    """
+    Compute the probability density function of a matrix
+
+    Args:
+        data_slice(np array): the matrix
+        bins(int): How many bins
+        func: function applied to the flatten data, like convert to log10 by default
+        center(bool, default:False): Center the bins and pdf to 0
+    
+    Returns:
+        probabilities, edges
+    """
     hist = np.histogram(func(data_slice.flatten()),bins=bins, density=True)
     probabilities = hist[0]
     edges = hist[1]
