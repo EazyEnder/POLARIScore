@@ -2,9 +2,9 @@ import numpy as np
 from config import *
 
 from scipy.ndimage import rotate
-def convert_pc_to_index(pc):
-    return(int(np.floor((pc)/SIM_size*SIM_nres)))
-def compute_column_density(data_cube, axis=0, cell_size=SIM_cell_size):
+def convert_pc_to_index(pc,nres):
+    return(int(np.floor((pc)/nres*nres)))
+def compute_column_density(data_cube,cell_size, axis=0):
     return np.sum(data_cube, axis=axis) * cell_size.value
 def compute_volume_weighted_density(data_cube, axis=0):
     return np.sum(data_cube, axis=axis) / data_cube.shape[0]
@@ -37,6 +37,15 @@ def compute_pdf(data_slice, bins=100, func=lambda x: np.log(x)/np.log(10), cente
         center_i = np.argmax(probabilities)
         edges = edges - (edges[center_i+1]+edges[center_i])/2
     return [probabilities, edges]
+
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """Print a progress bar"""
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    if iteration == total: 
+        print()
 
 def divide_matrix_to_sub(matrix,final_dim=128):
     final_dim = int(2**round(np.log2(final_dim)))

@@ -24,106 +24,6 @@ def compute_img_score(cdens,vdens):
     score += sr1
     return (score,(sm1,sm2,sr1))
 
-def generate_batch(data_cube,method=compute_mass_weighted_density,number=8,size=5,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5])):
-    column_density_xy = compute_column_density(data_cube, axis=0)
-    column_density_xz = compute_column_density(data_cube, axis=1)
-    column_density_yz = compute_column_density(data_cube, axis=2)
-    volume_density_xy = method(data_cube, axis=0)
-    volume_density_xz = method(data_cube, axis=1)
-    volume_density_yz = method(data_cube, axis=2)
-
-    imgs = []
-    scores = []
-    img_generated = 0
-    areas_explored = [[],[],[]]
-    iteration = 0
-    while img_generated < number and iteration < number*100 :
-        iteration += 1
-        if iteration >= number*100:
-            print("Error: failed to generated all the random batches, nbr of img generated:"+str(len(imgs)))
-            break
-
-        random = np.random.random()
-        c_dens = column_density_xy
-        v_dens = volume_density_xy
-        face = 0
-        if random < 1/3:
-            c_dens = column_density_xz
-            v_dens = volume_density_xz
-            face = 1
-        elif random < 2/3:
-            c_dens = column_density_yz
-            v_dens = volume_density_yz
-            face = 2
-
-            
-        
-        limits = limit_area[face]
-        center = np.array([limits[0]+(limits[1]-limits[0])*np.random.random(),limits[2]+(limits[3]-limits[2])*np.random.random()])
-        
-        #Verify if the region is already covered by a previous generated image
-        flag = False
-        for point in areas_explored[face]:
-            if np.linalg.norm(center-point) < 0.75 * size:
-                flag = True
-                break
-        if flag:
-            continue
-        c_x, c_y = center
-        c_x = convert_pc_to_index(c_x)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
-        c_y = convert_pc_to_index(c_y)-int(np.floor(SIM_axis[0][0]/SIM_size*SIM_nres))
-
-        s = int(2**round(np.log2(np.floor(convert_pc_to_index(size)/2)*2)))
-        start_x = c_x - s // 2
-        start_y = c_y - s // 2
-        end_x = c_x + s // 2 + s%2
-        end_y = c_y + s // 2 + s%2
-
-        #If the random area is outside the sim
-        if(start_x < 0 or start_y < 0 or end_x >= SIM_nres or end_y >= SIM_nres):
-            continue
-        cropped_cdens = c_dens[start_x:end_x, start_y:end_y]
-        cropped_vdens = v_dens[start_x:end_x, start_y:end_y]
-
-        #Verify if there is no low density region (outside cloud) inside the area
-        if(((cropped_vdens < 10).sum()) > s*s*0.01):
-            continue
-
-        # Randomly choose a rotation (0, 90, 180, or 270 degrees)
-        rotated_cdens = cropped_cdens
-        rotated_vdens = cropped_vdens
-        if random_rotate:
-            k = np.random.choice([0, 1, 2, 3])
-            rotated_cdens = np.rot90(cropped_cdens, k)
-            rotated_vdens = np.rot90(cropped_vdens, k)
-
-
-        b = (rotated_cdens, rotated_vdens)
-
-        score = compute_img_score(b[0],b[1])
-        if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
-            continue
-
-        imgs.append(b)
-        scores.append(score)
-        areas_explored[face].append(center)
-        img_generated += 1
-    
-    settings = {
-        "SIM_name":SIM_NAME,
-        "method": method.__name__,
-        "img_number": len(imgs),
-        "img_size": size,
-        "areas_explored":str(areas_explored),
-        "scores": str(scores),
-        "scores_fct": inspect.getsourcelines(RANDOM_BATCH_SCORE_fct)[0][0],
-        "scores_offset": str(RANDOM_BATCH_SCORE_offset),
-        "number_goal": number,
-        "iteration": iteration,
-        "random_rotate": random_rotate,
-    }
-    return (imgs,settings)
-
 def split_batch(batch, cutoff=0.7):
     batch = np.array(batch)
     cut_index = int(cutoff * len(batch))
@@ -236,7 +136,7 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 if __name__ == "__main__":
     b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"
     b = open_batch(b_name)
-    #b, settings = generate_batch(DATA, method=compute_mass_weighted_density, number=64)
+    #b, settings = SIMULATION_DATACUBE.generate_batch(method=compute_mass_weighted_density, number=64)
     #save_batch(b, settings)
     plot_batch(b)
     plt.show()

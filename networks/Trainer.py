@@ -231,8 +231,9 @@ class Trainer():
     
 
     def plot_sim_validation(self, plot_total=False):
-        sim_col_dens = compute_column_density(DATA)
-        sim_mass_dens = compute_mass_weighted_density(DATA)
+        #todo, make it save in the sim object for no need to recompute
+        sim_col_dens = compute_column_density(SIMULATION_DATACUBE.data)
+        sim_mass_dens = compute_mass_weighted_density(SIMULATION_DATACUBE.data)
         raw_sim_batch =  [(sim_col_dens,sim_mass_dens)]
         d_m_s_col = divide_matrix_to_sub(sim_col_dens)
         d_m_s_mass = divide_matrix_to_sub(sim_mass_dens)
