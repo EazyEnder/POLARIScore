@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from networks.utils.fastkanconv import FastKANConvLayer
+from nn_UNet import ConvBlock
 
-class ConvBlock(nn.Module):
+class KanConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(ConvBlock, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        super(KanConvBlock, self).__init__()
+        self.conv1 = FastKANConvLayer(in_channels, out_channels, kernel_size=3, padding=1)
         #self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
         self.bn = nn.BatchNorm2d(out_channels)
     
@@ -17,32 +18,34 @@ class ConvBlock(nn.Module):
 
 class KNet(nn.Module):
     """Same as a UNet network but the final convolution layer is a Kolmogorov Arnold layer"""
-    def __init__(self):
+    def __init__(self, convBlock=ConvBlock):
         super(KNet, self).__init__()
+
+        self.convBlock = convBlock
         
         # Encoder (Downsampling)
-        self.enc1 = ConvBlock(1, 64)
-        self.enc2 = ConvBlock(64, 128)
-        self.enc3 = ConvBlock(128, 256)
-        self.enc4 = ConvBlock(256, 512)
+        self.enc1 = convBlock(1, 64)
+        self.enc2 = convBlock(64, 128)
+        self.enc3 = convBlock(128, 256)
+        self.enc4 = convBlock(256, 512)
         
         self.pool = nn.MaxPool2d(2, 2)
         
         # Bottleneck
-        self.bottleneck = ConvBlock(512, 1024)
+        self.bottleneck = convBlock(512, 1024)
         
         # Decoder (Upsampling + Nested Skip Connections)
         self.upconv4 = nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2)
-        self.dec4 = ConvBlock(1024, 512)  # Skip connection from enc4
+        self.dec4 = convBlock(1024, 512)  # Skip connection from enc4
         
         self.upconv3 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
-        self.dec3 = ConvBlock(512, 256)  # Skip connection from enc3
+        self.dec3 = convBlock(512, 256)  # Skip connection from enc3
         
         self.upconv2 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
-        self.dec2 = ConvBlock(256, 128)  # Skip connection from enc2
+        self.dec2 = convBlock(256, 128)  # Skip connection from enc2
         
         self.upconv1 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
-        self.dec1 = ConvBlock(128, 64)  # Skip connection from enc1
+        self.dec1 = convBlock(128, 64)  # Skip connection from enc1
         
         # Output layer
         #self.final_conv = nn.Conv2d(64, 1, kernel_size=1)
@@ -67,3 +70,7 @@ class KNet(nn.Module):
         # Output
         out = self.final_conv(x_d1)
         return out
+
+class FullKNet(KNet):
+    def __init__(self):
+        super(FullKNet, self).__init__(convBlock=KanConvBlock)

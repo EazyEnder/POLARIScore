@@ -37,3 +37,24 @@ def compute_pdf(data_slice, bins=100, func=lambda x: np.log(x)/np.log(10), cente
         center_i = np.argmax(probabilities)
         edges = edges - (edges[center_i+1]+edges[center_i])/2
     return [probabilities, edges]
+
+def divide_matrix_to_sub(matrix,final_dim=128):
+    final_dim = int(2**round(np.log2(final_dim)))
+    img_number = int(matrix.shape[0]/final_dim)
+    imgs = []
+    for i in range(img_number):
+        for j in range(img_number):
+            imgs.append(matrix[i*final_dim:(i+1)*final_dim,j*final_dim:(j+1)*final_dim])
+    return imgs
+
+def group_matrix(mats):
+    grid_size = int(np.sqrt(len(mats)))
+    final_dim = len(mats[0])
+    new_mat_shape = final_dim * grid_size
+    result = np.zeros((new_mat_shape, new_mat_shape))
+    for idx, mat in enumerate(mats):
+        row_idx = idx // grid_size
+        col_idx = idx % grid_size
+        result[row_idx * final_dim: (row_idx + 1) * final_dim,
+               col_idx * final_dim: (col_idx + 1) * final_dim] = np.array(mat)
+    return result

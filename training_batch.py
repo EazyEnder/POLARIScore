@@ -197,9 +197,11 @@ def open_batch(batch_name):
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-def plot_batch(batch, b_name="",same_limits=False):
+def plot_batch(batch, b_name="",same_limits=True, number_per_row = 8):
     batch_nbr = len(batch)
-    fig, axes = plt.subplots(int(2*np.ceil(batch_nbr/8)),8)
+    fig, axes = plt.subplots(int(2*np.ceil(batch_nbr/number_per_row)),number_per_row)
+    if number_per_row==1:
+        axes = [[axes[0]],[axes[1]]]
     fig.suptitle(b_name)
     for i in range(batch_nbr):
         data1 = batch[i][0]
@@ -208,9 +210,11 @@ def plot_batch(batch, b_name="",same_limits=False):
         #axes[2*(i//8)][i%8].set_title(str(np.round(score[0],3)))
         min_dat1 = np.min(data1)
         max_dat1 = np.max(data1) 
-        d1 = axes[2*(i//8)][i%8].imshow(data1, cmap="jet", norm=LogNorm(vmin=np.min(data1), vmax=np.max(data1)))
-        d2 = axes[2*(i//8)+1][i%8].imshow(data2, cmap="jet", norm=(LogNorm(vmin=np.min(data2), vmax=np.max(data2)) if not(same_limits) else LogNorm(min_dat1, max_dat1)))
+        d1 = axes[2*(i//number_per_row)][i%number_per_row].imshow(data1, cmap="jet", norm=LogNorm(vmin=np.min(data1), vmax=np.max(data1)))
+        d2 = axes[2*(i//number_per_row)+1][i%number_per_row].imshow(data2, cmap="jet", norm=(LogNorm(vmin=np.min(data2), vmax=np.max(data2)) if not(same_limits) else LogNorm(min_dat1, max_dat1)))
     fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
+
+    return fig, axes
 
 def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     if ax is None:
@@ -227,6 +231,7 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 
     plt.colorbar(hist, ax=ax)
     fig.tight_layout()
+    
 
 if __name__ == "__main__":
     b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"

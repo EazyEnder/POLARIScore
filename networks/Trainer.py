@@ -13,7 +13,7 @@ from config import *
 import uuid
 from nn_UNet import UNet
 from nn_FCN import FCN
-from nn_KNet import KNet
+from nn_KNet import FullKNet, KNet
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
 
@@ -35,6 +35,8 @@ class Trainer():
             self.training_batch = open_batch(training_batch_name)
         if not(validation_batch_name is None or validation_batch_name=="None"):
             self.validation_batch_name = open_batch(validation_batch_name)
+
+        self.prediction_batch = None
 
 
         self.network = network
@@ -141,11 +143,17 @@ class Trainer():
         
         return fig, ax
 
-    def get_validation_batch(self):
+    def get_prediction_batch(self,force_compute=False):
         """
+        Args:
+            force_compute(bool): If trainer has already a prediction batch computed then if this is True, this will be computed again.
         Returns:
-            validation_batch:[(target_img1, prediction_img1), (target_img2, prediction_img2), ...]
+            prediction_batch:[(target_img1, prediction_img1), (target_img2, prediction_img2), ...]
         """
+
+        if not(self.prediction_batch is None or force_compute):
+            return self.prediction_batch
+
         self.model.eval()
         validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
@@ -153,6 +161,8 @@ class Trainer():
 
         validation_target_tensor, validation_output = validation_target_tensor.cpu().detach().numpy(), validation_output.cpu().detach().numpy()
         validation_batch = rebuild_batch(np.exp(validation_target_tensor[:,0,:,:]), np.exp(validation_output[:,0,:,:]))
+
+        self.prediction_batch = validation_batch
     
         return validation_batch
 
@@ -160,7 +170,7 @@ class Trainer():
         """
         Show target and model prediction images
         """
-        plot_batch(self.get_validation_batch(), same_limits=True)
+        plot_batch(self.get_prediction_batch(), same_limits=True)
 
     def plot_residuals(self, ax, plot_distribution=True, color="blue", bins_inter=(None,None)):
         """
@@ -177,10 +187,10 @@ class Trainer():
         """
 
         if ax is None:
-                    fig, ax = plt.subplots()
+            fig, ax = plt.subplots()
         else:
             fig = ax.figure
-        batch = self.get_validation_batch()
+        batch = self.get_prediction_batch()
         d_target = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
         d_prediction = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
 
@@ -208,6 +218,56 @@ class Trainer():
         ax.grid(True, linestyle="--", alpha=0.5)
 
         return fig, ax
+    
+    def predict(self, batch):
+        self.model.eval()
+        input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
+        target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
+        output = self.model(input_tensor)
+
+        target_tensor, output = target_tensor.cpu().detach().numpy(), output.cpu().detach().numpy()
+        result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:]), np.exp(output[:,0,:,:]))
+        return result_batch
+    
+
+    def plot_sim_validation(self, plot_total=False):
+        sim_col_dens = compute_column_density(DATA)
+        sim_mass_dens = compute_mass_weighted_density(DATA)
+        raw_sim_batch =  [(sim_col_dens,sim_mass_dens)]
+        d_m_s_col = divide_matrix_to_sub(sim_col_dens)
+        d_m_s_mass = divide_matrix_to_sub(sim_mass_dens)
+        divided_sim_batch = rebuild_batch(d_m_s_col, d_m_s_mass)
+        pred_raw_batch = self.predict(raw_sim_batch)
+        pred_divided_batch = self.predict(divided_sim_batch)
+
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6), gridspec_kw={'width_ratios': [1, 1]})
+        fig.suptitle("Simulation Validation")
+
+        raw_fig, raw_axes = plot_batch(pred_raw_batch, number_per_row=1, same_limits=True)
+        raw_axes = np.array(raw_axes).flatten()
+
+        divided_fig, divided_axes = plot_batch(rebuild_batch([group_matrix([p[0] for p in pred_divided_batch])],[group_matrix([p[1] for p in pred_divided_batch])]), number_per_row=1, same_limits=True)
+        divided_axes = np.array(divided_axes).flatten()
+
+        if plot_total:
+            raw_fig.canvas.draw()
+            raw_axes_image = np.array(raw_fig.canvas.renderer.buffer_rgba())
+
+            divided_fig.canvas.draw()
+            divided_axes_image = np.array(divided_fig.canvas.renderer.buffer_rgba())
+
+            axes[0].imshow(raw_axes_image)
+            axes[0].set_title("Raw Data")
+            axes[0].axis("off")
+
+            axes[1].imshow(divided_axes_image)
+            axes[1].set_title("Divided Data")
+            axes[1].axis("off")
+        else:
+            fig = None
+
+        #line = plt.Line2D([0.5, 0.5], [0, 1], transform=fig.transFigure, color="black", linewidth=2)
+        #fig.add_artist(line)
 
     def plot(self):
         """
@@ -215,7 +275,7 @@ class Trainer():
         """
         plt.figure()
         plt.suptitle(self.model_name)
-        batch = self.get_validation_batch()
+        batch = self.get_prediction_batch()
         plt.subplot(2,2,1)
         ax1 = plt.subplot(2,2,1)
         plot_batch_correlation(batch, ax=ax1)
@@ -284,7 +344,7 @@ class Trainer():
 
         return True
 
-def load_trainer(model_name):
+def load_trainer(model_name, load_model=True):
 
     model_path = os.path.join(MODEL_FOLDER, model_name)
     if(not(os.path.exists(model_path))):
@@ -300,6 +360,7 @@ def load_trainer(model_name):
     network_options = {"UNet" : UNet,
            "FCN" : FCN,
            "KNet" : KNet,
+           "FullKNet": FullKNet,
            "None": None
     }
     trainer.network = network_options[settings["network"]]
@@ -308,11 +369,14 @@ def load_trainer(model_name):
     trainer.training_losses = settings["training_losses"]
     trainer.validation_losses = settings["validation_losses"]
 
-    model = trainer.network()
-    model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
-    model.to(trainer.device)
-    model.eval()
-    trainer.init(model=model)
+    print(trainer.network)
+
+    if load_model:
+        model = trainer.network()
+        model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
+        model.to(trainer.device)
+        model.eval()
+        trainer.init(model=model)
 
     return trainer
 
@@ -325,7 +389,7 @@ def plot_models_residuals(trainers = [], ax=None):
     models_residuals = []
     models_targets = []
     for t in trainers:
-        batch = t.get_validation_batch()
+        batch = t.get_prediction_batch()
         d_target = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
         d_prediction = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
         models_residuals.append(d_prediction-d_target)
@@ -355,7 +419,7 @@ def plot_models_residuals(trainers = [], ax=None):
 def plot_models_residuals_extended(trainers = []):
     plt.figure()
 
-    ax1 = plt.subplot(len(trainers),2, (1,len(trainers)))
+    ax1 = plt.subplot2grid((len(trainers), 2), (0, 0), rowspan=len(trainers))
     _,_, colors = plot_models_residuals(trainers=trainers, ax=ax1)
     ax1.set_title("Comparison of different models")
 
@@ -380,7 +444,7 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
         accuracies = []
         accuracies_error = []
         for s in sigmas:
-            acc_mean, acc_std = compute_batch_accuracy(t.get_validation_batch(),sigma=s)
+            acc_mean, acc_std = compute_batch_accuracy(t.get_prediction_batch(),sigma=s)
             accuracies.append(acc_mean)
             accuracies_error.append(acc_std)
         accuracies = np.array(accuracies)
@@ -405,24 +469,29 @@ if __name__ == "__main__":
     trainer_knet = load_trainer("KNet")
     trainer_unet = load_trainer("UNet")
     trainer_knet_customloss = load_trainer("KNet_customloss")
+    trainer_fcn = load_trainer("FCN")
+    #trainer_fullknet = load_trainer("FullKNet")
 
-    trainer_list = [trainer_unet,trainer_knet,trainer_knet_customloss]
+    trainer_list = [trainer_fcn,trainer_unet,trainer_knet,trainer_knet_customloss]
     for t in trainer_list:
         t.training_batch = trainer_batch
         t.validation_batch = validation_b
-    #trainer = Trainer(KNet, train_b, validation_b)
-    #trainer.model_name = "test_kan_cutoffbatch"
 
     def custom_loss(output, target):
         weights = torch.ones_like(target)      
-        return torch.mean((output - target) ** 2)+torch.var((output - target) ** 2)
+        return torch.mean((output - target) ** 2)
     
+    
+    #trainer = Trainer(KNet, trainer_batch, validation_b)
+    #trainer.model_name = "FullKNet"
     #trainer.loss_method = custom_loss
-
     #trainer.train(500)
     #trainer.save()
 
-    trainer_unet.plot()
-    plot_models_accuracy(trainer_list, show_errors=True)
-    plot_models_residuals_extended(trainer_list)
+    trainer_knet.plot_sim_validation()
+
+    #trainer_knet.plot()
+    #trainer_knet.plot_validation()
+    #plot_models_accuracy(trainer_list, show_errors=True)
+    #plot_models_residuals_extended(trainer_list)
     plt.show()
