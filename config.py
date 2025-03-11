@@ -1,14 +1,11 @@
 import os
 import numpy as np
-from objects.Simulation_DC import DataCube_Simulation
 
 """
 This file contains all utils variables, like for simulation, plots...
 """
 SIM_DATA_NAME = "datacube.fits"
 """Name of the file where the simulation data is stored"""
-
-SIMULATION_DATACUBE = DataCube_Simulation(name="orionMHD_lowB_0.39_512", global_size=66.0948)
 
 EXPORT_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"export/")
 """Where all the objects saves are stored (ex: models, training_batchs)"""
@@ -26,3 +23,6 @@ import matplotlib.cm as cm
 FIGURE_CMAP = cm.Dark2
 FIGURE_CMAP_MIN = 0.
 FIGURE_CMAP_MAX = 1.0
+
+from Logger import Logger
+LOGGER = Logger(level=2, auto_save=0)

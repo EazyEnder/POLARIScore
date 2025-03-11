@@ -1,5 +1,4 @@
 import numpy as np
-from config import *
 
 from scipy.ndimage import rotate
 def convert_pc_to_index(pc,nres):

@@ -29,7 +29,7 @@ class Simulation_DC():
         """Simulatio name, name of the folder where the sim is in"""
         self.global_size = global_size
         """Real spatial size of the global simulation in parsec"""
-        self.folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),"sims/"+name+"/")
+        self.folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../sims/"+name+"/")
         """Path to the folder where the simulation is stored"""
         self.file = os.path.join(self.folder,SIM_DATA_NAME)
         """Path to the simulation data"""
@@ -121,7 +121,7 @@ class Simulation_DC():
         while img_generated < number and iteration < number*100 :
             iteration += 1
             if iteration >= number*100:
-                print("Error: failed to generated all the random batches, nbr of img generated:"+str(len(imgs)))
+                LOGGER.error("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
                 break
 
             random = np.random.random()

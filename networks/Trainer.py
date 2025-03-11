@@ -18,10 +18,14 @@ from networks.utils.nn_utils import compute_batch_accuracy
 import json
 
 class Trainer():
-    def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001):
+    def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001,model_name=None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.model_name = str(uuid.uuid4())
+        self.model_name = model_name
+        if model_name is None:
+            self.model_name = str(uuid.uuid4())
+
+        LOGGER.log(f"{self.device} is used for {self.model_name}")
         
         self.network_type = "None"
         if not(network is None):
@@ -65,6 +69,7 @@ class Trainer():
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
+        LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
         return False
 
     def train(self, epoch_number=50, compute_validation=10):
@@ -76,6 +81,7 @@ class Trainer():
             compute_validation(int, default:10): compute validation losses each x epochs.
 
         """
+        LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type}")
 
         training_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         training_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
@@ -101,7 +107,7 @@ class Trainer():
                 v_loss = self.loss_method(validation_output,validation_target_tensor).item()
                 self.validation_losses.append((total_epoch,v_loss))
                 self.model.train()
-            print(f'Epoch {total_epoch}/{self.last_epoch + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}')
+            LOGGER.print(f'Epoch {total_epoch}/{self.last_epoch + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
@@ -230,10 +236,9 @@ class Trainer():
         return result_batch
     
 
-    def plot_sim_validation(self, plot_total=False):
-        #todo, make it save in the sim object for no need to recompute
-        sim_col_dens = compute_column_density(SIMULATION_DATACUBE.data)
-        sim_mass_dens = compute_mass_weighted_density(SIMULATION_DATACUBE.data)
+    def plot_sim_validation(self, simulation, plot_total=False):
+        sim_col_dens = simulation._compute_c_density()
+        sim_mass_dens = simulation._compute_v_density(method=compute_mass_weighted_density)
         raw_sim_batch =  [(sim_col_dens,sim_mass_dens)]
         d_m_s_col = divide_matrix_to_sub(sim_col_dens)
         d_m_s_mass = divide_matrix_to_sub(sim_mass_dens)
@@ -343,20 +348,22 @@ class Trainer():
         with open(os.path.join(model_path,'settings.json'), 'w') as file:
             json.dump(settings, file, indent=4)
 
+        LOGGER.log(f"{self.model_name} saved")
+
         return True
 
 def load_trainer(model_name, load_model=True):
 
     model_path = os.path.join(MODEL_FOLDER, model_name)
     if(not(os.path.exists(model_path))):
+        LOGGER.error(f"Can't load {model_name}, file {model_path} doesn't exist.")
         return
     
     settings = {}
     with open(os.path.join(model_path,'settings.json')) as file:
         settings = json.load(file)
     
-    trainer = Trainer(validation_batch_name=settings["validation_batch"] if "validation_batch" in settings else None,training_batch_name=settings["training_batch"] if "training_batch" in settings else None)
-    trainer.model_name = settings["model_name"]
+    trainer = Trainer(model_name=settings["model_name"],validation_batch_name=settings["validation_batch"] if "validation_batch" in settings else None,training_batch_name=settings["training_batch"] if "training_batch" in settings else None)
 
     network_options = {"UNet" : UNet,
            "FCN" : FCN,
@@ -364,13 +371,12 @@ def load_trainer(model_name, load_model=True):
            "FullKNet": FullKNet,
            "None": None
     }
+    trainer.network_type = settings["network"]
     trainer.network = network_options[settings["network"]]
     trainer.learning_rate = float(settings["learning_rate"])
     trainer.last_epoch = int(settings["total_epoch"])
     trainer.training_losses = settings["training_losses"]
     trainer.validation_losses = settings["validation_losses"]
-
-    print(trainer.network)
 
     if load_model:
         model = trainer.network()
@@ -378,6 +384,8 @@ def load_trainer(model_name, load_model=True):
         model.to(trainer.device)
         model.eval()
         trainer.init(model=model)
+
+    LOGGER.log(f"{model_name} loaded")
 
     return trainer
 
@@ -489,7 +497,9 @@ if __name__ == "__main__":
     #trainer.train(500)
     #trainer.save()
 
-    trainer_knet.plot_sim_validation()
+    from objects.Simulation_DC import Simulation_DC
+    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    trainer_knet.plot_sim_validation(sim)
 
     #trainer_knet.plot()
     #trainer_knet.plot_validation()

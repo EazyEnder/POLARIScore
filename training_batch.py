@@ -1,5 +1,5 @@
 import os
-from config import *
+from config import TRAINING_BATCH_FOLDER
 import inspect
 import uuid
 import json
@@ -136,6 +136,7 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 if __name__ == "__main__":
     b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"
     b = open_batch(b_name)
+    #sim = DataCube_Simulation(name="orionMHD_lowB_0.39_512", global_size=66.0948)
     #b, settings = SIMULATION_DATACUBE.generate_batch(method=compute_mass_weighted_density, number=64)
     #save_batch(b, settings)
     plot_batch(b)
