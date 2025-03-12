@@ -1,8 +1,8 @@
 import numpy as np
 
 from scipy.ndimage import rotate
-def convert_pc_to_index(pc,nres):
-    return(int(np.floor((pc)/nres*nres)))
+def convert_pc_to_index(pc,nres,size,start=0):
+    return(int(np.floor((pc-start)/(size)*nres)))
 def compute_column_density(data_cube,cell_size, axis=0):
     return np.sum(data_cube, axis=axis) * cell_size.value
 def compute_volume_weighted_density(data_cube, axis=0):

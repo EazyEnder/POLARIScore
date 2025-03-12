@@ -14,7 +14,7 @@ class ConvBlock(nn.Module):
         return x
 
 class FCN(nn.Module):
-    def __init__(self):
+    def __init__(self, **kwargs):
         super(FCN, self).__init__()
         
         # Encoder (Downsampling)

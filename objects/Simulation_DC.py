@@ -68,8 +68,7 @@ class Simulation_DC():
 
         with open(os.path.join(self.folder,"processing_config.json"), "r") as file:
             self.header = json.load(file)
-        self.nres = self.header
-        self.nres = self.header["run_parameters"]["nres"]
+        self.nres = self.header["run_parameters"]["nres"] if "nres" in self.header["run_parameters"] else self.header["run_parameters"]["nxyz"]
         self.relative_size = self.header["run_parameters"]["size"]
         self.center = np.array([self.header["run_parameters"]["xcenter"],self.header["run_parameters"]["ycenter"],self.header["run_parameters"]["zcenter"]])
         self.cell_size = (self.global_size*self.relative_size/self.nres) * u.parsec
@@ -106,6 +105,9 @@ class Simulation_DC():
         Returns:
             tuple: (batch,settings) where settings is a log dict.
         """
+
+        LOGGER.log(f"Generate {number} images using simulation {self.name}.")
+
         column_density_xy = self._compute_c_density(axis=0)
         column_density_xz = self._compute_c_density(axis=1)
         column_density_yz = self._compute_c_density(axis=2)
@@ -121,7 +123,7 @@ class Simulation_DC():
         while img_generated < number and iteration < number*100 :
             iteration += 1
             if iteration >= number*100:
-                LOGGER.error("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
+                LOGGER.warn("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
                 break
 
             random = np.random.random()
@@ -140,6 +142,8 @@ class Simulation_DC():
                 
             
             limits = limit_area[face]
+            if limits is None:
+                limits = [0,self.global_size,0,self.global_size]
             center = np.array([limits[0]+(limits[1]-limits[0])*np.random.random(),limits[2]+(limits[3]-limits[2])*np.random.random()])
             
             #Verify if the region is already covered by a previous generated image
@@ -151,16 +155,17 @@ class Simulation_DC():
             if flag:
                 continue
             c_x, c_y = center
-            c_x = convert_pc_to_index(c_x)-int(np.floor(self.axis[0][0]/self.size*self.nres))
-            c_y = convert_pc_to_index(c_y)-int(np.floor(self.axis[0][0]/self.size*self.nres))
+            c_x = convert_pc_to_index(c_x, self.nres,self.size,start=self.axis[0][0])
+            c_y = convert_pc_to_index(c_y, self.nres,self.size,start=self.axis[0][0])
 
-            s = int(2**round(np.log2(np.floor(convert_pc_to_index(size)/2)*2)))
+            s = int(2**round(np.log2(np.floor(convert_pc_to_index(size, self.nres, self.size)/2)*2)))
             if force_size > 0:
                 s = int(force_size)
             start_x = c_x - s // 2
             start_y = c_y - s // 2
             end_x = c_x + s // 2 + s%2
             end_y = c_y + s // 2 + s%2
+
 
             #If the random area is outside the sim
             if(start_x < 0 or start_y < 0 or end_x >= self.nres or end_y >= self.nres):
@@ -191,6 +196,18 @@ class Simulation_DC():
             scores.append(score)
             areas_explored[face].append(center)
             img_generated += 1
+        
+        random_idx = np.random.permutation(len(imgs))
+        r_imgs = []
+        for r_id in random_idx:
+            r_imgs.append(imgs[r_id])
+        imgs = r_imgs
+        r_scores = []
+        for r_id in random_idx:
+            r_scores.append(imgs[r_id])
+        imgs = r_imgs
+        scores = r_scores
+        
         
         settings = {
             "SIM_name":self.name,

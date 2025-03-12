@@ -2,6 +2,7 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
+from sympy import limit_seq
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,7 +12,7 @@ import matplotlib.pyplot as plt
 from training_batch import *
 from config import *
 import uuid
-from nn_UNet import UNet
+from nn_UNet import *
 from nn_FCN import FCN
 from nn_KNet import FullKNet, KNet
 from networks.utils.nn_utils import compute_batch_accuracy
@@ -44,13 +45,15 @@ class Trainer():
 
 
         self.network = network
+        self.network_settings ={}
+
         self.model = None
         self.optimizer = None
         self.scheduler = None
         
 
         if not(self.network is None):
-            self.model = network().to(self.device)
+            self.model = network(**self.network_settings).to(self.device)
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
@@ -60,10 +63,10 @@ class Trainer():
         self.last_epoch = 0
 
     def init(self, model=None):
-        if self.network or not(model is None):
+        if not(self.network is None) or not(model is None):
             self.network_type = self.network.__name__
             if model is None:
-                self.model = self.network().to(self.device)
+                self.model = self.network(**self.network_settings).to(self.device)
             else:
                 self.model = model
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
@@ -72,7 +75,7 @@ class Trainer():
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
         return False
 
-    def train(self, epoch_number=50, compute_validation=10):
+    def train(self, epoch_number=50, compute_validation=10, auto_stop=0., auto_stop_min_loss=2.):
         """
         Train the model (check trainer variables for settings)
 
@@ -91,6 +94,7 @@ class Trainer():
         self.model.train()
 
         total_epoch = self.last_epoch
+        break_flag = False
         for epoch in range(epoch_number):
             total_epoch += 1
             self.optimizer.zero_grad()
@@ -107,7 +111,11 @@ class Trainer():
                 v_loss = self.loss_method(validation_output,validation_target_tensor).item()
                 self.validation_losses.append((total_epoch,v_loss))
                 self.model.train()
+                if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
+                    break_flag = True
             LOGGER.print(f'Epoch {total_epoch}/{self.last_epoch + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+            if break_flag:
+                break
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
@@ -206,6 +214,19 @@ class Trainer():
         bin_centers = (bins[:-1] + bins[1:]) / 2 
         bin_indices = np.digitize(d_target, bins) - 1 
         binned_residuals = [residuals[bin_indices == i] for i in range(violin_num_bins)]
+
+        re_bin_centers = []
+        re_binned_residuals = []
+        mean_residuals = []
+        for i, res in enumerate(binned_residuals):
+            if res.size <= 0:
+                continue
+            re_bin_centers.append(bin_centers[i])
+            re_binned_residuals.append(res)
+            mean_residuals.append(np.mean(residuals[bin_indices == i]))
+        bin_centers = re_bin_centers
+        binned_residuals = re_binned_residuals
+
         if plot_distribution:
             vp = ax.violinplot(binned_residuals, positions=bin_centers, showmeans=False, showmedians=True)
             for i, body in enumerate(vp['bodies']):
@@ -214,7 +235,6 @@ class Trainer():
             for part in ['cbars', 'cmins', 'cmaxes', 'cmedians']:
                 vp[part].set_edgecolor('black')
                 vp[part].set_linewidth(1.0)
-        mean_residuals = [np.mean(residuals[bin_indices == i]) for i in range(violin_num_bins)]
         ax.axhline(0, color='red', linestyle='--')
         ax.plot(bin_centers, mean_residuals, marker='o', linestyle='-', color='black', alpha=0.7)
 
@@ -234,7 +254,6 @@ class Trainer():
         target_tensor, output = target_tensor.cpu().detach().numpy(), output.cpu().detach().numpy()
         result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:]), np.exp(output[:,0,:,:]))
         return result_batch
-    
 
     def plot_sim_validation(self, simulation, plot_total=False):
         sim_col_dens = simulation._compute_c_density()
@@ -331,9 +350,13 @@ class Trainer():
         except AttributeError:
             loss_method_name = "Custom"
 
+        if "convBlock" in self.network_settings:
+            self.network_settings["convBlock"] = self.network_settings["convBlock"].__name__
+
         settings = {
             "model_name": self.model_name,
             "network": self.network_type,
+            "network_settings": self.network_settings,
             "loss_method": loss_method_name,
             "optimizer": str(type(self.optimizer)),
             "learning_rate": str(self.learning_rate),
@@ -371,7 +394,13 @@ def load_trainer(model_name, load_model=True):
            "FullKNet": FullKNet,
            "None": None
     }
+    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock}
+    network_settings = settings["network_settings"] if "network_settings" in settings else {}
+    if "convBlock" in network_settings:
+        network_settings["convBlock"] = network_convblock_options[network_settings["convBlock"]]
+
     trainer.network_type = settings["network"]
+    trainer.network_settings = settings["network_settings"] if "network_settings" in settings else {}
     trainer.network = network_options[settings["network"]]
     trainer.learning_rate = float(settings["learning_rate"])
     trainer.last_epoch = int(settings["total_epoch"])
@@ -379,7 +408,7 @@ def load_trainer(model_name, load_model=True):
     trainer.validation_losses = settings["validation_losses"]
 
     if load_model:
-        model = trainer.network()
+        model = trainer.network(**trainer.network_settings)
         model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
         model.to(trainer.device)
         model.eval()
@@ -469,40 +498,38 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
     plt.tight_layout()
 
 if __name__ == "__main__":
-    #batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    #train_b, validation_b = split_batch(batch, cutoff=0.7)
+    batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
+    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
 
-    trainer_batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    validation_b = open_batch("batch_92b49d92-369a-45a0-b4eb-385658b05f41")
-    
-    trainer_knet = load_trainer("KNet")
-    trainer_unet = load_trainer("UNet")
-    trainer_knet_customloss = load_trainer("KNet_customloss")
-    trainer_fcn = load_trainer("FCN")
-    #trainer_fullknet = load_trainer("FullKNet")
-
-    trainer_list = [trainer_fcn,trainer_unet,trainer_knet,trainer_knet_customloss]
+    trainer_list = [load_trainer("KNet"), load_trainer("KNet_32"), load_trainer("UNet"), load_trainer("UNet_32")]
     for t in trainer_list:
-        t.training_batch = trainer_batch
-        t.validation_batch = validation_b
+        t.training_batch = train_batch
+        t.validation_batch = validation_batch
 
     def custom_loss(output, target):
-        weights = torch.ones_like(target)      
-        return torch.mean((output - target) ** 2)
-    
-    
-    #trainer = Trainer(KNet, trainer_batch, validation_b)
-    #trainer.model_name = "FullKNet"
+        weights = target.clone()/torch.max(target)
+        return torch.mean(weights*(output - target) ** 2)
+
+    """    
+    trainer = Trainer(KNet, train_batch, validation_batch, model_name="KNet_32ResConv")
+    trainer.network_settings["base_filters"] = 32
+    trainer.network_settings["convBlock"] = ResConvBlock
+    trainer.network_settings["num_layers"] = 6
     #trainer.loss_method = custom_loss
-    #trainer.train(500)
-    #trainer.save()
+    trainer.init()
+    trainer.train(500)
+    trainer.save()
+    trainer_list.append(trainer)"
+    """
 
-    from objects.Simulation_DC import Simulation_DC
-    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    trainer_knet.plot_sim_validation(sim)
+    """from objects.Simulation_DC import Simulation_DC
+    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    #sim_MHD.plot_correlation(method=compute_mass_weighted_density)
+    #sim_HD.plot_correlation(method=compute_mass_weighted_density)
+    #sim_HD.generate_batch(,number=64,force_size=128,)
+    #sim_HD.plot()"""
 
-    #trainer_knet.plot()
-    #trainer_knet.plot_validation()
-    #plot_models_accuracy(trainer_list, show_errors=True)
-    #plot_models_residuals_extended(trainer_list)
+    plot_models_accuracy(trainer_list, show_errors=True)
+    plot_models_residuals_extended(trainer_list)
     plt.show()

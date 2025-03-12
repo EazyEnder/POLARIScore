@@ -1,5 +1,7 @@
 import os
-from config import TRAINING_BATCH_FOLDER
+
+from sympy import limit_seq
+from config import LOGGER, TRAINING_BATCH_FOLDER
 import inspect
 import uuid
 import json
@@ -56,6 +58,8 @@ def save_batch(batch, settings):
         np.save(os.path.join(batch_path,str(i)+"_cdens.npy"), cdens)
         np.save(os.path.join(batch_path,str(i)+"_vdens.npy"), vdens)
 
+    LOGGER.log(f"batch with {len(batch)} images saved.")
+
     return True
 
 def rebuild_batch(cdens, vdens):
@@ -91,7 +95,19 @@ def open_batch(batch_name):
         check_ids.append(ids[i])
         imgs.append((np.load(os.path.join(batch_path,file_c)),np.load(os.path.join(batch_path,file_v))))
     return imgs
-    
+
+def mix_batch(batch1, batch2, settings1=None, settings2=None,randomized=True):
+    batch = batch1
+    batch.extend(batch2)
+    r_imgs = []
+    for r_id in np.random.permutation(len(batch)):
+        r_imgs.append(batch[r_id])
+    batch = r_imgs
+    if settings1 is None or settings2 is None:
+        return batch, settings1
+    #mix the 2 settings dict
+    settings = None
+    return batch, settings
     
 
 import matplotlib.pyplot as plt
@@ -136,8 +152,19 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 if __name__ == "__main__":
     b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"
     b = open_batch(b_name)
-    #sim = DataCube_Simulation(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+
+    from objects.Simulation_DC import Simulation_DC
+
+    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    
+    bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
+    bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
+    final_b, _ = mix_batch(bHD,bMHD)
+    save_batch(final_b, settingsMHD)
+
     #b, settings = SIMULATION_DATACUBE.generate_batch(method=compute_mass_weighted_density, number=64)
     #save_batch(b, settings)
-    plot_batch(b)
+    #plot_batch(b)
+
     plt.show()
