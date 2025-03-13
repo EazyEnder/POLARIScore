@@ -17,7 +17,6 @@ from nn_FCN import FCN
 from nn_KNet import FullKNet, KNet
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
-
 class Trainer():
     def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001,model_name=None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,15 +88,32 @@ class Trainer():
         training_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         training_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        
+        validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)        
         self.model.train()
+
+        def random_transform(tensors_input, tensors_target):
+            k = torch.randint(0, 4, (1,)).item()
+            tensors_input = torch.rot90(tensors_input, k, [2, 3])
+            tensors_target = torch.rot90(tensors_target, k, [2, 3])
+
+            # Apply random vertical flip
+            if torch.rand(1).item() > 0.5:
+                tensors_input = torch.flip(tensors_input, [2])
+                tensors_target = torch.flip(tensors_target, [2])
+
+            # Apply random horizontal flip
+            if torch.rand(1).item() > 0.5:
+                tensors_input = torch.flip(tensors_input, [3])
+                tensors_target = torch.flip(tensors_target, [3])
+
+            return tensors_input, tensors_target
 
         total_epoch = self.last_epoch
         break_flag = False
         for epoch in range(epoch_number):
             total_epoch += 1
             self.optimizer.zero_grad()
+            #training_input_tensor, training_target_tensor = random_transform(training_input_tensor, training_target_tensor)
             output = self.model(training_input_tensor)
             loss = self.loss_method(output, training_target_tensor)
             loss.backward()
@@ -499,28 +515,28 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
 
 if __name__ == "__main__":
     batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
+    train_batch = batch
+    validation_batch = open_batch("batch_92b49d92-369a-45a0-b4eb-385658b05f41")
 
-    trainer_list = [load_trainer("KNet"), load_trainer("KNet_32"), load_trainer("UNet"), load_trainer("UNet_32")]
+    trainer_knet = load_trainer("KNet")
+
+    trainer_list = [trainer_knet]
     for t in trainer_list:
         t.training_batch = train_batch
         t.validation_batch = validation_batch
 
     def custom_loss(output, target):
         weights = target.clone()/torch.max(target)
-        return torch.mean(weights*(output - target) ** 2)
+        return nn.HuberLoss()(output,target)+torch.mean((output - target) ** 2)
 
-    """    
-    trainer = Trainer(KNet, train_batch, validation_batch, model_name="KNet_32ResConv")
-    trainer.network_settings["base_filters"] = 32
-    trainer.network_settings["convBlock"] = ResConvBlock
-    trainer.network_settings["num_layers"] = 6
-    #trainer.loss_method = custom_loss
+    
+    trainer = Trainer(KNet, train_batch, validation_batch, model_name="KNet_Test")
+    trainer.network_settings["base_filters"] = 64
+    #trainer.network_settings["convBlock"] = Kan
+    trainer.network_settings["num_layers"] = 4
     trainer.init()
     trainer.train(500)
-    trainer.save()
-    trainer_list.append(trainer)"
-    """
+    trainer_list.append(trainer)
 
     """from objects.Simulation_DC import Simulation_DC
     #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
@@ -530,6 +546,8 @@ if __name__ == "__main__":
     #sim_HD.generate_batch(,number=64,force_size=128,)
     #sim_HD.plot()"""
 
+    trainer.plot()
+    trainer.plot_validation()
     plot_models_accuracy(trainer_list, show_errors=True)
     plot_models_residuals_extended(trainer_list)
     plt.show()
