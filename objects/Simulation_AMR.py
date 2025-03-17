@@ -10,7 +10,6 @@ from config import *
 import json
 from astropy import units as u
 import matplotlib.pyplot as plt
-
 # Create a slice plot of density
 #slc = yt.SlicePlot(ds, "z", "density")
 #slc.show()
@@ -36,20 +35,15 @@ class Simulation_ARM():
         """
 
         with h5py.File(self.file, "r") as f:
-            points = f["points"][:]  # (N,3) array of particle positions
-            density = f["scalars/density"][:]  # (N,) density values
-            size = f["scalars/size"][:]  # (N,) cell sizes
+            points = f["points"][:] 
+            densities = f["scalars/density"][:] 
+            sizes = f["scalars/size"][:]
 
-        x, y, z = points[:, 0], points[:, 1], points[:, 2]
-        data = {
-            "x": x,
-            "y": y,
-            "z": z,
-            "density": density,
-            "size": size,
-        }
+        
 
-        print(np.unique(np.array(size)))
+        #hist, xedges, yedges = np.histogram2d(x, y, bins=1000, weights=density)
+        #plt.imshow(hist.T, origin="lower", extent=[x.min(), x.max(), y.min(), y.max()], cmap="viridis", aspect="auto")
+
         
 
         """
@@ -64,3 +58,4 @@ class Simulation_ARM():
 if __name__ == "__main__":
     sim = Simulation_ARM("orionMHD_lowB_0.4_AMR", 66.0948)
     print(sim.data)
+    plt.show()

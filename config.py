@@ -26,3 +26,5 @@ FIGURE_CMAP_MAX = 1.0
 
 from Logger import Logger
 LOGGER = Logger(level=2, auto_save=0)
+
+FIGURE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"paper/figure/")

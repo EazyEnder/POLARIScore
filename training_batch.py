@@ -1,7 +1,7 @@
 import os
 
 from sympy import limit_seq
-from config import LOGGER, TRAINING_BATCH_FOLDER
+from config import LOGGER, TRAINING_BATCH_FOLDER, FIGURE_FOLDER
 import inspect
 import uuid
 import json
@@ -150,21 +150,23 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     
 
 if __name__ == "__main__":
-    b_name = "batch_37392b55-be04-4e8c-aa49-dca42fa684fc"
-    b = open_batch(b_name)
+    batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
+    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
 
     from objects.Simulation_DC import Simulation_DC
 
     sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     
-    bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
-    bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
-    final_b, _ = mix_batch(bHD,bMHD)
-    save_batch(final_b, settingsMHD)
+    #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
+    #bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
+    #final_b, _ = mix_batch(bHD,bMHD)
+    #save_batch(final_b, settingsMHD)
 
     #b, settings = SIMULATION_DATACUBE.generate_batch(method=compute_mass_weighted_density, number=64)
     #save_batch(b, settings)
-    #plot_batch(b)
+
+    fig, _ = sim_MHD.plot_correlation(method=compute_mass_weighted_density)
+    fig.savefig(FIGURE_FOLDER+"orion_sim_correlation.jpg")
 
     plt.show()

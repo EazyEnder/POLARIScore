@@ -27,3 +27,23 @@ class KNet(UNet):
 class FullKNet(KNet):
     def __init__(self, **kwargs):
         super(FullKNet, self).__init__(convBlock=KanConvBlock, **kwargs)
+
+from kan import KAN
+class UneK(nn.Module):
+    def __init__(self, **kwargs):
+        super(UneK, self).__init__()
+        self.unet = UNet(**kwargs)
+        self.kan = KAN(width=[1,10,10,1], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+    def forward(self, x):
+        B, C, H, W = x.shape
+        x_flat = x.reshape(B*C*H*W, 1)
+        x_kan = self.kan(x_flat)
+        x_kan = x_kan.reshape(B, C, H, W)
+        x_unet = self.unet(x)
+        x = x_kan + x_unet
+        return x
+    def getKAN(self):
+        return self.kan
+
+
+

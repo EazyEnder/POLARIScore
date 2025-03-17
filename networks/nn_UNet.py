@@ -50,13 +50,43 @@ class ResConvBlock(nn.Module):
             res = self.match_dim(res)
         x = x-res
         return F.relu(x)
+    
+class AttentionBlock(nn.Module):
+    def __init__(self, F_g, F_l, F_int):
+        super(AttentionBlock, self).__init__()
+        
+        self.W_g = nn.Sequential(
+            nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)  # Apply 1x1 Conv on upsampled feature
+        x1 = self.W_x(x)  # Apply 1x1 Conv on encoder feature
+        psi = self.relu(g1 + x1)  # Element-wise sum
+        psi = self.psi(psi)  # Apply sigmoid activation
+        return x * psi  # Scale encoder features
 
 import math
 class UNet(nn.Module):
-    def __init__(self, convBlock, num_layers=4, base_filters=64, filter_function='constant', k=2.):
+    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, filter_function='constant', k=2., attention = False):
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
+        self.attention = attention
 
         if filter_function == 'constant':
             filter_sizes = [int(base_filters * k**i) for i in range(num_layers+1)]
@@ -81,11 +111,14 @@ class UNet(nn.Module):
         # Decoder
         self.upconvs = nn.ModuleList()
         self.decoders = nn.ModuleList()
+        self.attentions = nn.ModuleList()
         reversed_filters = filter_sizes[::-1]
 
         for i in range(num_layers):
             out_channels = reversed_filters[1+i]
             self.upconvs.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
+            if self.attention:
+                self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2))
             self.decoders.append(convBlock(2*out_channels, out_channels))
             in_channels = out_channels
 
@@ -106,6 +139,8 @@ class UNet(nn.Module):
         # Decoder forward pass
         for i in range(self.num_layers):
             x = self.upconvs[i](x)
+            if self.attention:
+                enc_features[-(i+1)] = self.attentions[i](x, enc_features[-(i+1)])
             x = torch.cat([x, enc_features[-(i+1)]], dim=1)  # Skip connection
             x = self.decoders[i](x)
         

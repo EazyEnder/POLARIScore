@@ -14,12 +14,14 @@ from config import *
 import uuid
 from nn_UNet import *
 from nn_FCN import FCN
-from nn_KNet import FullKNet, KNet
+from nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
 class Trainer():
-    def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001,model_name=None):
+    def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001,model_name=None,auto_save=0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.auto_save = auto_save
 
         self.model_name = model_name
         if model_name is None:
@@ -46,6 +48,8 @@ class Trainer():
         self.network = network
         self.network_settings ={}
 
+        self.training_random_transform = False
+
         self.model = None
         self.optimizer = None
         self.scheduler = None
@@ -68,7 +72,7 @@ class Trainer():
                 self.model = self.network(**self.network_settings).to(self.device)
             else:
                 self.model = model
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
@@ -113,7 +117,8 @@ class Trainer():
         for epoch in range(epoch_number):
             total_epoch += 1
             self.optimizer.zero_grad()
-            #training_input_tensor, training_target_tensor = random_transform(training_input_tensor, training_target_tensor)
+            if self.training_random_transform:
+                training_input_tensor, training_target_tensor = random_transform(training_input_tensor, training_target_tensor)
             output = self.model(training_input_tensor)
             loss = self.loss_method(output, training_target_tensor)
             loss.backward()
@@ -122,13 +127,16 @@ class Trainer():
             self.training_losses.append((total_epoch, loss.item()))
             v_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
-                self.model.eval()
-                validation_output = self.model(validation_input_tensor)
-                v_loss = self.loss_method(validation_output,validation_target_tensor).item()
-                self.validation_losses.append((total_epoch,v_loss))
-                self.model.train()
-                if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
-                    break_flag = True
+                with torch.no_grad():
+                    self.model.eval()
+                    validation_output = self.model(validation_input_tensor)
+                    v_loss = self.loss_method(validation_output,validation_target_tensor).item()
+                    self.validation_losses.append((total_epoch,v_loss))
+                    #self.model.train()
+                    if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
+                        break_flag = True
+            if self.auto_save > 0 and total_epoch % self.auto_save == 0:
+                self.save() 
             LOGGER.print(f'Epoch {total_epoch}/{self.last_epoch + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
             if break_flag:
                 break
@@ -202,7 +210,7 @@ class Trainer():
         """
         plot_batch(self.get_prediction_batch(), same_limits=True)
 
-    def plot_residuals(self, ax, plot_distribution=True, color="blue", bins_inter=(None,None)):
+    def plot_residuals(self, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
         """
         Plot model predictions residuals
 
@@ -309,6 +317,33 @@ class Trainer():
 
         #line = plt.Line2D([0.5, 0.5], [0, 1], transform=fig.transFigure, color="black", linewidth=2)
         #fig.add_artist(line)
+    
+    def plot_validation_spatial_error(self,number_per_row=4,log=True):
+        batch = self.get_prediction_batch()
+        if log:
+            error = (np.log10(np.array([b[0] for b in batch]))-np.array(np.log10([b[1] for b in batch])))
+        else:
+            error = np.abs(np.array([b[0] for b in batch])-np.array([b[1] for b in batch]))
+        fig, axes = plt.subplots(int(np.ceil(len(error)/number_per_row)),number_per_row,figsize=(14, 9))
+        for i,e in enumerate(error):
+            if len(axes.shape) > 1:
+                im = axes[(i//number_per_row)][i%number_per_row].imshow(e, cmap="jet")
+            else:
+                im = axes[i].imshow(e, cmap="jet")
+            plt.colorbar(im)
+        fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
+        return fig, axes
+
+    def plot_prediction_correlation(self,ax=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+        batch = self.get_prediction_batch()
+        plot_batch_correlation(batch, ax=ax)
+        ax.set_xlabel("Target")
+        ax.set_ylabel("Prediction")
+        return fig, ax
 
     def plot(self):
         """
@@ -316,12 +351,9 @@ class Trainer():
         """
         plt.figure()
         plt.suptitle(self.model_name)
-        batch = self.get_prediction_batch()
-        plt.subplot(2,2,1)
+        
         ax1 = plt.subplot(2,2,1)
-        plot_batch_correlation(batch, ax=ax1)
-        ax1.set_xlabel("Target")
-        ax1.set_ylabel("Prediction")
+        self.plot_prediction_correlation(ax=ax1)
 
         ax2 = plt.subplot(2,2,2)
         self. plot_residuals(ax=ax2)
@@ -347,17 +379,19 @@ class Trainer():
         if not(os.path.exists(MODEL_FOLDER)):
             os.mkdir(MODEL_FOLDER)
 
-        while os.path.exists(os.path.join(MODEL_FOLDER,str(uuid.uuid4()))):
+        while os.path.exists(os.path.join(MODEL_FOLDER,self.model_name)):
             self.model_name = str(uuid.uuid4())
 
-        model_path = os.path.join(MODEL_FOLDER,self.model_name.rsplit("_ver",1)[0])
+        model_path = os.path.join(MODEL_FOLDER,self.model_name.rsplit("_epoch",1)[0])
         if not(os.path.exists(model_path)):
             os.mkdir(model_path)
 
-        v = 1
-        while(os.path.exists(os.path.join(model_path,self.model_name+".pth"))):
-            self.model_name = self.model_name.rsplit("_ver",1)[0]+"_ver"+str(v)
-            v += 1
+        ep = self.last_epoch
+        if os.path.exists(os.path.join(model_path,self.model_name+".pth")):
+            LOGGER.warn(f"Can't save {self.model_name} with epoch: {ep}")
+            return
+        
+        self.model_name = self.model_name.rsplit("_epoch",1)[0]+"_epoch"+str(ep)
         torch.save(self.model.state_dict(),os.path.join(model_path,self.model_name+".pth"))
 
         loss_method_name = ""
@@ -408,6 +442,7 @@ def load_trainer(model_name, load_model=True):
            "FCN" : FCN,
            "KNet" : KNet,
            "FullKNet": FullKNet,
+           "UneK": UneK,
            "None": None
     }
     network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock}
@@ -515,30 +550,46 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
 
 if __name__ == "__main__":
     batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    train_batch = batch
-    validation_batch = open_batch("batch_92b49d92-369a-45a0-b4eb-385658b05f41")
+    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
 
-    trainer_knet = load_trainer("KNet")
-
-    trainer_list = [trainer_knet]
+    trainer_list = [load_trainer("UNet_At"), load_trainer("KNet_At"),load_trainer("UneK")]
     for t in trainer_list:
         t.training_batch = train_batch
         t.validation_batch = validation_batch
 
-    def custom_loss(output, target):
-        weights = target.clone()/torch.max(target)
-        return nn.HuberLoss()(output,target)+torch.mean((output - target) ** 2)
-
+    def binned_loss(output, target, bin_edges=[0,2,4,6,8,10]):
+        loss = 0.0
+        for i in range(len(bin_edges) - 1):
+            mask = (target >= bin_edges[i]) & (target < bin_edges[i + 1])
+            
+            if mask.any():
+                bin_loss = torch.mean((output[mask] - target[mask]) ** 2)
+                loss += bin_loss
+        return loss
     
-    trainer = Trainer(KNet, train_batch, validation_batch, model_name="KNet_Test")
-    trainer.network_settings["base_filters"] = 64
-    #trainer.network_settings["convBlock"] = Kan
-    trainer.network_settings["num_layers"] = 4
-    trainer.init()
-    trainer.train(500)
-    trainer_list.append(trainer)
+    def batch_loss(output, target):
+        per_image_loss = torch.mean((output - target) ** 2, dim=[1, 2, 3])
+        weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
+        weighted_loss = torch.sum(per_image_loss * weights)
+        return torch.sum(weighted_loss)
 
-    """from objects.Simulation_DC import Simulation_DC
+
+    """
+    trainer = Trainer(UneK, train_batch, validation_batch, model_name="UneK")
+    #trainer.network_settings["base_filters"] = 64
+    #trainer.network_settings["convBlock"] = DoubleConvBlock
+    #trainer.network_settings["num_layers"] = 4
+    #trainer.loss_method = batch_loss
+    trainer.training_random_transform = True
+    trainer.network_settings["attention"] = True
+    trainer.init()
+    trainer.train(1500)
+    #trainer_list.append(trainer)
+    trainer.save()
+    trainer.plot()
+    """
+    
+    from objects.Simulation_DC import Simulation_DC
     #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     #sim_MHD.plot_correlation(method=compute_mass_weighted_density)
@@ -546,8 +597,6 @@ if __name__ == "__main__":
     #sim_HD.generate_batch(,number=64,force_size=128,)
     #sim_HD.plot()"""
 
-    trainer.plot()
-    trainer.plot_validation()
     plot_models_accuracy(trainer_list, show_errors=True)
-    plot_models_residuals_extended(trainer_list)
+    #plot_models_residuals_extended(trainer_list)
     plt.show()

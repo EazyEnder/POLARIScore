@@ -224,7 +224,7 @@ class Simulation_DC():
         }
         return (imgs,settings)
 
-    def plot(self,method=compute_column_density):
+    def plot(self,method=compute_column_density,plot_pdf=True,color_bar=False):
         """
         Plot simulations faces with probabiliy density function
 
@@ -234,17 +234,22 @@ class Simulation_DC():
         column_density_xy = self._compute_c_density(method=method, axis=0)  # Top-down
         column_density_xz = self._compute_c_density(method=method, axis=1)  # Side view
         column_density_yz = self._compute_c_density(method=method, axis=2) # Front view
-        _, axes = plt.subplots(2, 3, figsize=(9, 6))
+        
+
+        fig, axes = plt.subplots(2 if plot_pdf else 1, 3, figsize=(12, 6 if plot_pdf else 3.5))
+        if not(plot_pdf):
+            axes = [axes]
 
         def _plot(column, data):
             cd = axes[0][column].imshow(data, extent=[self.axis[0][0], self.axis[0][1], self.axis[1][0],self.axis[1][1]], cmap="jet", norm=LogNorm(vmin=np.min(data), vmax=np.max(data)))
-            plt.colorbar(cd,ax=axes[0][column], label=method.__name__)
             pdf = compute_pdf(data)
-            axes[1][column].plot([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
-            axes[1][column].scatter([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
-            axes[1][column].set_xlabel("s")
-            axes[1][column].set_ylabel("p")
-            axes[1][column].set_title("PDF")
+            if plot_pdf:
+                axes[1][column].plot([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
+                axes[1][column].scatter([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
+                axes[1][column].set_xlabel("s")
+                axes[1][column].set_ylabel("p")
+                axes[1][column].set_title("PDF")
+            return cd, pdf
 
         # XY Projection (Top-down)
         _plot(0,column_density_xy)
@@ -260,22 +265,36 @@ class Simulation_DC():
         axes[0][1].set_ylabel("Z [pc]")
 
         # YZ Projection (Front view)
-        _plot(2,column_density_yz)
+        cd, _ =  _plot(2,column_density_yz)
         axes[0][2].set_title("Front View (YZ Projection)")
         axes[0][2].set_xlabel("Y [pc]")
         axes[0][2].set_ylabel("Z [pc]")
 
-    def plot_correlation(self,method=compute_volume_weighted_density, axis=0):
+        if color_bar:
+            cbar = plt.colorbar(cd, ax=axes[0], orientation="vertical", fraction=0.02, pad=0.02)
+            cbar.set_label("Column density ($cm^{-2}$)")
+
+        return fig, axes
+
+    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1):
         """
         Plot correlation between the column density and the volumic density
 
         Args:
             method(function): Method to compute volumic density
-            axis(int, default:0): which face of the sim
+            axis(int, default:-1): which face of the sim, if -1 all faces are taken
         """
         fig, ax = plt.subplots(1,1)
-        column_density = np.log(self._compute_c_density(axis=axis).flatten())/np.log(10)
-        volume_density = np.log(self._compute_v_density(method=method, axis=axis).flatten())/np.log(10)
+        if axis >= 0:
+            column_density = np.log(self._compute_c_density(axis=axis).flatten())/np.log(10)
+            volume_density = np.log(self._compute_v_density(method=method, axis=axis).flatten())/np.log(10)
+        else:
+            column_density = np.log(np.array([self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]).flatten())/np.log(10)
+            volume_density = np.log(np.array([self._compute_v_density(method=method, axis=0),self._compute_v_density(method=method, axis=1),self._compute_v_density(method=method, axis=2)]).flatten())/np.log(10)
+
         _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
-        plt.colorbar(hist, ax=ax)
+        ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
+        ax.set_ylabel(r"Mass weighted density ($log_{10}(cm^{-3})$)")
+        plt.colorbar(hist, ax=ax, label="counts")
         fig.tight_layout()
+        return fig, ax
