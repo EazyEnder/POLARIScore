@@ -1,0 +1,539 @@
+
+@misc{gaches_probabilistic_2024,
+	title = {A {Probabilistic} {Model} to {Estimate} {Number} {Densities} from {Column} {Densities} in {Molecular} {Clouds}},
+	copyright = {arXiv.org perpetual, non-exclusive license},
+	url = {https://arxiv.org/abs/2412.16290},
+	doi = {10.48550/ARXIV.2412.16290},
+	abstract = {Constraining the physical and chemical evolution of molecular clouds is essential to our understanding of star formation. These investigations often necessitate knowledge of some local representative number density of the gas along the line of sight. However, constraining the number density is a difficult endeavor. Robust constraints of the number density often require line observations of specific molecules along with radiation transfer modeling, which provides densities traced by that specific molecule. Column density maps of molecular clouds are more readily available, with many high-fidelity maps calculated from dust emission and extinction, in particular from surveys conducted with the Herschel Space Observatory. We introduce a new probabilistic model which is based on the assumption that the total hydrogen nuclei column density along a line of sight can be decomposed into a turbulent component and a gravitationally-dominated component. Therefore, for each pixel in a column density map, the line of sight is decomposed into characteristic diffuse (dubbed ``turbulent'') and dense (dubbed ``gravitational'') gas number densities from column density maps. The method thus exploits a physical model of turbulence to decouple the random turbulent column from gas in dense bound structures empirically using the observed column density maps. We find the model produces reasonable turbulent and gravitational densities in the Taurus L1495/B213 and Polaris Flare clouds. The model can also be used to infer an effective attenuating column density into the cloud, which is useful for astrochemical models of the clouds. We conclude by demonstrating an application of this method by predicting the emission of the [C II], [C I], and CO (J = 1-0) lines across the Taurus L1495/B213 region at the native resolution of the column density map utilizing a grid of photodissociation-region models.},
+	urldate = {2025-02-24},
+	publisher = {arXiv},
+	author = {Gaches, Brandt A. L. and Grudić, Michael Y.},
+	year = {2024},
+	note = {Version Number: 1},
+	keywords = {Astrophysics of Galaxies (astro-ph.GA), FOS: Physical sciences, Instrumentation and Methods for Astrophysics (astro-ph.IM)},
+	annote = {Other
+Resubmitted to A\&A, comments welcome! Public GitHub with example lower resolution calculation here: https://github.com/AstroBrandt/GMCDensityEstimation},
+	annote = {Summary
+
+Méthode pour obtenir la densité n d’un nuage moléculaire via la densité de colonne N.
+
+La méthode s’appuie sur la N-PDF et l’utilise pour séparer en 2 composantes: turbulence \& grav la densité.
+
+Avantages: 
+
+
+composantes grav \& turbulentes découplées
+
+
+peut approximer une densité de colonne effective
+
+
+méthode rapide à utiliser \& interprétation physique “facile”
+
+
+
+Limites:
+
+
+hypothèses sur la température du gas (+ isotherme)
+
+
+mais aussi sur l’épaisseur du nuage
+
+
+ou encore des propriétés globales de la turbulence (compressive, div free…)
+
+
+Fit de la N-PDF (paramètres A, b)
+
+
+Compliqué si il y a plusieurs structures liées dans la ligne de visée
+
+
+Compliqué si il y a d’autres processus à l’oeuvre: champ magnétique, pression radia
+
+
+
+},
+}
+
+@misc{orkisz_volume_2024,
+	title = {On volume density and star formation in nearby molecular clouds},
+	copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International},
+	url = {https://arxiv.org/abs/2412.07595},
+	doi = {10.48550/ARXIV.2412.07595},
+	abstract = {Volume density is a key physical quantity controlling the evolution of the interstellar medium (ISM) and star formation, but it cannot be accessed directly by observations of molecular clouds. We aim at estimating the volume density distribution in nearby molecular clouds, to measure the relation between column and volume densities and to determine their roles as predictors of star formation. We develop an inverse modelling method to estimate the volume density distributions of molecular clouds. We apply this method to 24 nearby molecular clouds for which column densities have been derived using Herschel observations and for which star formation efficiencies (SFE) have been derived using observations with the Spitzer space telescope. We then compare the relationships of several column- and volume-density based descriptors of dense gas with the SFE of the clouds. We derive volume density distributions for 24 nearby molecular clouds, which represents the most complete sample of such distributions to date. The relationship between column densities and peak volume densities in these clouds is a piece-wise power-law relation that changes its slope at a column density of \$5-10{\textbackslash}times 10{\textasciicircum}\{22\}\$ H\$\_2\$cm\${\textasciicircum}\{-2\}\$. We interpret this as a signature of hierarchical fragmentation in the dense ISM. We find that the volume-density based dense gas fraction is the best predictor of star formation in the clouds, and in particular, it is as anticipated a better predictor than the column-density based dense gas fraction. We also derive a volume density threshold density for star formation of \$2{\textbackslash}times 10{\textasciicircum}4\$ H\$\_2\$cm\${\textasciicircum}\{-3\}\$.},
+	urldate = {2025-02-24},
+	publisher = {arXiv},
+	author = {Orkisz, Jan H. and Kainulainen, Jouni},
+	year = {2024},
+	note = {Version Number: 1},
+	keywords = {Astrophysics of Galaxies (astro-ph.GA), FOS: Physical sciences},
+	annote = {Other
+23 pages, 22 figures, accepted for publication in Astronomy and Astrophysics, supplementary online material at https://zenodo.org/records/14360623},
+}
+
+@article{alves_shapes_2017,
+	title = {The shapes of column density {PDFs}: {The} importance of the last closed contour},
+	volume = {606},
+	issn = {0004-6361, 1432-0746},
+	shorttitle = {The shapes of column density {PDFs}},
+	url = {http://www.aanda.org/10.1051/0004-6361/201731436},
+	doi = {10.1051/0004-6361/201731436},
+	urldate = {2025-02-24},
+	journal = {Astronomy \& Astrophysics},
+	author = {Alves, João and Lombardi, Marco and Lada, Charles J.},
+	month = oct,
+	year = {2017},
+	pages = {L2},
+	annote = {Summary
+
+Donne des précisions sur la N-PDF et sur le fit log-normal à basse densité
+
+“our results clearly indicate that the PDFs of these clouds are simple power
+laws down to their completeness limit, regardless of the star for-
+mation activity of the cloud. The current interpretation for the
+shape of molecular cloud PDFs, where the log-normal peak is
+seen as a consequence of super-sonic turbulence (but see Tassis
+et al. 2010) and the power-law tail as a consequence of gravity
+dominated regions in a turbulent cloud (e.g., Ballesteros-Paredes
+et al. 2011) is severely challenged: not only do we not find log-
+normal peaks, we find that diffuse and star forming clouds are
+both well described by power-law PDFs. A new physical inter-
+pretation for the shapes of molecular clouds PDFs is needed”
+},
+	file = {Full Text:/home/zack/Zotero/storage/XQNTX54X/Alves et al. - 2017 - The shapes of column density PDFs The importance of the last closed contour.pdf:application/pdf},
+}
+
+@article{vazquez-semadeni_hierarchical_1994,
+	title = {Hierarchical {Structure} in {Nearly} {Pressureless} {Flows} as a {Consequence} of {Self}-similar {Statistics}},
+	volume = {423},
+	issn = {0004-637X},
+	url = {https://ui.adsabs.harvard.edu/abs/1994ApJ...423..681V},
+	doi = {10.1086/173847},
+	abstract = {A purely statistical origin of hierarchical density structure in pressureless and nearly pressureless turbulent flows without self-gravity is proposed. It is argued that hydrodynamic (Navier-Stokes) flows with rms Mach numbers Mrms ≫ 1, like the cold interstellar medium or some cosmological flows, have a nearly pressureless behavior, except perhaps in a small fraction of the volume. Assuming that in these flows the density field can be considered as a random variable in time with an associated probability distribution function (pdf), a condition on the pdf for the spontaneous development of hierarchical structure is proposed. The condition is essentially a requirement that the joint probability of a succession of n constructively interfering relative density fluctuations of amplitude a be larger than the probability of a single, large fluctuation of the same final amplitude a . An analytic form for this condition is derived, under the assumption that the density pdf is scale- invariant, and three important functional forms of the pdf (a power-law, a lognormal, and an exponential distribution) are tested according to this criterion. It is found that development of hierarchical structure should always be expected for the lognormal and exponential distributions at large values of n and/or a, but is parameter-dependent in the case of the power law. The assumption of a scale-invariant density pdf is motivated (but not rigorously proved) by the scale invariance of the pressureless hydrodynamic equations with negligible self-gravity, and a numerical simulation of a compressible turbulent flow in two dimensions in a transonic regime (M ∼ 1) is used to test this and other secondary assumptions. The density field developed by the simulation clearly exhibits at least three levels of hierarchical nesting. The density statistics, albeit obscured by the limited resolution, which limits the feasible density contrasts, are shown to be consistent with the hypotheses. A discussion on the degree to which the dynamics of two- and three-dimensional flows may differ from one another in the compressible case is given. Finally, a remark is made that the hierarchical structure produced by this mechanism in turbulent compressible flows is transient although statistically stationary. This should be the case of all non-self-gravitating clouds in the cold interstellar medium and of small-scale structures in cosmological flows.},
+	urldate = {2025-02-25},
+	journal = {The Astrophysical Journal},
+	author = {Vazquez-Semadeni, Enrique},
+	month = mar,
+	year = {1994},
+	note = {Publisher: IOP
+ADS Bibcode: 1994ApJ...423..681V},
+	keywords = {HYDRODYNAMICS, ISM: CLOUDS, ISM: STRUCTURE, TURBULENCE},
+	pages = {681},
+	annote = {Gives critical density / PDF
+},
+	file = {Full Text PDF:/home/zack/Zotero/storage/CXMAEFMI/Vazquez-Semadeni - 1994 - Hierarchical Structure in Nearly Pressureless Flows as a Consequence of Self-similar Statistics.pdf:application/pdf},
+}
+
+@article{burkhart_self-gravitating_2019,
+	title = {The {Self}-gravitating {Gas} {Fraction} and the {Critical} {Density} for {Star} {Formation}},
+	volume = {879},
+	issn = {0004-637X, 1538-4357},
+	url = {https://iopscience.iop.org/article/10.3847/1538-4357/ab25ed},
+	doi = {10.3847/1538-4357/ab25ed},
+	abstract = {Abstract
+            
+              We analytically calculate the star formation efficiency and dense self-gravitating gas fraction in the presence of magneto-gravo-turbulence using the model of Burkhart, which employs a piecewise lognormal
+              and
+              powerlaw density probability distribution function (PDF). We show that the PDF transition density from lognormal to powerlaw forms is a mathematically motivated critical density for star formation and can be physically related to the density where the Jeans length is comparable to the sonic length, i.e., the post-shock critical density for collapse. When the PDF transition density is taken as the critical density, the instantaneous star formation efficiency (
+              ϵ
+              inst
+              ) and depletion time (
+              τ
+              depl
+              ) can be calculated from the dense self-gravitating gas fraction represented as the fraction of gas in the PDF powerlaw tail. We minimize the number of free parameters in the analytic expressions for
+              ϵ
+              inst
+              and
+              τ
+              depl
+              by using the PDF transition density instead of a parameterized critical density for collapse, and thus provide a more direct pathway for comparison with observations. We test the analytic predictions for the transition density and self-gravitating gas fraction against AREPO moving mesh gravo-turbulent simulations and find good agreement. We predict that, when gravity dominates the density distribution in the star-forming gas, the star formation efficiency should be weakly anti-correlated with the sonic Mach number while the depletion time should increase with increasing sonic Mach number. The star formation efficiency and depletion time depend primarily on the dense self-gravitating gas fraction, which in turn depends on the interplay of gravity, turbulence, and stellar feedback. Our model prediction is in agreement with recent observations, such as the M51 PdBI Arcsecond Whirlpool Survey.},
+	number = {2},
+	urldate = {2025-02-25},
+	journal = {The Astrophysical Journal},
+	author = {Burkhart, Blakesley and Mocz, Philip},
+	month = jul,
+	year = {2019},
+	pages = {129},
+	file = {Submitted Version:/home/zack/Zotero/storage/44QTQLSC/Burkhart and Mocz - 2019 - The Self-gravitating Gas Fraction and the Critical Density for Star Formation.pdf:application/pdf},
+}
+
+@article{burkhart_star_2018,
+	title = {The {Star} {Formation} {Rate} in the {Gravoturbulent} {Interstellar} {Medium}},
+	volume = {863},
+	issn = {0004-637X, 1538-4357},
+	url = {https://iopscience.iop.org/article/10.3847/1538-4357/aad002},
+	doi = {10.3847/1538-4357/aad002},
+	abstract = {Abstract
+            
+              Stars form in supersonic turbulent molecular clouds that are self-gravitating. We present an analytic determination of the star formation rate (SFR) in a gravoturbulent medium based on the density probability distribution function of molecular clouds having a piecewise lognormal (LN)
+              and
+              power-law (PL) form. This is in contrast to previous analytic SFR models that are governed primarily by interstellar turbulence, which sets purely LN density probability distribution functions (PDFs). In the gravoturbulent SFR model described herein, low-density gas resides in the LN portion of the PDF. Gas becomes gravitationally unstable past a critical density (
+              ρ
+              crit
+              ), and the PDF begins to form a PL. As the collapse of the cloud proceeds, the transitional density (
+              ρ
+              
+                t
+              
+              ) between the LN and PL portions of the PDF moves toward lower density while the slope of the PL (
+              α
+              ) becomes increasingly shallow. The SFR per free-fall time is calculated via an integral over the LN from
+              ρ
+              crit
+              to
+              ρ
+              
+                t
+              
+              and an integral over the PL from
+              ρ
+              
+                t
+              
+              to the maximum density. As
+              α
+              becomes shallower, the SFR accelerates beyond the expected values calculated from an LN density PDF. We show that the star formation efficiency per free-fall time in observations of local molecular clouds increases with shallower PDF PL slopes, in agreement with our model. Our model can explain why star formation is spatially and temporally variable within a cloud and why the depletion times observed in local and extragalactic giant molecular clouds vary. Both star-bursting and quiescent star-forming systems can be explained without the need to invoke extreme variations of turbulence in the local interstellar environment.},
+	number = {2},
+	urldate = {2025-02-26},
+	journal = {The Astrophysical Journal},
+	author = {Burkhart, Blakesley},
+	month = aug,
+	year = {2018},
+	pages = {118},
+	file = {Full Text:/home/zack/Zotero/storage/2QCS3PDS/Burkhart - 2018 - The Star Formation Rate in the Gravoturbulent Interstellar Medium.pdf:application/pdf},
+}
+
+@article{clarke_synthetic_2018,
+	title = {Synthetic {C18O} observations of fibrous filaments: the problems of mapping from {PPV} to {PPP}},
+	volume = {479},
+	copyright = {http://academic.oup.com/journals/pages/about\_us/legal/notices},
+	issn = {0035-8711, 1365-2966},
+	shorttitle = {Synthetic {C18O} observations of fibrous filaments},
+	url = {https://academic.oup.com/mnras/article/479/2/1722/5045258},
+	doi = {10.1093/mnras/sty1675},
+	language = {en},
+	number = {2},
+	urldate = {2025-02-26},
+	journal = {Monthly Notices of the Royal Astronomical Society},
+	author = {Clarke, S D and Whitworth, A P and Spowage, R L and Duarte-Cabral, A and Suri, S T and Jaffa, S E and Walch, S and Clark, P C},
+	month = sep,
+	year = {2018},
+	pages = {1722--1746},
+	file = {Accepted Version:/home/zack/Zotero/storage/BGMHEPDN/Clarke et al. - 2018 - Synthetic C18O observations of fibrous filaments the problems of mapping from PPV to PPP.pdf:application/pdf},
+}
+
+@article{spilker_birds_2021,
+	title = {Bird’s eye view of molecular clouds in the {Milky} {Way}: {I}. {Column} density and star formation from sub-parsec to kiloparsec scales},
+	volume = {653},
+	copyright = {https://www.edpsciences.org/en/authors/copyright-and-licensing},
+	issn = {0004-6361, 1432-0746},
+	shorttitle = {Bird’s eye view of molecular clouds in the {Milky} {Way}},
+	url = {https://www.aanda.org/10.1051/0004-6361/202040021},
+	doi = {10.1051/0004-6361/202040021},
+	abstract = {Context.
+              Describing how the properties of the interstellar medium are combined across various size scales is crucial for understanding star formation scaling laws and connecting Galactic and extragalactic data of molecular clouds.
+            
+            
+              Aims.
+              We describe how the statistical structure of the clouds and its connection to star formation changes from sub-parsec to kiloparsec scales in a complete region within the Milky Way disk.
+            
+            
+              Methods.
+              We built a census of molecular clouds within 2 kpc from the Sun using data from the literature. We examined the dust-based column density probability distributions (N-PDFs) of the clouds and their relation to star formation as traced by young stellar objects (YSOs). We then examined our survey region from the outside, within apertures of varying sizes, and describe how the N-PDFs and their relation to star formation changes with the size scale.
+            
+            
+              Results.
+              We present a census of the molecular clouds within 2 kpc distance, including 72 clouds and YSO counts for 44 of them. The N-PDFs of the clouds are not well described by any single simple model; use of any single model may bias the interpretation of the N-PDFs. The top-heaviness of the N-PDFs correlates with star formation activity, and the correlation changes with Galactic environment (spiral- and inter-arm regions). We find that the density contrast of clouds may be more intimately linked to star formation than the dense gas mass fraction. The aperture-averaged N-PDFs vary with the size scale and are more top-heavy for larger apertures. The top-heaviness of the aperture N-PDFs correlates with star formation activity up to roughly 0.5 kpc, depending on the environment. Our results suggest that the relations between cloud structure and star formation are environment specific and best captured by relative quantities (e.g. the density contrast). Finally, we show that the density structures of individual clouds give rise to a kiloparsec-scale Kennicutt-Schmidt relation as a combination of sampling effects and blending of different galactic environments.},
+	urldate = {2025-02-26},
+	journal = {Astronomy \& Astrophysics},
+	author = {Spilker, Andri and Kainulainen, Jouni and Orkisz, Jan},
+	month = sep,
+	year = {2021},
+	pages = {A63},
+	file = {Full Text:/home/zack/Zotero/storage/ZLU8IWKA/Spilker et al. - 2021 - Bird’s eye view of molecular clouds in the Milky Way I. Column density and star formation from sub-.pdf:application/pdf},
+}
+
+@article{guszejnov_star_2016,
+	title = {Star formation in a turbulent framework: from giant molecular clouds to protostars},
+	volume = {459},
+	issn = {0035-8711, 1365-2966},
+	shorttitle = {Star formation in a turbulent framework},
+	url = {https://academic.oup.com/mnras/article-lookup/doi/10.1093/mnras/stw619},
+	doi = {10.1093/mnras/stw619},
+	language = {en},
+	number = {1},
+	urldate = {2025-02-26},
+	journal = {Monthly Notices of the Royal Astronomical Society},
+	author = {Guszejnov, Dávid and Hopkins, Philip F.},
+	month = jun,
+	year = {2016},
+	pages = {9--20},
+	file = {Full Text:/home/zack/Zotero/storage/UK5YCRSE/Guszejnov and Hopkins - 2016 - Star formation in a turbulent framework from giant molecular clouds to protostars.pdf:application/pdf},
+}
+
+@article{hennebelle_physical_2024,
+	title = {The {Physical} {Origin} of the {Stellar} {Initial} {Mass} {Function}},
+	volume = {62},
+	copyright = {http://creativecommons.org/licenses/by/4.0/},
+	issn = {0066-4146, 1545-4282},
+	url = {https://www.annualreviews.org/content/journals/10.1146/annurev-astro-052622-031748},
+	doi = {10.1146/annurev-astro-052622-031748},
+	abstract = {Stars are among the most fundamental structures of our Universe. They comprise most of the baryonic and luminous mass of galaxies; synthesize heavy elements; and inject mass, momentum, and energy into the interstellar medium. They are also home to the planets. Because stellar properties are primarily decided by their mass, the so-called stellar initial mass function (IMF) is critical to the structuring of our Universe. We review the various physical processes and theories that have been put forward as well as the numerical simulations that have been carried out to explain the origin of the stellar IMF. Key messages from this review include the following:
+▪Gravity and turbulence most likely determine the power-law, high-mass part of the IMF.▪Depending of the Mach number and the density distribution, several regimes are possible, including ΓIMF ≃ 0, −0.8, −1, or −1.3, where dN/d log M ∝ M
+                        ΓIMF
+                        . These regimes are likely universal; however, the transition between these regimes is not.▪Protostellar jets can play a regulating influence on the IMF by injecting momentum into collapsing clumps and unbinding gas.▪The peak of the IMF may be a consequence of dust opacity and molecular hydrogen physics at the origin of the first hydrostatic core. This depends weakly on large-scale environmental conditions such as radiation, magnetic field, turbulence, or metallicity. This likely constitutes one reason for the relative universality of the IMF.},
+	language = {en},
+	number = {1},
+	urldate = {2025-02-26},
+	journal = {Annual Review of Astronomy and Astrophysics},
+	author = {Hennebelle, P. and Grudić, M.Y.},
+	month = sep,
+	year = {2024},
+	pages = {63--111},
+	file = {Submitted Version:/home/zack/Zotero/storage/FBCBRI7N/Hennebelle and Grudić - 2024 - The Physical Origin of the Stellar Initial Mass Function.pdf:application/pdf},
+}
+
+@article{hopkins_general_2013,
+	title = {A general theory of turbulent fragmentation},
+	volume = {430},
+	issn = {1365-2966, 0035-8711},
+	url = {http://academic.oup.com/mnras/article/430/3/1653/977851/A-general-theory-of-turbulent-fragmentation},
+	doi = {10.1093/mnras/sts704},
+	language = {en},
+	number = {3},
+	urldate = {2025-02-26},
+	journal = {Monthly Notices of the Royal Astronomical Society},
+	author = {Hopkins, Philip F.},
+	month = apr,
+	year = {2013},
+	pages = {1653--1693},
+	file = {Full Text:/home/zack/Zotero/storage/JYXPYVSB/Hopkins - 2013 - A general theory of turbulent fragmentation.pdf:application/pdf},
+}
+
+@article{girichidis_physical_2020,
+	title = {Physical {Processes} in {Star} {Formation}},
+	copyright = {arXiv.org perpetual, non-exclusive license},
+	url = {https://arxiv.org/abs/2005.06472},
+	doi = {10.48550/ARXIV.2005.06472},
+	abstract = {Star formation is a complex multi-scale phenomenon that is of significant importance for astrophysics in general. Stars and star formation are key pillars in observational astronomy from local star forming regions in the Milky Way up to high-redshift galaxies. From a theoretical perspective, star formation and feedback processes (radiation, winds, and supernovae) play a pivotal role in advancing our understanding of the physical processes at work, both individually and of their interactions. In this review we will give an overview of the main processes that are important for the understanding of star formation. We start with an observationally motivated view on star formation from a global perspective and outline the general paradigm of the life-cycle of molecular clouds, in which star formation is the key process to close the cycle. After that we focus on the thermal and chemical aspects in star forming regions, discuss turbulence and magnetic fields as well as gravitational forces. Finally, we review the most important stellar feedback mechanisms.},
+	urldate = {2025-02-26},
+	author = {Girichidis, Philipp and Offner, Stella S. R. and Kritsuk, Alexei G. and Klessen, Ralf S. and Hennebelle, Patrick and Kruijssen, J. M. Diederik and Krause, Martin G. H. and Glover, Simon C. O. and Padovani, Marco},
+	year = {2020},
+	note = {Publisher: arXiv
+Version Number: 1},
+	keywords = {Astrophysics of Galaxies (astro-ph.GA), FOS: Physical sciences, Solar and Stellar Astrophysics (astro-ph.SR)},
+	annote = {Other
+86 pages, 4 figures. To appear in Space Science Reviews, topical collection Star formation},
+}
+
+@article{konstandin_new_2012,
+	title = {A {NEW} {DENSITY} {VARIANCE}–{MACH} {NUMBER} {RELATION} {FOR} {SUBSONIC} {AND} {SUPERSONIC} {ISOTHERMAL} {TURBULENCE}},
+	volume = {761},
+	issn = {0004-637X, 1538-4357},
+	url = {https://iopscience.iop.org/article/10.1088/0004-637X/761/2/149},
+	doi = {10.1088/0004-637X/761/2/149},
+	number = {2},
+	urldate = {2025-02-27},
+	journal = {The Astrophysical Journal},
+	author = {Konstandin, L. and Girichidis, P. and Federrath, C. and Klessen, R. S.},
+	month = dec,
+	year = {2012},
+	pages = {149},
+	file = {Full Text:/home/zack/Zotero/storage/CQRFP7ZE/Konstandin et al. - 2012 - A NEW DENSITY VARIANCE–MACH NUMBER RELATION FOR SUBSONIC AND SUPERSONIC ISOTHERMAL TURBULENCE.pdf:application/pdf},
+}
+
+@article{schneider_what_2013,
+	title = {{WHAT} {DETERMINES} {THE} {DENSITY} {STRUCTURE} {OF} {MOLECULAR} {CLOUDS}? {A} {CASE} {STUDY} {OF} {ORION} {B} {WITH} \textit{{HERSCHEL}}},
+	volume = {766},
+	copyright = {http://iopscience.iop.org/info/page/text-and-data-mining},
+	issn = {2041-8205, 2041-8213},
+	shorttitle = {{WHAT} {DETERMINES} {THE} {DENSITY} {STRUCTURE} {OF} {MOLECULAR} {CLOUDS}?},
+	url = {https://iopscience.iop.org/article/10.1088/2041-8205/766/2/L17},
+	doi = {10.1088/2041-8205/766/2/L17},
+	number = {2},
+	urldate = {2025-02-28},
+	journal = {The Astrophysical Journal},
+	author = {Schneider, N. and André, Ph. and Könyves, V. and Bontemps, S. and Motte, F. and Federrath, C. and Ward-Thompson, D. and Arzoumanian, D. and Benedettini, M. and Bressert, E. and Didelon, P. and Di Francesco, J. and Griffin, M. and Hennemann, M. and Hill, T. and Palmeirim, P. and Pezzuto, S. and Peretto, N. and Roy, A. and Rygl, K. L. J. and Spinoglio, L. and White, G.},
+	month = mar,
+	year = {2013},
+	pages = {L17},
+	file = {Full Text:/home/zack/Zotero/storage/NKRBTFCK/Schneider et al. - 2013 - WHAT DETERMINES THE DENSITY STRUCTURE OF MOLECULAR CLOUDS A CASE STUDY OF ORION B WITH HERSCHEL.pdf:application/pdf},
+}
+
+@article{federrath_star_2013,
+	title = {{ON} {THE} {STAR} {FORMATION} {EFFICIENCY} {OF} {TURBULENT} {MAGNETIZED} {CLOUDS}},
+	volume = {763},
+	issn = {0004-637X, 1538-4357},
+	url = {https://iopscience.iop.org/article/10.1088/0004-637X/763/1/51},
+	doi = {10.1088/0004-637X/763/1/51},
+	number = {1},
+	urldate = {2025-02-28},
+	journal = {The Astrophysical Journal},
+	author = {Federrath, Christoph and Klessen, Ralf S.},
+	month = jan,
+	year = {2013},
+	pages = {51},
+	file = {Full Text:/home/zack/Zotero/storage/U36GW2A4/Federrath and Klessen - 2013 - ON THE STAR FORMATION EFFICIENCY OF TURBULENT MAGNETIZED CLOUDS.pdf:application/pdf},
+}
+
+@article{federrath_universality_2013,
+	title = {On the universality of supersonic turbulence},
+	volume = {436},
+	issn = {1365-2966, 0035-8711},
+	url = {http://academic.oup.com/mnras/article/436/2/1245/1126116/On-the-universality-of-supersonic-turbulence},
+	doi = {10.1093/mnras/stt1644},
+	language = {en},
+	number = {2},
+	urldate = {2025-03-03},
+	journal = {Monthly Notices of the Royal Astronomical Society},
+	author = {Federrath, Christoph},
+	month = dec,
+	year = {2013},
+	pages = {1245--1257},
+	file = {Full Text:/home/zack/Zotero/storage/ZGJZQFK5/Federrath - 2013 - On the universality of supersonic turbulence.pdf:application/pdf},
+}
+
+@article{federrath_density_2008,
+	title = {The {Density} {Probability} {Distribution} in {Compressible} {Isothermal} {Turbulence}: {Solenoidal} versus {Compressive} {Forcing}},
+	volume = {688},
+	issn = {0004-637X, 1538-4357},
+	shorttitle = {The {Density} {Probability} {Distribution} in {Compressible} {Isothermal} {Turbulence}},
+	url = {https://iopscience.iop.org/article/10.1086/595280},
+	doi = {10.1086/595280},
+	language = {en},
+	number = {2},
+	urldate = {2025-03-03},
+	journal = {The Astrophysical Journal},
+	author = {Federrath, Christoph and Klessen, Ralf S. and Schmidt, Wolfram},
+	month = dec,
+	year = {2008},
+	pages = {L79--L82},
+	file = {Full Text:/home/zack/Zotero/storage/DPPRWJE9/Federrath et al. - 2008 - The Density Probability Distribution in Compressible Isothermal Turbulence Solenoidal versus Compre.pdf:application/pdf},
+}
+
+@article{federrath_comparing_2010,
+	title = {Comparing the statistics of interstellar turbulence in simulations and observations: {Solenoidal} versus compressive turbulence forcing},
+	volume = {512},
+	issn = {0004-6361, 1432-0746},
+	shorttitle = {Comparing the statistics of interstellar turbulence in simulations and observations},
+	url = {http://arxiv.org/abs/0905.1060},
+	doi = {10.1051/0004-6361/200912437},
+	abstract = {We study two limiting cases of turbulence forcing in numerical experiments: solenoidal (divergence-free) forcing, and compressive (curl-free) forcing, and compare our results to observations reported in the literature. We solve the equations of hydrodynamics on grids with up to 1024{\textasciicircum}3 cells for purely solenoidal and purely compressive forcing. Eleven lower-resolution models with mixtures of both forcings are also analysed. We find velocity dispersion--size relations consistent with observations and independent numerical simulations, irrespective of the type of forcing. However, compressive forcing yields stronger turbulent compression at the same RMS Mach number than solenoidal forcing, resulting in a three times larger standard deviation of volumetric and column density probability distributions (PDFs). We conclude that the strong dependence of the density PDF on the type of forcing must be taken into account in any theory using the PDF to predict properties of star formation. We supply a quantitative description of this dependence. We find that different observed regions show evidence of different mixtures of compressive and solenoidal forcing, with more compressive forcing occurring primarily in swept-up shells.},
+	urldate = {2025-03-10},
+	journal = {Astronomy and Astrophysics},
+	author = {Federrath, C. and Roman-Duval, J. and Klessen, R. and Schmidt, W. and Low, M.-M. Mac},
+	month = mar,
+	year = {2010},
+	note = {arXiv:0905.1060 [astro-ph]},
+	keywords = {Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - Solar and Stellar Astrophysics},
+	pages = {A81},
+	annote = {Comment: 28 pages, 20 figures, published as Highlight Paper in A\&A, 512, A81 (2010); simulation movies available at http://www.ita.uni-heidelberg.de/{\textasciitilde}chfeder/videos.shtml?lang=en},
+	file = {Preprint PDF:/home/zack/Zotero/storage/GJLSSVL9/Federrath et al. - 2010 - Comparing the statistics of interstellar turbulence in simulations and observations Solenoidal vers.pdf:application/pdf;Snapshot:/home/zack/Zotero/storage/PPGJUCSG/0905.html:text/html},
+}
+
+@article{li_kandiff_2025,
+	title = {{KANDiff}: {Kolmogorov}–{Arnold} {Network} and {Diffusion} {Model}-{Based} {Network} for {Hyperspectral} and {Multispectral} {Image} {Fusion}},
+	volume = {17},
+	copyright = {https://creativecommons.org/licenses/by/4.0/},
+	issn = {2072-4292},
+	shorttitle = {{KANDiff}},
+	url = {https://www.mdpi.com/2072-4292/17/1/145},
+	doi = {10.3390/rs17010145},
+	abstract = {In recent years, the fusion of hyperspectral and multispectral images in remote sensing image processing still faces challenges, primarily due to their complexity and multimodal characteristics. Diffusion models, known for their stable training process and exceptional image generation capabilities, have shown good application potential in this field. However, when dealing with multimodal data, it may prove challenging for the models to fully capture the intricate relationships between the modalities, which may result in incomplete information integration and a small amount of remaining noise in the generated images. To address these problems, we propose a new model, KanDiff, for hyperspectral and multispectral image fusion. To address the differences in modal information between multispectral and hyperspectral images, KANDiff incorporates Kolmogorov–Arnold Networks (KAN) to guide the inputs. It helps the model understand the complex relationships between the modalities by replacing the fixed activation function in the traditional MLP with a learnable activation function. Furthermore, the image generated by the diffusion model may exhibit a small amount of the remaining noise. Convolutional Neural Networks (CNNs) effectively extract local features through their convolutional layers and achieve noise suppression via layer-by-layer feature representation. Therefore, the MergeCNN module is further introduced to enhance the fusion effect, resulting in smoother and more accurate outcomes. Experimental results on the public CAVE and Harvard datasets indicate that KanDiff has achieved improvements over current high-performance methods across several metrics, particularly showing significant enhancements in the peak signal-to-noise ratio (PSNR) and the structural similarity index measure (SSIM), thus demonstrating superior performance. Additionally, we have created an image fusion dataset of the lunar surface, and KANDiff exhibits robust performance on this dataset as well. This work introduces an effective solution for addressing the challenges posed by missing high-resolution hyperspectral images (HRHS) data, which is essential for tasks including landing site selection and resource exploration within the realm of deep space exploration.},
+	language = {en},
+	number = {1},
+	urldate = {2025-03-11},
+	journal = {Remote Sensing},
+	author = {Li, Wei and Li, Lu and Peng, Man and Tao, Ran},
+	month = jan,
+	year = {2025},
+	pages = {145},
+	file = {PDF:/home/zack/Zotero/storage/NUVMLZC5/Li et al. - 2025 - KANDiff Kolmogorov–Arnold Network and Diffusion Model-Based Network for Hyperspectral and Multispec.pdf:application/pdf},
+}
+
+@article{ntormousi_core_2019,
+	title = {Core and stellar mass functions in massive collapsing filaments},
+	volume = {625},
+	copyright = {https://www.edpsciences.org/en/authors/copyright-and-licensing},
+	issn = {0004-6361, 1432-0746},
+	url = {https://www.aanda.org/10.1051/0004-6361/201834094},
+	doi = {10.1051/0004-6361/201834094},
+	abstract = {Context.
+              The connection between the prestellar core mass function (CMF) and the stellar initial mass function (IMF) lies at the heart of all star formation theories, but it is inherently observationally unreachable.
+            
+            
+              Aims.
+              In this paper we aim to elucidate the earliest phases of star formation with a series of high-resolution numerical simulations that include the formation of sinks from high-density clumps. In particular, we focus on the transition from cores to sink particles within a massive molecular filament, and work towards identifying the factors that determine the shape of the CMF and the IMF.
+            
+            
+              Methods.
+              We have compared the CMF and IMF between magnetized and unmagnetized simulations, and between different resolutions. In order to study the effect of core stability, we applied different selection criteria according to the virial parameter and the mass-to-flux ratio of the cores.
+            
+            
+              Results.
+              We find that, in all models, selecting cores based on their kinematic virial parameter tends to exclude collapsing objects, because they host high velocity dispersions. Selecting only the thermally unstable magnetized cores, we observe that their mass-to-flux ratio spans almost two orders of magnitude for a given mass. We also see that, when magnetic fields are included, the CMF peaks at higher core mass values with respect to a pure hydrodynamical simulation. Nonetheless, all models produce sink mass functions with a high-mass slope consistent with Salpeter. Finally, we examined the effects of resolution and find that, in these isothermal simulations, even models with very high dynamical range fail to converge in the mass function.
+            
+            
+              Conclusions.
+              Our main conclusion is that, although the resulting CMFs and IMFs have similar slopes in all simulations, the cores have slightly different sizes and kinematical properties when a magnetic field is included, and this affects their gravitational stability. Nonetheless, a core selection based on the mass-to-flux ratio is not enough to alter the shape of the CMF, if we do not take thermal stability into account. Finally, we conclude that extreme care should be given to resolution issues when studying sink formation with an isothermal equation of state, since with each increase in resolution, fragmentation continues to smaller scales in a self-similar way.},
+	urldate = {2025-03-17},
+	journal = {Astronomy \& Astrophysics},
+	author = {Ntormousi, Evangelia and Hennebelle, Patrick},
+	month = may,
+	year = {2019},
+	pages = {A82},
+	file = {Full Text:/home/zack/Zotero/storage/ZYPRKWQ9/Ntormousi and Hennebelle - 2019 - Core and stellar mass functions in massive collapsing filaments.pdf:application/pdf},
+}
+
+@misc{ronneberger_u-net_2015,
+	title = {U-{Net}: {Convolutional} {Networks} for {Biomedical} {Image} {Segmentation}},
+	shorttitle = {U-{Net}},
+	url = {http://arxiv.org/abs/1505.04597},
+	doi = {10.48550/arXiv.1505.04597},
+	abstract = {There is large consent that successful training of deep networks requires many thousand annotated training samples. In this paper, we present a network and training strategy that relies on the strong use of data augmentation to use the available annotated samples more efficiently. The architecture consists of a contracting path to capture context and a symmetric expanding path that enables precise localization. We show that such a network can be trained end-to-end from very few images and outperforms the prior best method (a sliding-window convolutional network) on the ISBI challenge for segmentation of neuronal structures in electron microscopic stacks. Using the same network trained on transmitted light microscopy images (phase contrast and DIC) we won the ISBI cell tracking challenge 2015 in these categories by a large margin. Moreover, the network is fast. Segmentation of a 512x512 image takes less than a second on a recent GPU. The full implementation (based on Caffe) and the trained networks are available at http://lmb.informatik.uni-freiburg.de/people/ronneber/u-net .},
+	urldate = {2025-03-17},
+	publisher = {arXiv},
+	author = {Ronneberger, Olaf and Fischer, Philipp and Brox, Thomas},
+	month = may,
+	year = {2015},
+	note = {arXiv:1505.04597 [cs]},
+	keywords = {Computer Science - Computer Vision and Pattern Recognition},
+	annote = {Comment: conditionally accepted at MICCAI 2015},
+	file = {Preprint PDF:/home/zack/Zotero/storage/76RUV76B/Ronneberger et al. - 2015 - U-Net Convolutional Networks for Biomedical Image Segmentation.pdf:application/pdf;Snapshot:/home/zack/Zotero/storage/WHKIVSIC/1505.html:text/html},
+}
+
+@misc{liu_kan_2024,
+	title = {{KAN}: {Kolmogorov}-{Arnold} {Networks}},
+	copyright = {Creative Commons Attribution 4.0 International},
+	shorttitle = {{KAN}},
+	url = {https://arxiv.org/abs/2404.19756},
+	doi = {10.48550/ARXIV.2404.19756},
+	abstract = {Inspired by the Kolmogorov-Arnold representation theorem, we propose Kolmogorov-Arnold Networks (KANs) as promising alternatives to Multi-Layer Perceptrons (MLPs). While MLPs have fixed activation functions on nodes ("neurons"), KANs have learnable activation functions on edges ("weights"). KANs have no linear weights at all -- every weight parameter is replaced by a univariate function parametrized as a spline. We show that this seemingly simple change makes KANs outperform MLPs in terms of accuracy and interpretability. For accuracy, much smaller KANs can achieve comparable or better accuracy than much larger MLPs in data fitting and PDE solving. Theoretically and empirically, KANs possess faster neural scaling laws than MLPs. For interpretability, KANs can be intuitively visualized and can easily interact with human users. Through two examples in mathematics and physics, KANs are shown to be useful collaborators helping scientists (re)discover mathematical and physical laws. In summary, KANs are promising alternatives for MLPs, opening opportunities for further improving today's deep learning models which rely heavily on MLPs.},
+	urldate = {2025-03-17},
+	publisher = {arXiv},
+	author = {Liu, Ziming and Wang, Yixuan and Vaidya, Sachin and Ruehle, Fabian and Halverson, James and Soljačić, Marin and Hou, Thomas Y. and Tegmark, Max},
+	year = {2024},
+	note = {Version Number: 5},
+	keywords = {FOS: Physical sciences, Artificial Intelligence (cs.AI), Disordered Systems and Neural Networks (cond-mat.dis-nn), FOS: Computer and information sciences, Machine Learning (cs.LG), Machine Learning (stat.ML)},
+	annote = {Other
+Accepted by International Conference on Learning Representations (ICLR) 2025 (conference version: https://openreview.net/forum?id=Ozo7qJ5vZi). Codes are available at https://github.com/KindXiaoming/pykan},
+}
+
+@misc{oktay_attention_2018,
+	title = {Attention {U}-{Net}: {Learning} {Where} to {Look} for the {Pancreas}},
+	shorttitle = {Attention {U}-{Net}},
+	url = {http://arxiv.org/abs/1804.03999},
+	doi = {10.48550/arXiv.1804.03999},
+	abstract = {We propose a novel attention gate (AG) model for medical imaging that automatically learns to focus on target structures of varying shapes and sizes. Models trained with AGs implicitly learn to suppress irrelevant regions in an input image while highlighting salient features useful for a specific task. This enables us to eliminate the necessity of using explicit external tissue/organ localisation modules of cascaded convolutional neural networks (CNNs). AGs can be easily integrated into standard CNN architectures such as the U-Net model with minimal computational overhead while increasing the model sensitivity and prediction accuracy. The proposed Attention U-Net architecture is evaluated on two large CT abdominal datasets for multi-class image segmentation. Experimental results show that AGs consistently improve the prediction performance of U-Net across different datasets and training sizes while preserving computational efficiency. The code for the proposed architecture is publicly available.},
+	urldate = {2025-03-17},
+	publisher = {arXiv},
+	author = {Oktay, Ozan and Schlemper, Jo and Folgoc, Loic Le and Lee, Matthew and Heinrich, Mattias and Misawa, Kazunari and Mori, Kensaku and McDonagh, Steven and Hammerla, Nils Y. and Kainz, Bernhard and Glocker, Ben and Rueckert, Daniel},
+	month = may,
+	year = {2018},
+	note = {arXiv:1804.03999 [cs]},
+	keywords = {Computer Science - Computer Vision and Pattern Recognition},
+	annote = {Comment: Accepted to published in MIDL'18 (Revised Version) / OpenReview link: https://openreview.net/forum?id=Skft7cijM},
+	file = {Preprint PDF:/home/zack/Zotero/storage/B64RDNTL/Oktay et al. - 2018 - Attention U-Net Learning Where to Look for the Pancreas.pdf:application/pdf;Snapshot:/home/zack/Zotero/storage/ZMILBZEW/1804.html:text/html},
+}

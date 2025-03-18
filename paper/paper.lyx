@@ -1,0 +1,1241 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\begin_preamble
+\usepackage{multicol}
+\end_preamble
+\use_default_options true
+\maintain_unincluded_children no
+\language american
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 1cm
+\topmargin 1cm
+\rightmargin 1cm
+\bottommargin 2cm
+\headheight 1cm
+\headsep 1cm
+\footskip 1cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content true
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+From the column density to the volume density in molecular clouds (Placeholder)
+\end_layout
+
+\begin_layout Author
+Zack Ribeiro
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+zackribeiro@univ-grenoble-alpes.fr
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+/
+\end_layout
+
+\begin_layout Abstract
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+From the column density to the volume density using neural networks
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+/ Why this is important,
+ actual methods/tentatives,
+ a bigger introduction on MC will be before Part I,
+ at the beginning of the doc.
+\end_layout
+
+\begin_layout Subsection
+Neural networks
+\end_layout
+
+\begin_layout Standard
+/ Introduction on MLPs,
+ CNNs...
+\end_layout
+
+\begin_layout Subsubsection
+U-Net
+\end_layout
+
+\begin_layout Standard
+U-Net
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ronneberger_u-net_2015"
+literal "false"
+
+\end_inset
+
+ is a specialized convolutional neural network architecture primarily designed for biomedical image segmentation.
+ It features a symmetric encoder-decoder structure,
+ where the encoder captures high-level features through convolution and max pooling operations,
+ while the decoder gradually reconstructs the image using upsampling layers.
+ A key feature of U-Net is its skip connections,
+ which allow direct information flow between corresponding encoder and decoder layers,
+ preserving spatial details lost during downsampling.
+ 
+\end_layout
+
+\begin_layout Standard
+Even though it was originally designed for image segmentation,
+ its ability to capture spatial information makes it suitable for our study of molecular clouds.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_architecture.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-net architecture 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ronneberger_u-net_2015"
+literal "false"
+
+\end_inset
+
+ (example for 32x32 pixels in the lowest resolution).
+ Each bluebox corresponds to a multi-channel feature map.
+ The number of channels is denoted on top of the box.
+ The x-y-size is provided at the lower left edge of the box.
+ Whiteboxes represent copied feature maps.
+ The arrows denote the different operations
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+KANs
+\end_layout
+
+\begin_layout Standard
+Kolmogorov–Arnold Networks (KANs) 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "liu_kan_2024"
+literal "false"
+
+\end_inset
+
+ are a novel class of neural networks inspired by the Kolmogorov–Arnold representation theorem,
+ which states that any multivariate continuous function can be expressed as a composition of univariate functions.
+ Unlike traditional deep learning architectures,
+ KANs replace fixed activation functions with learnable,
+ parameterized univariate functions.
+ This design provides greater flexibility in function approximation while maintaining interpretability.
+ KANs have demonstrated strong potential in various applications,
+ including scientific computing and physics-informed learning,
+ where explainability and efficient function representation are essential.
+ However,
+ they are more computationally expensive,
+ and their interpretability is lost when incorporated into networks such as U-Net.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/kan_architecture.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Multi-Layer Perceptrons (MLPs) vs.
+ Kolmogorov-Arnold Networks (KANs)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Method
+\end_layout
+
+\begin_layout Subsection
+Datasets
+\end_layout
+
+\begin_layout Standard
+In order to train our future model,
+ two datasets are required:
+ one for the training phase and the other for testing,
+ i.e.,
+ the validation phase.
+ The preparation of these datasets is a crucial factor in the model's performance.
+\end_layout
+
+\begin_layout Standard
+These datasets are created using MHD simulations of molecular clouds:
+ ORION 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ntormousi_core_2019"
+literal "false"
+
+\end_inset
+
+.
+ These simulations model MHD turbulence and have a size of 66.1 pc with an initial resolution of 0.01 pc,
+ reaching a few hundred AU using an AMR grid.
+ (Add details of the simu) However,
+ to facilitate data manipulation,
+ an initial approach consists of using a 
+\begin_inset Formula $512^{3}$
+\end_inset
+
+ density cube.
+ This cube has a width of 25.8 pc,
+ centered at the simulation's midpoint,
+ with a resolution of 0.05 pc.
+\end_layout
+
+\begin_layout Standard
+To increase the amount of training data,
+ projections along the three axes are used.
+ In other words,
+ we generate three column density images by summing the densities along different axes (see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Column-density-for"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/orion_sim_faces.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Column density for ORION
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ntormousi_core_2019"
+literal "false"
+
+\end_inset
+
+ simulation,
+ low magnetic field 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Column-density-for"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Then,
+ images with a resolution of 128×128 pixels and a physical size of 6.4 pc are randomly cropped from the three faces.
+ An image is retained in the dataset if it meets several conditions:
+\end_layout
+
+\begin_layout Itemize
+It is spatially distant enough from an already explored region,
+ meaning it does not overlap with an area covered by an existing image.
+\end_layout
+
+\begin_layout Itemize
+It does not contain a disproportionately large fraction of very low-density regions,
+ i.e.,
+ the edges of the simulation.
+\end_layout
+
+\begin_layout Itemize
+It exhibits significant density variations within the explored region.
+ A score is defined based on the smoothness of the image using the Laplacian of the density,
+ favoring regions with filaments over those with nearly homogeneous density.
+\end_layout
+
+\begin_layout Standard
+The generated dataset is then randomly sorted and divided between training set (70%) and validation set (30%).
+\end_layout
+
+\begin_layout Standard
+For volume densities,
+ several line-of-sight densities can be used.
+ A volume-weighted number density:
+ 
+\begin_inset Formula 
+\begin{equation}
+n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\Delta V_{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $n_{i}$
+\end_inset
+
+ are respectively the differential volume element and the number density of the ith cell.
+ For an uniform grid,
+ as in our initial approch,
+ 
+\begin_inset Formula $\Delta V$
+\end_inset
+
+ is constant.
+\end_layout
+
+\begin_layout Standard
+But this volume-weighted density has the problem that to get this,
+ one need the cloud length.
+ Another density which can be used is the mass-weighted average number density:
+\begin_inset Formula 
+\begin{equation}
+n_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This density highlights high density components along the line of sight.
+ One can also use the max density along the l.o.s:
+ 
+\begin_inset Formula $n_{\text{max}}=\text{max}(n_{i})$
+\end_inset
+
+ .
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/orion_sim_correlation.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Density correlation of ORION
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/orion_sim_batch_ex.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Two examples from the ORION training dataset.
+ Top row is the column density,
+ bottom row is the mass-weighted density.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Network architecture
+\end_layout
+
+\begin_layout Standard
+The default network architecture used in this part is a U-Net architecture with 4 layers,
+ a first convolution layer which go from 1 to 64 features maps and attention blocks 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "oktay_attention_2018"
+literal "false"
+
+\end_inset
+
+.
+ The implementation of KAN in the architecture occurs at the output convolution layer,
+ where the KAN layer replaces the classic convolution layer (named K-Net if that's the case),
+ thanks to the work of O.
+ Rayyan
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/omarrayyann/KAN-Conv2D"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+ on how to implement a convolution layer using KAN.
+ The implementation is done in Python using PyTorch.
+ It is also possible to only use KAN convolution layers instead of the classic ones.
+\end_layout
+
+\begin_layout Subsection
+Training
+\end_layout
+
+\begin_layout Standard
+/
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+/
+\end_layout
+
+\begin_layout Subsection
+U-Net global performance
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_validation_batch.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net prediction example,
+ top row is the true mass-weighted density,
+ bottom row is the predicted mass-weighted density.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+There are many ways to view if a model works or not.
+ First,
+ there are the losses,
+ which are computed during training.
+ Traditionally for regression problems,
+ we use MSELoss ("Mean Squared Error") :
+\begin_inset Formula 
+\begin{equation}
+\text{MSELoss}=\mathbb{E}((\text{prediction}-\text{target})^{2})
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In our case,
+ this shows the mean squared error in log10 for the batch.
+ In Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-training-losses"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ the validation loss converges to ~0.25 and doesn't go lower.
+ This could mean that the model cannot generalize more the training data due to a network that is too shallow or insufficient images in the training set.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_losses.jpg
+	width 90col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net training losses 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-training-losses"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However,
+ MSELoss is an average of all the batch errors.
+ To analyze how the error varies as a function of density,
+ we plot the correlation between the target and the predictions made by the trained model on the validation set (Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-Prediction-correlation"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+ An ideal result would be a correlation that is infinitely narrow along the 
+\begin_inset Formula $y=x$
+\end_inset
+
+ line.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_prediction_correlation.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Prediction correlation 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-Prediction-correlation"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Or,
+ instead,
+ we can directly analyze the residuals.
+ This allows us to determine whether the model overestimates or underestimates lower or higher densities.
+ Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-residuals"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ shows that U-Net tends to underestimate higher densities.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_residuals.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net residuals 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-residuals"
+
+\end_inset
+
+,
+ Pixel value means in our case the mass-weighted density,
+ blue is the residuals distribution in the density bin with black lines for min,max and mean of the residuals.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Molecular clouds form spatial structures such as cores and filaments,
+ so it is also important to assess whether the spatial error is 
+\begin_inset Quotes eld
+\end_inset
+
+homogeneous
+\begin_inset Quotes erd
+\end_inset
+
+ (i.e.,
+ does not exhibit obvious structures—
+see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-Validation-spatial"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for example) or if the model struggles to predict certain features,
+ such as densities within a filament.
+ If this is the case,
+ an alternative loss function that emphasizes spatial structures could improve the model's performance.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_validation_spatial_error.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Validation spatial errors 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-Validation-spatial"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Finally,
+ we can also define an error metric that we will refer to as "accuracy." The accuracy of the predicted image is the ratio of correct predictions to the total number of elements (i.e.,
+ pixels,
+ here 
+\begin_inset Formula $128\times128$
+\end_inset
+
+).
+ A prediction is considered correct if
+\begin_inset Formula $|\text{target}-\text{prediction}|<\sigma$
+\end_inset
+
+ ,where 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ represents the allowed error in the prediction.
+\begin_inset Formula 
+\begin{equation}
+Acc_{i}=\frac{\sum_{i}^{N_{pixels}}N(|\text{target}-\text{prediction}|<\sigma)}{N_{pixels}}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+And for the entire validation batch,
+ the accuracy is computed as the average accuracy across all images in the batch.
+\begin_inset Formula 
+\begin{equation}
+Acc=<Acc_{i}>_{\text{batch}}=\frac{1}{B}\sum_{i}^{B}Acc_{i}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $B$
+\end_inset
+
+ is batch size,i.e the number of images in the batch.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_accuracy.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Accuracy.
+ Transparent area is the standard deviation of the accuracy over the batch images.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+U-Net complexity 
+\end_layout
+
+\begin_layout Standard
+Our problem is a regression problem,
+ similar to function fitting.
+ As with function fitting,
+ our model has 
+\begin_inset Formula $N$
+\end_inset
+
+ free parameters.
+ A higher 
+\begin_inset Formula $N$
+\end_inset
+
+ increases the likelihood of capturing important features,
+ whereas a lower 
+\begin_inset Formula $N$
+\end_inset
+
+ may lead to missing details such as high-frequency variations or structural connections.
+\end_layout
+
+\begin_layout Standard
+In the U-Net architecture,
+ the number of free parameters is largely determined by:
+\end_layout
+
+\begin_layout Itemize
+The number of layers:
+ This determines how many times the network applies pooling,
+ affecting the depth of feature extraction.
+\end_layout
+
+\begin_layout Itemize
+The base filters:
+ The first convolutional layer creates 
+\begin_inset Formula $n$
+\end_inset
+
+ feature maps from the input (column density),
+ i.e.
+ 
+\begin_inset Formula $1\rightarrow n$
+\end_inset
+
+.
+ Then,
+ each subsequent layer and its convolutional operations generally double this number.
+ For example,
+ a convolutional layer in the 
+\begin_inset Formula $i$
+\end_inset
+
+th U-Net encoder stage transforms 
+\begin_inset Formula $n\times2^{i-1}$
+\end_inset
+
+ feature maps into 
+\begin_inset Formula $n\times2^{i}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+So,
+ when the number of base filters or the number of layers increases,
+ we say that the model complexity increases.
+ And generally,
+ as the complexity increases,
+ the memory usage,
+ training time,
+ and the number of epochs required to converge to a validation plateau will also be higher.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_compmap.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net complexity map
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_compmap_l2bf80_validation.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net 2 layers with 80 initial features maps,
+ validation images.
+ Top row is the true mass-weighted density,
+ bottom row is the predicted mass-weighted density.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "biblio"
+options "plain"
+encoding "default"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
