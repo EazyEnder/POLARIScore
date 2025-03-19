@@ -1156,8 +1156,10 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-U-Net complexity map
-\end_layout
+U-Net complexity map 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-complexity-map"
 
 \end_inset
 
@@ -1167,6 +1169,31 @@ U-Net complexity map
 \end_inset
 
 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-complexity-map"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ shows the variation of the model accuracy 
+\begin_inset Formula $Acc$
+\end_inset
+
+ with the number of base filters and the number of layers.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -1206,6 +1233,22 @@ U-Net 2 layers with 80 initial features maps,
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+U-Net with KAN parts
+\end_layout
+
+\begin_layout Standard
+/
+\end_layout
+
+\begin_layout Subsection
+Tests of different loss methods
+\end_layout
+
+\begin_layout Standard
+/
 \end_layout
 
 \begin_layout Standard
