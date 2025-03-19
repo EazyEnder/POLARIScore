@@ -28,3 +28,5 @@ from Logger import Logger
 LOGGER = Logger(level=2, auto_save=0)
 
 FIGURE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"paper/figure/")
+
+CACHES_FOLDER = os.path.join(EXPORT_FOLDER,"caches/")

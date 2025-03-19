@@ -113,6 +113,7 @@ class Trainer():
             return tensors_input, tensors_target
 
         total_epoch = self.last_epoch
+        l_ep = self.last_epoch
         break_flag = False
         for epoch in range(epoch_number):
             total_epoch += 1
@@ -127,17 +128,17 @@ class Trainer():
             self.training_losses.append((total_epoch, loss.item()))
             v_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
-                with torch.no_grad():
-                    self.model.eval()
-                    validation_output = self.model(validation_input_tensor)
-                    v_loss = self.loss_method(validation_output,validation_target_tensor).item()
-                    self.validation_losses.append((total_epoch,v_loss))
-                    #self.model.train()
-                    if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
-                        break_flag = True
+                self.model.eval()
+                validation_output = self.model(validation_input_tensor)
+                v_loss = self.loss_method(validation_output,validation_target_tensor).item()
+                self.validation_losses.append((total_epoch,v_loss))
+                self.model.train()
+                if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
+                    break_flag = True
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
+                self.last_epoch = total_epoch
                 self.save() 
-            LOGGER.print(f'Epoch {total_epoch}/{self.last_epoch + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
             if break_flag:
                 break
         self.last_epoch = total_epoch
@@ -204,11 +205,11 @@ class Trainer():
     
         return validation_batch
 
-    def plot_validation(self):
+    def plot_validation(self, inter=(None,None),number_per_row=8):
         """
         Show target and model prediction images
         """
-        plot_batch(self.get_prediction_batch(), same_limits=True)
+        plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=True, number_per_row=number_per_row)
 
     def plot_residuals(self, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
         """
@@ -387,11 +388,11 @@ class Trainer():
             os.mkdir(model_path)
 
         ep = self.last_epoch
+        self.model_name = self.model_name.rsplit("_epoch",1)[0]+"_epoch"+str(ep)
         if os.path.exists(os.path.join(model_path,self.model_name+".pth")):
             LOGGER.warn(f"Can't save {self.model_name} with epoch: {ep}")
             return
         
-        self.model_name = self.model_name.rsplit("_epoch",1)[0]+"_epoch"+str(ep)
         torch.save(self.model.state_dict(),os.path.join(model_path,self.model_name+".pth"))
 
         loss_method_name = ""
@@ -548,14 +549,102 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
     plt.legend()
     plt.tight_layout()
 
+    return fig, ax
+
+import re
+from scipy.interpolate import griddata
+import matplotlib.colors as mcolors
+def heatmap(root_name, validation_batch, X, Y, ax=None):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    Z = []
+    X_flat = []
+    Y_flat = []
+    for l in Y:
+        for bf in X:
+            trainer = load_trainer(root_name+f"_l{str(l)}_bf{str(bf)}")
+            trainer.validation_batch = validation_batch
+            acc, std = compute_batch_accuracy(trainer.get_prediction_batch(),sigma=0.3)
+            Z.append(acc)
+            Y_flat.append(l)
+            X_flat.append(bf)
+            trainer = None
+
+    X = np.array(X_flat)
+    Y = np.array(Y_flat)
+    Z = np.array(Z)
+    X_unique = np.sort(np.unique(X))
+    Y_unique = np.sort(np.unique(Y))
+    Z_grid = np.full((len(X_unique), len(Y_unique)), np.nan)
+    for x, y, z in zip(X, Y, Z):
+        x_idx = np.where(X_unique == x)[0][0]
+        y_idx = np.where(Y_unique == y)[0][0] 
+        Z_grid[x_idx, y_idx] = z
+    
+    
+    grid_x, grid_y = np.meshgrid(X_unique, Y_unique, indexing='ij')
+    all_points = np.array([(x, y) for x, y in zip(grid_x.ravel(), grid_y.ravel())])
+
+    known_points = np.array([(x, y) for x, y in zip(X, Y)])
+    known_values = Z
+
+    interpolation_method = 'nearest'
+
+    interpolated_values = griddata(known_points, known_values, all_points, method=interpolation_method)
+
+    Z_grid = interpolated_values.reshape(len(X_unique), len(Y_unique))
+    for i in range(len(Z_grid)):
+        for j in range(len(Z_grid[i])):
+            if np.isnan(Z_grid[i,j]):
+                Z_grid[i,j] = 0
+
+    cmap = plt.get_cmap("viridis", 100)
+    norm = mcolors.Normalize(vmin=np.min(Z), vmax=np.max(Z))
+    #cm = plt.pcolormesh(grid_x, grid_y, Z_grid.T, shading='auto', cmap=cmap, alpha=0.75, norm=norm)
+    cm = ax.pcolormesh(X_unique, Y_unique, Z_grid.T, shading='auto', cmap=cmap, alpha=0.75, norm=norm)
+    for i in range(len(X)):
+        sc = ax.scatter(X[i], Y[i], color=cmap(norm(Z[i])), marker="o" , edgecolors='k', norm=norm)
+    cbar = plt.colorbar(cm,label=r"Accuracy for $\sigma=0.3$",ax=ax)
+    ax.set_xlabel("Base Filters")
+    ax.set_ylabel("Layers")
+
+    return fig, ax
+
+def generate_model_map(root_name, train_batch, validation_batch, network=UNet, layers=[2,3,4,5], base_filters=[8,16,32,48,64,80]):
+
+    for i,l in enumerate(layers):
+        for j,bf in enumerate(base_filters):
+            model_path = os.path.join(MODEL_FOLDER, root_name+f"_l{str(l)}_bf{str(bf)}")
+            if(os.path.exists(model_path)):
+                LOGGER.warn(root_name+f"_l{str(l)}_bf{str(bf)}"+f" already exists, delete the folder if you want to traina new model with these settings.")
+                continue
+            LOGGER.log(f"Now training: {l}, {bf} ({str(np.round((i*len(base_filters)+j)/(len(base_filters)*len(layers))*100,3))}%)")
+            trainer  = Trainer(network, train_batch,validation_batch, model_name=root_name+f"_l{str(l)}_bf{str(bf)}")
+            trainer.network_settings["base_filters"] = bf
+            trainer.network_settings["num_layers"] = l
+            trainer.training_random_transform = True
+            trainer.network_settings["attention"] = True
+            trainer.init()
+            trainer.train(int(2000+1000*(1-i/len(layers))*(1-i/len(base_filters))))
+            trainer.save()
+
 if __name__ == "__main__":
     batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
     train_batch, validation_batch = split_batch(batch, cutoff=0.8)
-
-    trainer_list = [load_trainer("UNet_At"), load_trainer("KNet_At"),load_trainer("UneK")]
+    
+    trainer_list = [load_trainer("UNet_At"), load_trainer("UNet_At_Double")]
     for t in trainer_list:
         t.training_batch = train_batch
         t.validation_batch = validation_batch
+
+    
+    #generate_model_map("UNet_CompMap",train_batch,validation_batch,network=UNet)
+    #fig, _ = heatmap("UNet_CompMap", validation_batch, [8,16,32,48,64,80], [2,3,4,5])
+    #fig.savefig(FIGURE_FOLDER+"unet_compmap.jpg")
 
     def binned_loss(output, target, bin_edges=[0,2,4,6,8,10]):
         loss = 0.0
@@ -572,31 +661,31 @@ if __name__ == "__main__":
         weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
         weighted_loss = torch.sum(per_image_loss * weights)
         return torch.sum(weighted_loss)
-
+    
 
     """
-    trainer = Trainer(UneK, train_batch, validation_batch, model_name="UneK")
-    #trainer.network_settings["base_filters"] = 64
-    #trainer.network_settings["convBlock"] = DoubleConvBlock
-    #trainer.network_settings["num_layers"] = 4
+    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_At_Double")
+    trainer.network_settings["base_filters"] = 64
+    trainer.network_settings["convBlock"] = DoubleConvBlock
+    trainer.network_settings["num_layers"] = 4
     #trainer.loss_method = batch_loss
     trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     trainer.init()
-    trainer.train(1500)
+    #trainer.auto_save = 250
+    trainer.train(2000)
     #trainer_list.append(trainer)
     trainer.save()
     trainer.plot()
     """
     
     from objects.Simulation_DC import Simulation_DC
-    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    print(sim_MHD.data_vel)
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     #sim_MHD.plot_correlation(method=compute_mass_weighted_density)
     #sim_HD.plot_correlation(method=compute_mass_weighted_density)
     #sim_HD.generate_batch(,number=64,force_size=128,)
     #sim_HD.plot()"""
 
-    plot_models_accuracy(trainer_list, show_errors=True)
-    #plot_models_residuals_extended(trainer_list)
-    plt.show()
+    #trainer_list[-1].plot()

@@ -34,7 +34,12 @@ class Simulation_DC():
         self.file = os.path.join(self.folder,SIM_DATA_NAME)
         """Path to the simulation data"""
         self.data = None
-        """Raw simulation data"""
+        """Raw simulation density data"""
+        self.data_temp = None
+        """Raw simulation temperature data"""
+        self.data_vel = [None,None,None]
+        """Raw simulation velocity data (tuple of 3 datacube for xvel, yvel, zvel)"""
+
         self.header = None
         """Dict of sim settings"""
         self.nres = None
@@ -58,13 +63,64 @@ class Simulation_DC():
         if init:
             self.init()
 
-    def init(self):
+    def loadTemperature(self):
+        """
+        Load Temperature data from files
+        """
+        path = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_temp.fits")
+        if not(os.path.exists(path)):
+            LOGGER.warn(f"Temperature not loaded in {self.name}, file not found")
+            return False
+        simfile = fits.open(path)
+        self.data_temp = simfile[0].data
+        simfile.close()
+        if self.data_temp is None:
+            LOGGER.warn(f"Temperature not loaded in {self.name}, file empty")
+            return False
+        return True
+    
+    def loadVelocity(self):
+        """
+        Load velocity data from files
+        """
+        path_x = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_velx.fits")
+        path_y = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_vely.fits")
+        path_z = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_velz.fits")
+
+        if not(os.path.exists(path_x)):
+            LOGGER.warn(f"Velocity not loaded in {self.name}, file for x component not found")
+            return False
+        if not(os.path.exists(path_y)):
+            LOGGER.warn(f"Velocity not loaded in {self.name}, file for y component not found")
+            return False
+        if not(os.path.exists(path_z)):
+            LOGGER.warn(f"Velocity not loaded in {self.name}, file for z component not found")
+            return False
+        
+        simfile = fits.open(path_x)
+        self.data_vel[0] = simfile[0].data
+        simfile.close()
+        simfile = fits.open(path_y)
+        self.data_vel[1] = simfile[0].data
+        simfile.close()
+        simfile = fits.open(path_z)
+        self.data_vel[2] = simfile[0].data
+        simfile.close()
+
+        return True
+
+    def init(self, loadTemp=True, loadVel=True):
         """
         Load files and data in self variables
         """
         simfile = fits.open(self.file)
         self.data = simfile[0].data
         simfile.close()
+        
+        if loadTemp:
+            self.loadTemperature()
+        if loadVel:
+            self.loadVelocity()
 
         with open(os.path.join(self.folder,"processing_config.json"), "r") as file:
             self.header = json.load(file)
@@ -75,6 +131,10 @@ class Simulation_DC():
         self.cell_size = self.cell_size.to(u.cm)
         self.size = self.global_size*self.relative_size
         self.axis = ([self.center[0]*self.global_size-self.size/2,self.center[0]*self.global_size+self.size/2],[self.center[1]*self.global_size-self.size/2,self.center[1]*self.global_size+self.size/2],[self.center[2]*self.global_size-self.size/2,self.center[2]*self.global_size+self.size/2])    
+
+    def from_index_to_scale(self,index):
+        """Return the size in cm"""
+        return index*self.cell_size.value
 
     def _compute_c_density(self, method=compute_column_density, axis=0, force=False):
         if self.column_density_method[axis] is None or self.column_density_method[axis] != method.__name__ or self.column_density[axis] is None or force:

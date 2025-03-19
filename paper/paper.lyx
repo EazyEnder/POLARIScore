@@ -117,7 +117,14 @@ zackribeiro@univ-grenoble-alpes.fr
 \end_layout
 
 \begin_layout Abstract
-/
+/ code to easily train models and plot is available at 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/EazyEnder/KANion"
+
+\end_inset
+
+ (private for now)
 \end_layout
 
 \begin_layout Abstract
@@ -161,7 +168,8 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-/ Why this is important,
+/ Hardest part to write...
+ Why this is important,
  actual methods/tentatives,
  a bigger introduction on MC will be before Part I,
  at the beginning of the doc.
@@ -174,6 +182,9 @@ Neural networks
 \begin_layout Standard
 / Introduction on MLPs,
  CNNs...
+ And maybe subsection on convolution layers,
+ max pooling,
+ conv transpose operations.
 \end_layout
 
 \begin_layout Subsubsection
@@ -235,7 +246,14 @@ literal "false"
 
 \end_inset
 
- (example for 32x32 pixels in the lowest resolution).
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-net-architecture"
+
+\end_inset
+
+(example for 32x32 pixels in the lowest resolution).
  Each bluebox corresponds to a multi-channel feature map.
  The number of channels is denoted on top of the box.
  The x-y-size is provided at the lower left edge of the box.
@@ -632,15 +650,107 @@ Training
 \end_layout
 
 \begin_layout Standard
-/
+Training a model is a crucial step in achieving good performance.
+ There are multiple choices that we,
+ as users,
+ need to make to obtain optimal results.
+\end_layout
+
+\begin_layout Itemize
+Global vs.
+ local minima:
+ We want the model,
+ with 
+\begin_inset Formula $N$
+\end_inset
+
+ free parameters (weights),
+ to converge to a global minimum of the loss function rather than getting stuck in a local well.
+ Therefore,
+ the choice of optimizer,
+ which performs backward error propagation (adjusting the model’s weights),
+ is important.
+ Here,
+ we use ADAM 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "kingma_adam_2017"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Loss function:
+ A well-chosen loss function is essential for accurately representing the problem.
+ Here,
+ we generally use 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:MSELoss"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ but other loss methods can be considered (see sub-section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:LossMethods"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Itemize
+Learning rate:
+ The learning rate is another critical factor—
+it determines the step size the optimizer takes in the loss function during each update (epoch).
+ Ideally,
+ it should decrease when the loss reaches a plateau.
+ To manage this,
+ we use a scheduler.
+ 
+\end_layout
+
+\begin_layout Standard
+Each epoch,
+ i.e.,
+ learning step,
+ the model processes all the training batch column density images and predicts their mass-weighted density.
+\end_layout
+
+\begin_layout Standard
+A way to artificially increase the size of the training batch is to apply random transformations to the images at each epoch 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "yang_image_2023"
+literal "false"
+
+\end_inset
+
+,
+ such as random rotations and random vertical or horizontal flips.
+ Afterward,
+ the prediction loss is computed using the chosen loss method,
+ and backward error propagation is performed.
+ Then,
+ a new epoch begins,
+ repeating the same steps.
 \end_layout
 
 \begin_layout Section
 Results
-\end_layout
-
-\begin_layout Standard
-/
 \end_layout
 
 \begin_layout Subsection
@@ -694,7 +804,7 @@ There are many ways to view if a model works or not.
  we use MSELoss ("Mean Squared Error") :
 \begin_inset Formula 
 \begin{equation}
-\text{MSELoss}=\mathbb{E}((\text{prediction}-\text{target})^{2})
+\text{MSELoss}=\mathbb{E}((\text{prediction}-\text{target})^{2})\label{eq:MSELoss}
 \end{equation}
 
 \end_inset
@@ -976,7 +1086,7 @@ Finally,
 \end_inset
 
 ).
- A prediction is considered correct if
+ A predicted pixel is considered correct if
 \begin_inset Formula $|\text{target}-\text{prediction}|<\sigma$
 \end_inset
 
@@ -984,10 +1094,10 @@ Finally,
 \begin_inset Formula $\sigma$
 \end_inset
 
- represents the allowed error in the prediction.
+ represents the allowed error in the prediction in log10.
 \begin_inset Formula 
 \begin{equation}
-Acc_{i}=\frac{\sum_{i}^{N_{pixels}}N(|\text{target}-\text{prediction}|<\sigma)}{N_{pixels}}
+Acc_{i}=\frac{\sum_{i}^{N_{pixels}}N(|\text{target}-\text{prediction}|<\sigma)}{N_{pixels}}\label{eq:Accuracy}
 \end{equation}
 
 \end_inset
@@ -1013,7 +1123,7 @@ Where
 \begin_inset Formula $B$
 \end_inset
 
- is batch size,i.e the number of images in the batch.
+ is the batch size,i.e the number of images in the batch.
 \end_layout
 
 \begin_layout Standard
@@ -1082,7 +1192,7 @@ Our problem is a regression problem,
 
 \begin_layout Standard
 In the U-Net architecture,
- the number of free parameters is largely determined by:
+ the number of free parameters is influenced by:
 \end_layout
 
 \begin_layout Itemize
@@ -1163,7 +1273,9 @@ name "fig:U-Net-complexity-map"
 
 \end_inset
 
-
+.
+ Each point is a trained U-Net with attention blocks and with X Base Filters and Y Layers.
+ Yellow means higher accuracy and purple lower accuracy.
 \end_layout
 
 \end_inset
@@ -1193,7 +1305,47 @@ nolink "false"
 \end_inset
 
  with the number of base filters and the number of layers.
- 
+ This highlights that a model with higher complexity does not always guarantee better accuracy,
+ probably because of the lack of training data.
+ However,
+ Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-complexity-map"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ is not sufficient because the accuracy,
+ as defined by 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Accuracy"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ can be higher even for a blurred prediction.
+ This is illustrated in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-2-layers"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ where a model with fewer layers fails to capture high-frequency features (sharp edges),
+ resulting in a blurry output.
 \end_layout
 
 \begin_layout Standard
@@ -1223,6 +1375,181 @@ U-Net 2 layers with 80 initial features maps,
  validation images.
  Top row is the true mass-weighted density,
  bottom row is the predicted mass-weighted density.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-2-layers"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that in U-Net,
+ each layer typically performs two convolution operations rather than just one,
+ as shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-net-architecture"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+ This further increases the model complexity.
+ However,
+ in our case,
+ using two convolutions per block does not lead to better performance (see figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-DoubleConv"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+ Therefore,
+ our default model is designed with just one convolution operation per block to reduce computational cost while maintaining accuracy.
+ That said,
+ our implementation is flexible,
+ making it easy to modify the architecture and use alternative blocks,
+ such as double convolution per block,
+ if needed.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_double_accuracy.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_double_residuals.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Accuracy and Residuals for double conv per block (black) and for one conv per block (green) 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-DoubleConv"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -1244,7 +1571,14 @@ U-Net with KAN parts
 \end_layout
 
 \begin_layout Subsection
-Tests of different loss methods
+Tests of different loss methods 
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:LossMethods"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
