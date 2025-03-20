@@ -418,7 +418,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Column density for ORION
+Column density for 3 axes of the same molecular cloud from ORION
 \begin_inset CommandInset citation
 LatexCommand cite
 key "ntormousi_core_2019"
@@ -427,7 +427,7 @@ literal "false"
 \end_inset
 
  simulation,
- low magnetic field 
+ with low magnetic field 
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:Column-density-for"
@@ -471,14 +471,25 @@ It exhibits significant density variations within the explored region.
 \end_layout
 
 \begin_layout Standard
-The generated dataset is then randomly sorted and divided between training set (70%) and validation set (30%).
-\end_layout
+The generated dataset is then randomly shuffled and split between training set (80%) and validation set (20%).
+ For example,
+ using only the simulation shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Column-density-for"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
 
-\begin_layout Standard
-For volume densities,
- several line-of-sight densities can be used.
- A volume-weighted number density:
- 
+\end_inset
+
+,
+ we obtain a total of 37 covered regions,
+ each represented by a pair of images:
+ (column density,
+ volume density).
+ These are distributed as 29 training (pair of) images (78%) and 8 validation (pair of) images (22%).
 \begin_inset Formula 
 \begin{equation}
 n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}
@@ -686,7 +697,8 @@ literal "false"
 Loss function:
  A well-chosen loss function is essential for accurately representing the problem.
  Here,
- we generally use 
+ we generally use MSELoss (see eq:
+ 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:MSELoss"
@@ -697,7 +709,7 @@ nolink "false"
 
 \end_inset
 
-,
+),
  but other loss methods can be considered (see sub-section 
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -727,7 +739,19 @@ it determines the step size the optimizer takes in the loss function during each
 Each epoch,
  i.e.,
  learning step,
- the model processes all the training batch column density images and predicts their mass-weighted density.
+ the model processes all the training batch
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+A batch is a set of paired images:
+ column density/input & volume density/target
+\end_layout
+
+\end_inset
+
+ column density images and predicts their mass-weighted density.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -1306,7 +1330,7 @@ nolink "false"
 
  with the number of base filters and the number of layers.
  This highlights that a model with higher complexity does not always guarantee better accuracy,
- probably because of the lack of training data.
+ probably because of the lack of training data and longer convergence time.
  However,
  Figure 
 \begin_inset CommandInset ref
@@ -1567,7 +1591,36 @@ U-Net with KAN parts
 \end_layout
 
 \begin_layout Standard
-/
+Kolmogorov Arnold Networks
+\begin_inset CommandInset citation
+LatexCommand cite
+key "liu_kan_2024"
+literal "false"
+
+\end_inset
+
+ replace fixed activation functions with learnable sum of univariates functions like B-splines or Radial Basis functions 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "li_kolmogorov-arnold_2024"
+literal "false"
+
+\end_inset
+
+.
+ Some recent papers have shown that using KAN layers in traditional architectures can improve performance and accuracy 
+\end_layout
+
+\begin_layout Subsubsection
+KAN Layer as an network convolutionnal output
+\end_layout
+
+\begin_layout Subsubsection
+KAN Layer as a symbolic use 
+\end_layout
+
+\begin_layout Subsubsection
+KAN Layer as a replacement of convolutionnal layers
 \end_layout
 
 \begin_layout Subsection
@@ -1586,6 +1639,49 @@ name "subsec:LossMethods"
 \end_layout
 
 \begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Part
+From the p-p-v space to the p-p-p space
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset CommandInset bibtex
 LatexCommand bibtex
 btprint "btPrintCited"
@@ -1596,6 +1692,325 @@ encoding "default"
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\start_of_appendix
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Operations used in U-Net
+\end_layout
+
+\begin_layout Standard
+The U-Net 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "ronneberger_u-net_2015"
+literal "false"
+
+\end_inset
+
+ architecture (see figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-net-architecture"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) is built upon a combination of a few basic operations.
+ To fully grasp how the network functions and later adapt it to our specific problem,
+ it is crucial to understand these operations.
+\end_layout
+
+\begin_layout Standard
+Since these operations are already implemented and optimized in popular libraries like PyTorch,
+ it is easy to fall into the trap of constructing an architecture without understanding its underlying mechanics.
+\end_layout
+
+\begin_layout Subsection
+Convolution
+\end_layout
+
+\begin_layout Standard
+Convolution is the fundamental operation in deep learning architectures like U-Net.
+ It applies a set of 
+\begin_inset Formula $N$
+\end_inset
+
+ learnable filters (learnable kernels) to an input image,
+ extracting features such as edges and patterns.
+ Each filter slides across the image,
+ computing weighted sums to create 
+\begin_inset Formula $N$
+\end_inset
+
+ feature maps,
+ which are then passed to the next layers.
+ (see note for image author & details 
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset href
+LatexCommand href
+target "https://www.geeksforgeeks.org/apply-a-2d-convolution-operation-in-pytorch/"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_op_conv.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Network Convolution
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Max pooling
+\end_layout
+
+\begin_layout Standard
+Max pooling is a downsampling operation used to reduce the spatial dimensions of feature maps while preserving the most important information.
+ It works by selecting the maximum value from a small region (e.g.,
+ 2×2) of the feature map,
+ improving computational efficiency and making the network more robust to small spatial variations.
+ 
+\end_layout
+
+\begin_layout Standard
+It is also possible to use other pooling operations,
+ such as Average Pooling,
+ where instead of selecting the maximum value in a region,
+ the average of all values is taken.
+ However,
+ Average Pooling is generally less efficient in capturing important features because it smooths out details,
+ whereas Max Pooling preserves the most prominent features by selecting the highest value.
+ (see note for image author & details
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset href
+LatexCommand href
+target "https://www.geeksforgeeks.org/apply-a-2d-max-pooling-in-pytorch/"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_op_maxpooling.png
+	lyxscale 50
+	width 85col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Network Max Pooling
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Conv Transpose
+\end_layout
+
+\begin_layout Standard
+Also known as upsampling convolution,
+ this operation increases the spatial dimensions of feature maps.
+ It is used in the U-Net decoder to reconstruct high-resolution outputs from lower-resolution feature maps,
+ helping to recover lost spatial details.
+ (see note for image author & details
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset CommandInset href
+LatexCommand href
+target "https://www.geeksforgeeks.org/what-is-transposed-convolutional-layer/"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_op_convtrans.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Network Convolutionnal Transpose
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Concatenate
+\end_layout
+
+\begin_layout Standard
+Concatenation is a key operation in U-Net,
+ allowing feature maps from different layers to be combined.
+ In the skip connections,
+ feature maps from the encoder are concatenated with corresponding decoder layers,
+ ensuring that fine spatial information is retained during reconstruction.
+\end_layout
+
+\begin_layout Subsection
+ReLU
+\end_layout
+
+\begin_layout Standard
+ReLU is an activation function applied after convolution to introduce non-linearity.
+ It sets negative values to zero while keeping positive values unchanged:
+\begin_inset Formula 
+\begin{equation}
+\text{ReLU}(x)=\text{max}(0,x)
+\end{equation}
+
+\end_inset
+
+Which helps accelerate training and prevent the vanishing gradient problem.
 \end_layout
 
 \begin_layout Standard
