@@ -468,6 +468,18 @@ It does not contain a disproportionately large fraction of very low-density regi
 It exhibits significant density variations within the explored region.
  A score is defined based on the smoothness of the image using the Laplacian of the density,
  favoring regions with filaments over those with nearly homogeneous density.
+ (See appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:How-the-score"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+)
 \end_layout
 
 \begin_layout Standard
@@ -633,15 +645,15 @@ literal "false"
 .
  The implementation of KAN in the architecture occurs at the output convolution layer,
  where the KAN layer replaces the classic convolution layer (named K-Net if that's the case),
- thanks to the work of O.
- Rayyan
+ thanks to the work of X.
+ Gao
 \begin_inset Foot
 status open
 
 \begin_layout Plain Layout
 \begin_inset CommandInset href
 LatexCommand href
-target "https://github.com/omarrayyann/KAN-Conv2D"
+target "https://github.com/XiangboGaoBarry/KA-Conv"
 literal "false"
 
 \end_inset
@@ -1464,7 +1476,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -2011,6 +2023,273 @@ ReLU is an activation function applied after convolution to introduce non-linear
 \end_inset
 
 Which helps accelerate training and prevent the vanishing gradient problem.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+How the score is computed 
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:How-the-score"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Creating a training dataset is a crucial step in building an effective model.
+ In our case,
+ we want to avoid overtraining on the borders of the simulation,
+ as these regions contain less valuable information compared to the dense regions with filaments and cores.
+\end_layout
+
+\begin_layout Standard
+To achieve this,
+ we implement an additional filtering step:
+\end_layout
+
+\begin_layout Enumerate
+We compute a "score" 
+\begin_inset Formula $s(\text{image})$
+\end_inset
+
+ for each new candidate area before adding it to the dataset.
+\end_layout
+
+\begin_layout Enumerate
+This score is calculated using a custom function that aligns with our training objectives.
+\end_layout
+
+\begin_layout Enumerate
+We then apply a filter function 
+\begin_inset Formula $f(s)$
+\end_inset
+
+.
+ If a randomly generated number (
+\begin_inset Formula $random$
+\end_inset
+
+) in the range [0,1] satisfies 
+\begin_inset Formula $random<f(s)$
+\end_inset
+
+,
+ the region is accepted and added to the training set.
+\end_layout
+
+\begin_layout Standard
+This approach ensures that the dataset focuses more on important structures (filaments and cores) rather than sparse or less informative regions.
+ 
+\end_layout
+
+\begin_layout Standard
+We can also use multiple scoring functions,
+ each capturing different aspects of the dataset,
+ and combine them using weighted (
+\begin_inset Formula $w_{i}$
+\end_inset
+
+) sums to account for various criteria.
+ Mathematically,
+ the final score 
+\begin_inset Formula $s$
+\end_inset
+
+ can be expressed as:
+\begin_inset Formula 
+\begin{equation}
+s=\sum_{i}s_{i}w_{i}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This score can also be made for the column density image 
+\begin_inset Formula $s(N_{C})$
+\end_inset
+
+ and the volume density image 
+\begin_inset Formula $s(n_{H})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Smoothness score
+\end_layout
+
+\begin_layout Standard
+The score function used when generating our training set needs to be based on the smoothness of the selected area.
+ This is because if an area is entirely within a diffuse region,
+ it will exhibit low spatial frequency variation (i.e.,
+ only large-scale structures) and lack filaments.
+\end_layout
+
+\begin_layout Standard
+To ensure that each selected image contains both diffuse regions and some filaments,
+ we use the variance of the smoothness as a criterion.
+ The smoothness itself is defined as the Laplacian of the image,
+ which highlights areas with sharp density changes (such as filaments).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+s_{\Delta}(x)=\text{Var}[\Delta(\log(1+x)-\min[\log(1+x)])]\label{eq:score_lapl}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The variance in equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:score_lapl"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ is to get a mix of dense and high-density regions.
+\end_layout
+
+\begin_layout Subsection
+Difference score
+\end_layout
+
+\begin_layout Standard
+A basic criterion that can be chosen is the difference between the normalized column density and the normalized volume density.
+ This helps identify regions where the local density distribution differs significantly between the two representations.
+\end_layout
+
+\begin_layout Standard
+For example,
+ when using mass-weighted density,
+ this criterion will highlight dense regions,
+ since areas with high volume density but relatively lower column density indicate localized dense structures along the l.o.s.
+\begin_inset Formula 
+\begin{equation}
+s_{\text{res}}=\frac{N_{C}-\min(N_{C})}{\max(N_{C})-\text{min}(N_{C})}-\frac{n_{H}-\min(n_{H})}{\max(n_{H})-\min(n_{H})}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Filter function
+\end_layout
+
+\begin_layout Standard
+As a filter function 
+\begin_inset Formula $f(s)$
+\end_inset
+
+,
+ we use a sigmoid :
+ 
+\begin_inset Formula 
+\begin{equation}
+f(s)=\frac{1}{1+\exp(-A(s-B))}
+\end{equation}
+
+\end_inset
+
+ where 
+\begin_inset Formula $\begin{cases}
+A: & \text{step length}\\
+B: & \text{offset}
+\end{cases}$
+\end_inset
+
+ and are chosen empirically.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_op_conv.png
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Sigmoid as a filter function
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
