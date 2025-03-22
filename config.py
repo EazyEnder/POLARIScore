@@ -16,7 +16,7 @@ MODEL_FOLDER = os.path.join(EXPORT_FOLDER,"models")
 """Path to the models folder"""
 
 RANDOM_BATCH_SCORE_offset = 1.
-RANDOM_BATCH_SCORE_fct = lambda x: 1./(1+np.exp(-2.*(x-RANDOM_BATCH_SCORE_offset)))
+RANDOM_BATCH_SCORE_fct = lambda x: 1./(1+np.exp(-2*(x-RANDOM_BATCH_SCORE_offset)))
 """To generate batch, we use a score that'll go through this function. If a random number between 0. and 1. is lower that this function, then the generate training image is keeped. By default this is a sigmoid"""
 
 import matplotlib.cm as cm
@@ -30,3 +30,7 @@ LOGGER = Logger(level=2, auto_save=0)
 FIGURE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"paper/figure/")
 
 CACHES_FOLDER = os.path.join(EXPORT_FOLDER,"caches/")
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/")
+
+OBSERVATIONS_FOLDER = os.path.join(DATA_FOLDER,"observations/")

@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 from training_batch import *
 from config import *
 import uuid
-from nn_UNet import *
-from nn_FCN import FCN
-from nn_KNet import *
+from networks.nn_UNet import *
+from networks.nn_FCN import FCN
+from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
 class Trainer():
@@ -53,11 +53,12 @@ class Trainer():
         self.model = None
         self.optimizer = None
         self.scheduler = None
+        self.weight_decay = 1e-4
         
 
         if not(self.network is None):
             self.model = network(**self.network_settings).to(self.device)
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
         self.loss_method = nn.MSELoss()
@@ -72,7 +73,7 @@ class Trainer():
                 self.model = self.network(**self.network_settings).to(self.device)
             else:
                 self.model = model
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
@@ -272,13 +273,24 @@ class Trainer():
     
     def predict(self, batch):
         self.model.eval()
+
         input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
         target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
+        
         output = self.model(input_tensor)
+        output = output.cpu().detach().numpy()
 
-        target_tensor, output = target_tensor.cpu().detach().numpy(), output.cpu().detach().numpy()
+        target_tensor = target_tensor.cpu().detach().numpy()
         result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:]), np.exp(output[:,0,:,:]))
         return result_batch
+    
+    def predict_image(self, image):
+        self.model.eval()
+
+        input_tensor = torch.log(image).float().to(self.device)
+        output = self.model(input_tensor)
+        output = output.cpu().detach().numpy()
+        return np.exp(output)
 
     def plot_sim_validation(self, simulation, plot_total=False):
         sim_col_dens = simulation._compute_c_density()
@@ -335,15 +347,30 @@ class Trainer():
         fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
         return fig, axes
 
-    def plot_prediction_correlation(self,ax=None):
+    def plot_prediction_correlation(self,ax=None,factors=[0]):
         if ax is None:
             fig, ax = plt.subplots()
         else:
             fig = ax.figure
         batch = self.get_prediction_batch()
+        target_imgs = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
+        min_t, max_t = np.min(target_imgs), np.max(target_imgs)
         plot_batch_correlation(batch, ax=ax)
-        ax.set_xlabel("Target")
-        ax.set_ylabel("Prediction")
+        ax.set_xlabel("Target (log10)")
+        ax.set_ylabel("Prediction (log10)")
+        
+        X = np.linspace(min_t,max_t,10)
+        colors = FIGURE_CMAP(range(len(factors)))
+        for i,f in enumerate(factors):
+            if f == 0:
+                continue
+            f = np.abs(f)
+        
+            ax.plot(X,np.log10(f)+X,color=colors[i],linestyle="dashdot",label=fr"y=${f}\times x$")
+            ax.plot(X,np.log10(1/f)+X,color=colors[i],linestyle="dashdot",label=fr"y=${1/f:.1f}\times x$")
+
+        plt.legend()
+
         return fig, ax
 
     def plot(self):
@@ -442,11 +469,10 @@ def load_trainer(model_name, load_model=True):
     network_options = {"UNet" : UNet,
            "FCN" : FCN,
            "KNet" : KNet,
-           "FullKNet": FullKNet,
            "UneK": UneK,
            "None": None
     }
-    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock}
+    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock}
     network_settings = settings["network_settings"] if "network_settings" in settings else {}
     if "convBlock" in network_settings:
         network_settings["convBlock"] = network_convblock_options[network_settings["convBlock"]]
@@ -567,6 +593,8 @@ def heatmap(root_name, validation_batch, X, Y, ax=None):
     for l in Y:
         for bf in X:
             trainer = load_trainer(root_name+f"_l{str(l)}_bf{str(bf)}")
+            if trainer is None:
+                continue
             trainer.validation_batch = validation_batch
             acc, std = compute_batch_accuracy(trainer.get_prediction_batch(),sigma=0.3)
             Z.append(acc)
@@ -633,18 +661,18 @@ def generate_model_map(root_name, train_batch, validation_batch, network=UNet, l
             trainer.save()
 
 if __name__ == "__main__":
-    batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
+    batch = open_batch("batch_mixt")
+    train_batch, validation_batch = split_batch(batch, cutoff=0.7)
     
-    trainer_list = [load_trainer("UNet_At"), load_trainer("UNet_At_Double")]
-    for t in trainer_list:
-        t.training_batch = train_batch
-        t.validation_batch = validation_batch
+    #trainer_list = [load_trainer("UNet_At"), load_trainer("UKan")]
+    #for t in trainer_list:
+    #    t.training_batch = train_batch
+    #    t.validation_batch = validation_batch
 
     
-    #generate_model_map("UNet_CompMap",train_batch,validation_batch,network=UNet)
-    #fig, _ = heatmap("UNet_CompMap", validation_batch, [8,16,32,48,64,80], [2,3,4,5])
-    #fig.savefig(FIGURE_FOLDER+"unet_compmap.jpg")
+    #generate_model_map("KNet_CompMap",train_batch,validation_batch,network=KNet)
+    #fig, _ = heatmap("KNet_CompMap", validation_batch, [8,16,32,48,64,80], [2,3,4,5])
+    #fig.savefig(FIGURE_FOLDER+"knet_compmap.jpg")
 
     def binned_loss(output, target, bin_edges=[0,2,4,6,8,10]):
         loss = 0.0
@@ -663,8 +691,9 @@ if __name__ == "__main__":
         return torch.sum(weighted_loss)
     
 
-    """
-    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_At_Double")
+    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchMixt")
+    trainer.training_batch = train_batch
+    trainer.validation_batch = validation_batch
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
@@ -672,20 +701,24 @@ if __name__ == "__main__":
     trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     trainer.init()
-    #trainer.auto_save = 250
+    #trainer.auto_save = 200
     trainer.train(2000)
     #trainer_list.append(trainer)
     trainer.save()
     trainer.plot()
-    """
+    
+    trainer.plot_validation()
+    plot_models_accuracy([trainer],show_errors=True)
     
     from objects.Simulation_DC import Simulation_DC
     sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    print(sim_MHD.data_vel)
+    #print(sim_MHD.data_vel)
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
-    #sim_MHD.plot_correlation(method=compute_mass_weighted_density)
+    #sim_MHD.plot_correlation(method=compute_max_density)
     #sim_HD.plot_correlation(method=compute_mass_weighted_density)
     #sim_HD.generate_batch(,number=64,force_size=128,)
     #sim_HD.plot()"""
 
     #trainer_list[-1].plot()
+    
+    plt.show()

@@ -44,11 +44,11 @@ class ResConvBlock(nn.Module):
         self.match_dim = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0) if in_channels != out_channels else None
     
     def forward(self, x):
-        res = x
+        res = x.clone()
         x = self.conv(x)
         if self.match_dim:
             res = self.match_dim(res)
-        x = x-res
+        x = x+res
         return F.relu(x)
     
 class AttentionBlock(nn.Module):

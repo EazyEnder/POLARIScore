@@ -66,3 +66,18 @@ def group_matrix(mats):
         result[row_idx * final_dim: (row_idx + 1) * final_dim,
                col_idx * final_dim: (col_idx + 1) * final_dim] = np.array(mat)
     return result
+
+
+import matplotlib.pyplot as plt
+def plot_function(function, ax=None, res=100, lims=[0,1], **args):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+    X = np.linspace(lims[0],lims[1],res)
+    Y = function(X)
+
+    ax.plot(X,Y,**args)
+    ax.grid(True)
+    
+    return fig, ax

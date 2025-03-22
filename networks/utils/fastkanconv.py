@@ -181,8 +181,8 @@ class FastKANConvLayer(nn.Module):
 
     def forward(self, x):
         batch_size, channels, height, width = x.shape
-        x_rbf = self.rbf(x.view(batch_size, channels, -1)).view(batch_size, channels, height, width, -1)
-        x_rbf = x_rbf.permute(0, 4, 1, 2, 3).contiguous().view(batch_size, -1, height, width)
+        x_rbf = self.rbf(x.reshape(batch_size, channels, -1)).reshape(batch_size, channels, height, width, -1)
+        x_rbf = x_rbf.permute(0, 4, 1, 2, 3).contiguous().reshape(batch_size, -1, height, width)
         
         # Apply spline convolution
         ret = self.spline_conv(x_rbf)

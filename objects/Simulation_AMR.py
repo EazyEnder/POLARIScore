@@ -39,21 +39,9 @@ class Simulation_ARM():
             densities = f["scalars/density"][:] 
             sizes = f["scalars/size"][:]
 
-        
-
         #hist, xedges, yedges = np.histogram2d(x, y, bins=1000, weights=density)
         #plt.imshow(hist.T, origin="lower", extent=[x.min(), x.max(), y.min(), y.max()], cmap="viridis", aspect="auto")
 
-        
-
-        """
-        with open(os.path.join(self.folder,"processing_config.json"), "r") as file:
-            self.header = json.load(file)
-            self.relative_size = self.header["run_parameters"]["size"]
-            self.center = np.array([self.header["run_parameters"]["xcenter"],self.header["run_parameters"]["ycenter"],self.header["run_parameters"]["zcenter"]])
-            self.cell_size = (self.global_size*self.relative_size/self.nres) * u.parsec
-            self.cell_size = self.cell_size.to(u.cm)
-            self.size = self.global_size*self.relative_size"""
 
 if __name__ == "__main__":
     sim = Simulation_ARM("orionMHD_lowB_0.4_AMR", 66.0948)

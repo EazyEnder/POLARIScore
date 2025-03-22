@@ -99,7 +99,7 @@
 \begin_body
 
 \begin_layout Title
-From the column density to the volume density in molecular clouds (Placeholder)
+From the column density to the volume density in molecular clouds using machine learning
 \end_layout
 
 \begin_layout Author
@@ -180,11 +180,29 @@ Neural networks
 \end_layout
 
 \begin_layout Standard
-/ Introduction on MLPs,
- CNNs...
- And maybe subsection on convolution layers,
- max pooling,
- conv transpose operations.
+Neural networks are machine learning models that process data through layers of interconnected neurons.
+ Two key types are Multi-Layer Perceptrons (MLPs) and Convolutional Neural Networks (CNNs).
+\end_layout
+
+\begin_layout Itemize
+MLPs are fully connected networks that apply weighted sums and non-linear activations.
+ They work well for structured data but struggle with spatial dependencies.
+\end_layout
+
+\begin_layout Itemize
+CNNs are designed for spatial data like images,
+ using convolutional layers to extract features and pooling layers to reduce dimensionality (see Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Operations-used-CNN"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Subsubsection
@@ -207,7 +225,18 @@ literal "false"
  A key feature of U-Net is its skip connections,
  which allow direct information flow between corresponding encoder and decoder layers,
  preserving spatial details lost during downsampling.
- 
+ (See Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-net-architecture"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+)
 \end_layout
 
 \begin_layout Standard
@@ -221,7 +250,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -284,11 +313,20 @@ literal "false"
 
 \end_inset
 
- are a novel class of neural networks inspired by the Kolmogorov–Arnold representation theorem,
- which states that any multivariate continuous function can be expressed as a composition of univariate functions.
- Unlike traditional deep learning architectures,
+ are a novel class of neural networks inspired by the Kolmogorov–Arnold representation theorem.Unlike traditional deep learning architectures,
  KANs replace fixed activation functions with learnable,
- parameterized univariate functions.
+ parameterized univariate functions (see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:KAN"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ ).
  This design provides greater flexibility in function approximation while maintaining interpretability.
  KANs have demonstrated strong potential in various applications,
  including scientific computing and physics-informed learning,
@@ -304,7 +342,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -322,7 +360,14 @@ status open
 
 \begin_layout Plain Layout
 Multi-Layer Perceptrons (MLPs) vs.
- Kolmogorov-Arnold Networks (KANs)
+ Kolmogorov-Arnold Networks (KANs) 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:KAN"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -381,7 +426,7 @@ literal "false"
 To increase the amount of training data,
  projections along the three axes are used.
  In other words,
- we generate three column density images by summing the densities along different axes (see Figure 
+ we generate three column density images by summing the densities along different axes as shown in Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "fig:Column-density-for"
@@ -392,7 +437,7 @@ nolink "false"
 
 \end_inset
 
-).
+.
 \end_layout
 
 \begin_layout Standard
@@ -401,7 +446,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -502,9 +547,17 @@ nolink "false"
  (column density,
  volume density).
  These are distributed as 29 training (pair of) images (78%) and 8 validation (pair of) images (22%).
+\end_layout
+
+\begin_layout Standard
+In this part,
+ our goal is not to reconstruct the full density distribution along the line of sight,
+ but rather to determine a single representative value for each region.
+ There are several ways to compute such an average density,
+ including:
 \begin_inset Formula 
 \begin{equation}
-n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}
+n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}\label{eq:volume_average_dens}
 \end{equation}
 
 \end_inset
@@ -531,9 +584,63 @@ n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta 
 \end_layout
 
 \begin_layout Standard
-But this volume-weighted density has the problem that to get this,
- one need the cloud length.
- Another density which can be used is the mass-weighted average number density:
+Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:volume_average_dens"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ is the volume-weighted density and has the problem that to get this,
+ one need the cloud length.For our simulation,
+ if we compute the volume-weighted density,
+ we find that it simplifies to the column density 
+\begin_inset Formula $N_{C}$
+\end_inset
+
+ divided by the box length 
+\begin_inset Formula $L$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+N_{C}=\sum_{i}n_{H,i}(\Delta V_{i})^{\frac{1}{3}}=N_{cells}(\Delta V)^{\frac{1}{3}}\sum_{i}n_{H,i}=L\sum_{i}n_{H,i}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where we assume a uniform grid,
+ but the principle remains valid even for a non-uniform grid.
+ From this,
+ we obtain:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+n_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This shows that the volume-weighted density computed on the simulation is directly proportional to the column density.
+\end_layout
+
+\begin_layout Standard
+Another density which can be used is the mass-weighted average number density:
 \begin_inset Formula 
 \begin{equation}
 n_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
@@ -560,7 +667,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -596,7 +703,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -680,9 +787,7 @@ Training a model is a crucial step in achieving good performance.
 \end_layout
 
 \begin_layout Itemize
-Global vs.
- local minima:
- We want the model,
+We want the model,
  with 
 \begin_inset Formula $N$
 \end_inset
@@ -722,18 +827,7 @@ nolink "false"
 \end_inset
 
 ),
- but other loss methods can be considered (see sub-section 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "subsec:LossMethods"
-plural "false"
-caps "false"
-noprefix "false"
-nolink "false"
-
-\end_inset
-
-).
+ but other loss methods can be considered.
 \end_layout
 
 \begin_layout Itemize
@@ -786,7 +880,7 @@ literal "false"
 \end_layout
 
 \begin_layout Section
-Results
+Model performance
 \end_layout
 
 \begin_layout Subsection
@@ -799,7 +893,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -873,7 +967,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -939,7 +1033,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1001,7 +1095,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1075,7 +1169,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1168,7 +1262,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1285,7 +1379,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1390,7 +1484,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1476,7 +1570,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -1747,7 +1841,14 @@ begin{multicols}{2}
 \end_layout
 
 \begin_layout Section
-Operations used in U-Net
+Operations used in U-Net 
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Operations-used-CNN"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -2115,6 +2216,16 @@ We then apply a filter function
 
 ,
  the region is accepted and added to the training set.
+ I.e 
+\begin_inset Formula $f(s)$
+\end_inset
+
+ is the probability to accept and add an area with a score of 
+\begin_inset Formula $s$
+\end_inset
+
+ in the dataset.
+ 
 \end_layout
 
 \begin_layout Standard
@@ -2218,7 +2329,7 @@ For example,
  since areas with high volume density but relatively lower column density indicate localized dense structures along the l.o.s.
 \begin_inset Formula 
 \begin{equation}
-s_{\text{res}}=\frac{N_{C}-\min(N_{C})}{\max(N_{C})-\text{min}(N_{C})}-\frac{n_{H}-\min(n_{H})}{\max(n_{H})-\min(n_{H})}
+s_{\text{res}}=\text{Var}[\frac{N_{C}-\min(N_{C})}{\max(N_{C})-\text{min}(N_{C})}-\frac{n_{H}-\min(n_{H})}{\max(n_{H})-\min(n_{H})}]
 \end{equation}
 
 \end_inset
@@ -2266,9 +2377,9 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/unet_op_conv.png
+	filename figure/sigmoid.jpg
 	lyxscale 50
-	width 100col%
+	width 75col%
 
 \end_inset
 
@@ -2290,6 +2401,49 @@ Sigmoid as a filter function
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Prediction of the density maximum along the line of sight
 \end_layout
 
 \begin_layout Standard

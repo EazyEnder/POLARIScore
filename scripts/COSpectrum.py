@@ -72,7 +72,7 @@ def plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2), mean_mod=False, ax=No
         I = np.sum(intensity_map,axis=2)
         im = ax.imshow(I/VELOCITY_CHANNELS,extent=[simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="jet", norm=LogNorm())
     else:
-        im = ax.imshow(intensity_map[:,:,slice],extent=[simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="jet", norm=LogNorm())
+        im = ax.imshow(intensity_map[:,:,slice],extent=[simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="viridis")
     plt.colorbar(im, label="Intensity (K)")
     ax.set_xlabel(r"$x_1$ [pc]")
     ax.set_ylabel(r"$x_2$ [pc]")

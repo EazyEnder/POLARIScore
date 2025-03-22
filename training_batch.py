@@ -36,14 +36,14 @@ def check_if_batch_exists(settings):
     """todo"""
     return False
 
-def save_batch(batch, settings):
+def save_batch(batch, settings, name=None):
     if check_if_batch_exists(settings):
         return False
     
     if not(os.path.exists(TRAINING_BATCH_FOLDER)):
         os.mkdir(TRAINING_BATCH_FOLDER)
 
-    batch_uuid = uuid.uuid4()
+    batch_uuid = uuid.uuid4() if name is None else name
     while os.path.exists(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid))):
         batch_uuid = uuid.uuid4()
 
@@ -148,26 +148,21 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 
     plt.colorbar(hist, ax=ax)
     fig.tight_layout()
+
+    return fig, ax
     
 
 if __name__ == "__main__":
-    batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
-
     from objects.Simulation_DC import Simulation_DC
 
     sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     
-    #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
-    #bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
-    #final_b, _ = mix_batch(bHD,bMHD)
-    #save_batch(final_b, settingsMHD)
-
-    #b, settings = SIMULATION_DATACUBE.generate_batch(method=compute_mass_weighted_density, number=64)
-    #save_batch(b, settings)
-
-    fig, _ = sim_MHD.plot_correlation(method=compute_mass_weighted_density)
-    fig.savefig(FIGURE_FOLDER+"orion_sim_correlation.jpg")
+    bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
+    bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
+    final_b, _ = mix_batch(bHD,bMHD)
+    save_batch(final_b, settingsMHD, name="mixt")
+    plot_batch(final_b, same_limits=False)
+    plot_batch_correlation(final_b)
 
     plt.show()

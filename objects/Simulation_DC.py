@@ -29,7 +29,7 @@ class Simulation_DC():
         """Simulatio name, name of the folder where the sim is in"""
         self.global_size = global_size
         """Real spatial size of the global simulation in parsec"""
-        self.folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../sims/"+name+"/")
+        self.folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../data/sims/"+name+"/")
         """Path to the folder where the simulation is stored"""
         self.file = os.path.join(self.folder,SIM_DATA_NAME)
         """Path to the simulation data"""
@@ -172,8 +172,8 @@ class Simulation_DC():
         column_density_xz = self._compute_c_density(axis=1)
         column_density_yz = self._compute_c_density(axis=2)
         volume_density_xy = self._compute_v_density(method, axis=0)
-        volume_density_xz = self._compute_v_density(method, axis=0)
-        volume_density_yz = self._compute_v_density(method, axis=0)
+        volume_density_xz = self._compute_v_density(method, axis=1)
+        volume_density_yz = self._compute_v_density(method, axis=2)
 
         imgs = []
         scores = []
@@ -354,7 +354,7 @@ class Simulation_DC():
 
         _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
         ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
-        ax.set_ylabel(r"Mass weighted density ($log_{10}(cm^{-3})$)")
+        ax.set_ylabel(r"Max density ($log_{10}(cm^{-3})$)")
         plt.colorbar(hist, ax=ax, label="counts")
         fig.tight_layout()
         return fig, ax
