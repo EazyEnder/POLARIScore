@@ -109,28 +109,34 @@ class Simulation_DC():
 
         return True
 
-    def init(self, loadTemp=True, loadVel=True):
+    def init(self, loadTemp=False, loadVel=False):
         """
         Load files and data in self variables
         """
         simfile = fits.open(self.file)
         self.data = simfile[0].data
         simfile.close()
+
+        self.column_density = [None,None,None]
+        self.column_density_method = [None,None,None]
+        self.volumic_density = [None,None,None]
+        self.volumic_density_method = [None,None,None]
         
         if loadTemp:
             self.loadTemperature()
         if loadVel:
             self.loadVelocity()
 
-        with open(os.path.join(self.folder,"processing_config.json"), "r") as file:
-            self.header = json.load(file)
-        self.nres = self.header["run_parameters"]["nres"] if "nres" in self.header["run_parameters"] else self.header["run_parameters"]["nxyz"]
-        self.relative_size = self.header["run_parameters"]["size"]
-        self.center = np.array([self.header["run_parameters"]["xcenter"],self.header["run_parameters"]["ycenter"],self.header["run_parameters"]["zcenter"]])
-        self.cell_size = (self.global_size*self.relative_size/self.nres) * u.parsec
-        self.cell_size = self.cell_size.to(u.cm)
-        self.size = self.global_size*self.relative_size
-        self.axis = ([self.center[0]*self.global_size-self.size/2,self.center[0]*self.global_size+self.size/2],[self.center[1]*self.global_size-self.size/2,self.center[1]*self.global_size+self.size/2],[self.center[2]*self.global_size-self.size/2,self.center[2]*self.global_size+self.size/2])    
+        if os.path.exists(os.path.join(self.folder,"processing_config.json")):
+            with open(os.path.join(self.folder,"processing_config.json"), "r") as file:
+                self.header = json.load(file)
+            self.nres = self.header["run_parameters"]["nres"] if "nres" in self.header["run_parameters"] else self.header["run_parameters"]["nxyz"]
+            self.relative_size = self.header["run_parameters"]["size"]
+            self.center = np.array([self.header["run_parameters"]["xcenter"],self.header["run_parameters"]["ycenter"],self.header["run_parameters"]["zcenter"]])
+            self.cell_size = (self.global_size*self.relative_size/self.nres) * u.parsec
+            self.cell_size = self.cell_size.to(u.cm)
+            self.size = self.global_size*self.relative_size
+            self.axis = ([self.center[0]*self.global_size-self.size/2,self.center[0]*self.global_size+self.size/2],[self.center[1]*self.global_size-self.size/2,self.center[1]*self.global_size+self.size/2],[self.center[2]*self.global_size-self.size/2,self.center[2]*self.global_size+self.size/2])    
 
     def from_index_to_scale(self,index):
         """Return the size in cm"""
@@ -167,7 +173,6 @@ class Simulation_DC():
         """
 
         LOGGER.log(f"Generate {number} images using simulation {self.name}.")
-
         column_density_xy = self._compute_c_density(axis=0)
         column_density_xz = self._compute_c_density(axis=1)
         column_density_yz = self._compute_c_density(axis=2)
@@ -182,6 +187,7 @@ class Simulation_DC():
         iteration = 0
         while img_generated < number and iteration < number*100 :
             iteration += 1
+            print(f'{iteration}', end = "\r")
             if iteration >= number*100:
                 LOGGER.warn("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
                 break
@@ -205,7 +211,12 @@ class Simulation_DC():
             if limits is None:
                 limits = [0,self.global_size,0,self.global_size]
             center = np.array([limits[0]+(limits[1]-limits[0])*np.random.random(),limits[2]+(limits[3]-limits[2])*np.random.random()])
-            
+
+            s = int(2**round(np.log2(np.floor(convert_pc_to_index(size, self.nres, self.size)/2)*2)))
+            if force_size > 0:
+                s = int(force_size)
+
+            size = self.from_index_to_scale(s)/PC_TO_CM
             #Verify if the region is already covered by a previous generated image
             flag = False
             for point in areas_explored[face]:
@@ -218,9 +229,6 @@ class Simulation_DC():
             c_x = convert_pc_to_index(c_x, self.nres,self.size,start=self.axis[0][0])
             c_y = convert_pc_to_index(c_y, self.nres,self.size,start=self.axis[0][0])
 
-            s = int(2**round(np.log2(np.floor(convert_pc_to_index(size, self.nres, self.size)/2)*2)))
-            if force_size > 0:
-                s = int(force_size)
             start_x = c_x - s // 2
             start_y = c_y - s // 2
             end_x = c_x + s // 2 + s%2
@@ -256,6 +264,8 @@ class Simulation_DC():
             scores.append(score)
             areas_explored[face].append(center)
             img_generated += 1
+
+        print("")
         
         random_idx = np.random.permutation(len(imgs))
         r_imgs = []
@@ -264,9 +274,9 @@ class Simulation_DC():
         imgs = r_imgs
         r_scores = []
         for r_id in random_idx:
-            r_scores.append(imgs[r_id])
+            r_scores.append(scores[r_id])
         imgs = r_imgs
-        scores = r_scores
+        scores = [r[0] for r in r_scores]
         
         
         settings = {
@@ -337,6 +347,7 @@ class Simulation_DC():
         return fig, axes
 
     def plot_correlation(self,method=compute_mass_weighted_density, axis=-1):
+
         """
         Plot correlation between the column density and the volumic density
 
@@ -358,3 +369,73 @@ class Simulation_DC():
         plt.colorbar(hist, ax=ax, label="counts")
         fig.tight_layout()
         return fig, ax
+
+def mergeSimu(sim_array):
+    assert all(sim.nres == sim_array[0].nres for sim in sim_array),  LOGGER.error("Resolution mismatch among simulations.")
+    LOGGER.log(f"merge {len(sim_array)} simulations")
+    datacube_size = sim_array[0].nres
+    sim_len = int(len(sim_array)**(1/3))
+    merged_simulation = np.zeros((datacube_size*sim_len, datacube_size*sim_len, datacube_size*sim_len))
+
+    centers = np.array([sim.center for sim in sim_array])
+    maxs = np.max(centers+sim_array[0].relative_size/2, axis=0)
+    mins = np.min(centers-sim_array[0].relative_size/2, axis=0)
+
+    for i,sim in enumerate(sim_array):
+        printProgressBar(i, len(sim_array), prefix="Merging:")
+        sim_data = sim.data.transpose()
+        x_center, y_center, z_center = (centers[i] - mins)/(maxs-mins)
+        x_offset = int((x_center) * datacube_size*sim_len -datacube_size/2)
+        y_offset = int((y_center) * datacube_size*sim_len -datacube_size/2)
+        z_offset = int((z_center) * datacube_size*sim_len -datacube_size/2)
+        
+        if 0 <= x_offset < datacube_size*sim_len and 0 <= y_offset < datacube_size*sim_len and 0 <= z_offset < datacube_size*sim_len:
+            merged_simulation[x_offset:x_offset + datacube_size, 
+                               y_offset:y_offset + datacube_size, 
+                               z_offset:z_offset + datacube_size] = sim_data
+        else:
+            LOGGER.error(f"Simulation center ({x_center}, {y_center}, {z_center}) out of bounds for merged datacube.")
+            return
+    LOGGER.log("Simulations merged")
+
+    host = sim_array[0]
+    host.data = merged_simulation.transpose()
+    host.nres = datacube_size*sim_len
+    host.relative_size = host.relative_size*sim_len
+    host.center = np.array([0.5,0.5,0.5])
+    host.cell_size = (host.global_size*host.relative_size/host.nres) * u.parsec
+    host.cell_size = host.cell_size.to(u.cm)
+    host.size = host.global_size*host.relative_size
+    host.axis = ([host.center[0]*host.global_size-host.size/2,host.center[0]*host.global_size+host.size/2],[host.center[1]*host.global_size-host.size/2,host.center[1]*host.global_size+host.size/2],[host.center[2]*host.global_size-host.size/2,host.center[2]*host.global_size+host.size/2])  
+    
+    return host
+
+import glob
+def openSimulation(name_root, global_size, use_cache=True):
+    files =glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../data/sims/"+name_root+"*"))
+    LOGGER.log(f"Opening {len(files)} simulations")
+    names = [f.split("/")[-1] for f in files]
+    sims = []
+    if use_cache and os.path.exists(CACHES_FOLDER+"np_memory"):
+        LOGGER.log("Merge using cached data")
+        sim = Simulation_DC(names[0], global_size, init=True)
+        sim_len = int(len(names)**(1/3))
+        sim.data = np.memmap(CACHES_FOLDER+"np_memory", dtype='float32', mode='r', shape=(sim.data.shape[0]*sim_len,sim.data.shape[1]*sim_len,sim.data.shape[2]*sim_len))
+        sim.nres = sim.nres*sim_len
+        sim.relative_size = sim.relative_size*sim_len
+        sim.center = np.array([0.5,0.5,0.5])
+        sim.cell_size = (sim.global_size*sim.relative_size/sim.nres) * u.parsec
+        sim.cell_size = sim.cell_size.to(u.cm)
+        sim.size = sim.global_size*sim.relative_size
+        sim.axis = ([sim.center[0]*sim.global_size-sim.size/2,sim.center[0]*sim.global_size+sim.size/2],[sim.center[1]*sim.global_size-sim.size/2,sim.center[1]*sim.global_size+sim.size/2],[sim.center[2]*sim.global_size-sim.size/2,sim.center[2]*sim.global_size+sim.size/2])  
+        return sim
+
+    for n in names:
+        sims.append(Simulation_DC(n, global_size, init=True))
+    sim = mergeSimu(sims)
+    del sims
+    fp = np.memmap(CACHES_FOLDER+"np_memory", dtype='float32', mode='w+', shape=sim.data.shape)
+    fp[:] = sim.data[:]
+    sim.data = fp
+    return sim
+

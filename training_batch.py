@@ -33,7 +33,7 @@ def split_batch(batch, cutoff=0.7):
     return (batch[:cut_index],batch[cut_index:])
 
 def check_if_batch_exists(settings):
-    """todo"""
+    #TODO
     return False
 
 def save_batch(batch, settings, name=None):
@@ -69,7 +69,7 @@ def rebuild_batch(cdens, vdens):
         batch.append((cdens[i], vdens[i]))
     return batch
 
-def open_batch(batch_name):
+def open_batch(batch_name, return_path=False):
     if not(os.path.exists(TRAINING_BATCH_FOLDER)):
         return
     batch_path = os.path.join(TRAINING_BATCH_FOLDER,batch_name)
@@ -94,7 +94,10 @@ def open_batch(batch_name):
             file_c = file2
             file_v = file1
         check_ids.append(ids[i])
-        imgs.append((np.load(os.path.join(batch_path,file_c)),np.load(os.path.join(batch_path,file_v))))
+        if return_path:
+            imgs.append(((os.path.join(batch_path,file_c)),(os.path.join(batch_path,file_v))))
+        else:
+            imgs.append((np.load(os.path.join(batch_path,file_c)),np.load(os.path.join(batch_path,file_v))))
     return imgs
 
 def mix_batch(batch1, batch2, settings1=None, settings2=None,randomized=True):
@@ -140,6 +143,12 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
         fig = ax.figure
     column_density = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
     volume_density = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
+
+    nan_indices = np.isnan(column_density) | np.isnan(volume_density)
+    good_indices = ~nan_indices
+    column_density= column_density[good_indices]
+    volume_density = volume_density[good_indices]
+
     _, _, _,hist = ax.hist2d(column_density, volume_density, bins=(bins_number,bins_number), norm=LogNorm())
     if show_yx:
         yx = np.linspace(np.min(column_density), np.max(column_density), 10)
@@ -153,16 +162,22 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     
 
 if __name__ == "__main__":
-    from objects.Simulation_DC import Simulation_DC
+    from objects.Simulation_DC import *
 
-    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     
-    bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
-    bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
-    final_b, _ = mix_batch(bHD,bMHD)
-    save_batch(final_b, settingsMHD, name="mixt")
-    plot_batch(final_b, same_limits=False)
-    plot_batch_correlation(final_b)
+    #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
+    #bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
+    #final_b, _ = mix_batch(bHD,bMHD)
+    #save_batch(final_b, settingsMHD, name="mixt")
+    #plot_batch(final_b, same_limits=False)
+    #plot_batch_correlation(final_b)
+
+    sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
+    batch, settings = sim.generate_batch(number=1000, force_size=128)
+    save_batch(batch, settings, name="highres")
+    plot_batch(batch, same_limits=False)
+    plot_batch_correlation(batch)
 
     plt.show()

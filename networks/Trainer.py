@@ -129,11 +129,12 @@ class Trainer():
             self.training_losses.append((total_epoch, loss.item()))
             v_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
-                self.model.eval()
-                validation_output = self.model(validation_input_tensor)
-                v_loss = self.loss_method(validation_output,validation_target_tensor).item()
-                self.validation_losses.append((total_epoch,v_loss))
-                self.model.train()
+                with torch.no_grad():
+                    #self.model.eval()
+                    validation_output = self.model(validation_input_tensor)
+                    v_loss = self.loss_method(validation_output,validation_target_tensor).item()
+                    self.validation_losses.append((total_epoch,v_loss))
+                    #self.model.train()
                 if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
                     break_flag = True
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
@@ -661,8 +662,8 @@ def generate_model_map(root_name, train_batch, validation_batch, network=UNet, l
             trainer.save()
 
 if __name__ == "__main__":
-    batch = open_batch("batch_mixt")
-    train_batch, validation_batch = split_batch(batch, cutoff=0.7)
+    batch = open_batch("batch_highres")
+    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
     
     #trainer_list = [load_trainer("UNet_At"), load_trainer("UKan")]
     #for t in trainer_list:
@@ -691,18 +692,19 @@ if __name__ == "__main__":
         return torch.sum(weighted_loss)
     
 
-    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchMixt")
+    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchHighRes")
+    #trainer = load_trainer("UKan")
     trainer.training_batch = train_batch
     trainer.validation_batch = validation_batch
     trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = DoubleConvBlock
+    trainer.network_settings["convBlock"] = ConvBlock
     trainer.network_settings["num_layers"] = 4
     #trainer.loss_method = batch_loss
     trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     trainer.init()
-    #trainer.auto_save = 200
-    trainer.train(2000)
+    #trainer.auto_save = 400
+    trainer.train(5000,compute_validation=25)
     #trainer_list.append(trainer)
     trainer.save()
     trainer.plot()
@@ -710,8 +712,8 @@ if __name__ == "__main__":
     trainer.plot_validation()
     plot_models_accuracy([trainer],show_errors=True)
     
-    from objects.Simulation_DC import Simulation_DC
-    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    #from objects.Simulation_DC import Simulation_DC
+    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
     #print(sim_MHD.data_vel)
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     #sim_MHD.plot_correlation(method=compute_max_density)

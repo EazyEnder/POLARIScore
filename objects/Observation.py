@@ -84,12 +84,15 @@ class Observation():
         return ax
 
 if __name__ == "__main__":
-    obs = Observation("OrionA", "column_density_map")
+    obs = Observation("Taurus_L1495", "column_density_map")
     obs.plot()
 
     from networks.Trainer import load_trainer
-    trainer = load_trainer("UNet_At")
-    prediction = obs.predict(trainer,patch_size=(512,512), overlap=0.5)
-    obs.plot(prediction,norm=LogNorm(vmin=1e1,vmax=1e5))
+    trainer = load_trainer("UNet_At2")
+    prediction = obs.predict(trainer,patch_size=(512,512), overlap=0.75)
+    obs.plot(prediction,norm=LogNorm(vmin=1e1,vmax=2e4))
+    
+    from training_batch import plot_batch_correlation
+    plot_batch_correlation([(obs.data,prediction)],show_yx=False)
 
     plt.show()

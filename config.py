@@ -34,3 +34,5 @@ CACHES_FOLDER = os.path.join(EXPORT_FOLDER,"caches/")
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/")
 
 OBSERVATIONS_FOLDER = os.path.join(DATA_FOLDER,"observations/")
+
+PC_TO_CM = 3.086e+18
