@@ -50,9 +50,9 @@
 \use_package stackrel 1
 \use_package stmaryrd 1
 \use_package undertilde 1
-\cite_engine basic
-\cite_engine_type default
-\biblio_style plain
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style plainnat
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -210,9 +210,9 @@ U-Net
 \end_layout
 
 \begin_layout Standard
-U-Net
+U-Net 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "ronneberger_u-net_2015"
 literal "false"
 
@@ -307,7 +307,7 @@ KANs
 \begin_layout Standard
 Kolmogorov–Arnold Networks (KANs) 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "liu_kan_2024"
 literal "false"
 
@@ -401,7 +401,7 @@ In order to train our future model,
 These datasets are created using MHD simulations of molecular clouds:
  ORION 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "ntormousi_core_2019"
 literal "false"
 
@@ -419,7 +419,11 @@ literal "false"
  density cube.
  This cube has a width of 25.8 pc,
  centered at the simulation's midpoint,
- with a resolution of 0.05 pc.
+ with a resolution of 
+\begin_inset Formula $0.05$
+\end_inset
+
+ pc per pixel.
 \end_layout
 
 \begin_layout Standard
@@ -547,6 +551,27 @@ nolink "false"
  (column density,
  volume density).
  These are distributed as 29 training (pair of) images (78%) and 8 validation (pair of) images (22%).
+ In subsection 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:U-Net-with-larger"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ a model will be trained with a larger dataset of 100 covered regions generated using the same ORION simulation but with a cube of 
+\begin_inset Formula $1024^{3}$
+\end_inset
+
+ and so a resolution of 
+\begin_inset Formula $0.026\text{pc per pixel}$
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -743,7 +768,7 @@ Network architecture
 The default network architecture used in this part is a U-Net architecture with 4 layers,
  a first convolution layer which go from 1 to 64 features maps and attention blocks 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "oktay_attention_2018"
 literal "false"
 
@@ -801,7 +826,7 @@ We want the model,
  Here,
  we use ADAM 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "kingma_adam_2017"
 literal "false"
 
@@ -863,7 +888,7 @@ A batch is a set of paired images:
 \begin_layout Standard
 A way to artificially increase the size of the training batch is to apply random transformations to the images at each epoch 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "yang_image_2023"
 literal "false"
 
@@ -1570,7 +1595,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1693,13 +1718,13 @@ name "fig:U-Net-DoubleConv"
 \end_layout
 
 \begin_layout Subsection
-U-Net with KAN parts
+U-Net with KAN parts (TODO)
 \end_layout
 
 \begin_layout Standard
 Kolmogorov Arnold Networks
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "liu_kan_2024"
 literal "false"
 
@@ -1707,7 +1732,7 @@ literal "false"
 
  replace fixed activation functions with learnable sum of univariates functions like B-splines or Radial Basis functions 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "li_kolmogorov-arnold_2024"
 literal "false"
 
@@ -1730,10 +1755,10 @@ KAN Layer as a replacement of convolutionnal layers
 \end_layout
 
 \begin_layout Subsection
-Tests of different loss methods 
+U-Net working scale
 \begin_inset CommandInset label
 LatexCommand label
-name "subsec:LossMethods"
+name "subsec:U-Net-with-larger"
 
 \end_inset
 
@@ -1741,7 +1766,451 @@ name "subsec:LossMethods"
 \end_layout
 
 \begin_layout Standard
-/
+Real observations and derived column density maps span a large range of sizes,
+ such as the Herschel column density map of Taurus B213,
+ which will be seen in the next section and is a few parsecs long.
+ However,
+ our model is trained on a single large scale of approximately 6 pc.
+ Therefore,
+ to apply our model to observed maps,
+ we train a U-Net model on a dataset generated from the same simulation but at a higher resolution:
+ 
+\begin_inset Formula $1024^{3}$
+\end_inset
+
+ instead of 
+\begin_inset Formula $512^{3}$
+\end_inset
+
+.
+ Thus,
+ no physical parameters are changed—
+only the working resolution of the model is improved,
+ from 0.05pc per pixel to 0.025pc per pixel.
+ This new dataset contains 
+\begin_inset Formula $100$
+\end_inset
+
+ pairs of images instead of the previously 
+\begin_inset Formula $37$
+\end_inset
+
+.
+ Therefore,
+ the previously discussed trends regarding model complexity and performance remain unchanged.
+ While a higher-resolution dataset provides more detailed information,
+ the relationship between model capacity,
+ accuracy,
+ and computational cost follows the same principles.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_highres_accuracy.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_highres_residuals.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Accuracy and Residuals on a high resolution validation set for a model trained on this set (green) and the previous model(black) 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-HighRes"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As we can see in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-HighRes"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ the model previously trained at a higher resolution performs worse than a U-Net model trained at this new resolution.
+ Even though the residuals span a wider range of values,
+ the majority of the residuals distribution remains centered around 0.0.
+\end_layout
+
+\begin_layout Standard
+We can conclude that,
+ to make an accurate prediction for an observation of a certain spatial size,
+ the model must have been trained on that specific size.
+ Otherwise,
+ it is necessary to downsample the observation map before applying the prediction.
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+In this section,
+ we apply our basic U-Net model to Herschel observations,
+ allowing us to compare it with a few recent methods:
+\end_layout
+
+\begin_layout Itemize
+A machine learning approach 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "xu_denoising_2023"
+literal "false"
+
+\end_inset
+
+ that uses a Denoising Diffusion Probabilistic Model to predict molecular cloud number density.
+\end_layout
+
+\begin_layout Itemize
+A method based on fitting the log-PDF of the column density combined with a probabilistic model 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "gaches_probabilistic_2024"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+A novel inverse modeling approach 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "orkisz_volume_2024"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Taurus L1495
+\end_layout
+
+\begin_layout Standard
+The Herschel column density map of Taurus L1495,
+ one of the closest star-forming filamentary structures,
+ is obtained from 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "palmeirim_herschel_2013"
+literal "false"
+
+\end_inset
+
+ with a resolution of 18.2".
+ The column density map is derived based on an optically thin graybody assumption.
+ By adopting a power-law radial density profile to fit the column density,
+ they found the central density of the filament to be 
+\begin_inset Formula $n_{H,c}=7.5\times10^{4}cm^{-3}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset citation
+LatexCommand citet
+key "xu_denoising_2023"
+literal "false"
+
+\end_inset
+
+ predicted a line of sight mass-weighted number density of 
+\begin_inset Formula $4.7\times10^{4}cm^{-3}$
+\end_inset
+
+.
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "gaches_probabilistic_2024"
+literal "false"
+
+\end_inset
+
+ on the other hand,
+ predicted a density of 
+\begin_inset Formula $2\times10^{3}cm^{-3}$
+\end_inset
+
+ for diffuse regions and 
+\begin_inset Formula $10^{5}cm^{-3}$
+\end_inset
+
+ for dense regions,
+ such as the filament core.
+ Not to mention 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "li_is_2012"
+literal "false"
+
+\end_inset
+
+,
+ who,
+ by using cyanoacetylene transitions,
+ measured an average volume density of 
+\begin_inset Formula $1.8\times10^{4}cm^{-3}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurusl1495_columndensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Taurus L1495 Column density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurusl1495_volumedensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Taurus L1495 Predicted mass-weighted density 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Taurus-L1495-Predicted"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As ....
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurusl1495_correlation.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Taurus L1495 Correlation for the Predicted mass-weighted density 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Taurus-L1495-Correlation"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Polaris Flare
+\end_layout
+
+\begin_layout Subsection
+Orion A
 \end_layout
 
 \begin_layout Standard
@@ -1792,7 +2261,7 @@ begin{multicols}{2}
 LatexCommand bibtex
 btprint "btPrintCited"
 bibfiles "biblio"
-options "plain"
+options "plainnat"
 encoding "default"
 
 \end_inset
