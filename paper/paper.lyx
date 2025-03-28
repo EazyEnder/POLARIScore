@@ -909,7 +909,14 @@ Model performance
 \end_layout
 
 \begin_layout Subsection
-U-Net global performance
+U-Net global performance 
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:U-Net-global-performance"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -992,7 +999,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1058,7 +1065,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1120,7 +1127,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1194,7 +1201,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1287,14 +1294,14 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figure/unet_accuracy.jpg
 	lyxscale 50
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -1730,7 +1737,8 @@ literal "false"
 
 \end_inset
 
- replace fixed activation functions with learnable sum of univariates functions like B-splines or Radial Basis functions 
+ are news and promising alternatives of MLPs.
+ They replace fixed activation functions with learnable sum of univariates functions like B-splines or Radial Basis functions 
 \begin_inset CommandInset citation
 LatexCommand citep
 key "li_kolmogorov-arnold_2024"
@@ -1740,14 +1748,40 @@ literal "false"
 
 .
  Some recent papers have shown that using KAN layers in traditional architectures can improve performance and accuracy 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "li_u-kan_2024"
+literal "false"
+
+\end_inset
+
+.
+ 
 \end_layout
 
 \begin_layout Subsubsection
 KAN Layer as an network convolutionnal output
 \end_layout
 
+\begin_layout Standard
+Our first idea is to simply replace the output convolutionnal layer of U-Net by a KAN convolutionnal layer.
+\end_layout
+
 \begin_layout Subsubsection
 KAN Layer as a symbolic use 
+\end_layout
+
+\begin_layout Standard
+Another approach is to fit the function 
+\begin_inset Formula $N_{col}(n_{H})$
+\end_inset
+
+ using a KAN layer that operates on the flattened image matrix—
+that is,
+ with one number input (the column density) and one number output (the number density).
+ In parallel,
+ a U-Net network can be used to incorporate spatial information.
+ 
 \end_layout
 
 \begin_layout Subsubsection
@@ -1770,7 +1804,11 @@ Real observations and derived column density maps span a large range of sizes,
  such as the Herschel column density map of Taurus B213,
  which will be seen in the next section and is a few parsecs long.
  However,
- our model is trained on a single large scale of approximately 6 pc.
+ our model is trained on a single large scale of approximately 6 pc (width of the 
+\begin_inset Formula $128\times128$
+\end_inset
+
+ image).
  Therefore,
  to apply our model to observed maps,
  we train a U-Net model on a dataset generated from the same simulation but at a higher resolution:
@@ -1810,7 +1848,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1945,7 +1983,7 @@ nolink "false"
 \end_inset
 
 ,
- the model previously trained at a higher resolution performs worse than a U-Net model trained at this new resolution.
+ the model previously trained at a lower resolution performs worse than a U-Net model trained at this new resolution.
  Even though the residuals span a wider range of values,
  the majority of the residuals distribution remains centered around 0.0.
 \end_layout
@@ -2030,6 +2068,42 @@ literal "false"
 \end_layout
 
 \begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurusl1495_columndensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Taurus L1495 Column density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset CommandInset citation
 LatexCommand citet
 key "xu_denoising_2023"
@@ -2090,42 +2164,6 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/obs_taurusl1495_columndensity.jpg
-	width 100col%
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Plain Layout
-\begin_inset Caption Standard
-
-\begin_layout Plain Layout
-Taurus L1495 Column density
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Float figure
-placement H
-alignment document
-wide false
-sideways false
-status open
-
-\begin_layout Plain Layout
-\align center
-\begin_inset Graphics
 	filename figure/obs_taurusl1495_volumedensity.jpg
 	width 100col%
 
@@ -2159,7 +2197,45 @@ name "fig:Taurus-L1495-Predicted"
 \end_layout
 
 \begin_layout Standard
-As ....
+Our prediction is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Taurus-L1495-Predicted"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+ We predict a maximum mass-weighted density of 
+\begin_inset Formula $1.5\times10^{4}cm^{-3}$
+\end_inset
+
+,
+ with diffuse regions ranging between 
+\begin_inset Formula $0.5\times10^{2}cm^{-3}$
+\end_inset
+
+ and 
+\begin_inset Formula $1.2\times10^{2}cm^{-3}$
+\end_inset
+
+(corresponding to the 50% and 95% quantiles,
+ respectively).
+ The correlation between number density and column density is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Taurus-L1495-Correlation"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -2205,12 +2281,365 @@ name "fig:Taurus-L1495-Correlation"
 
 \end_layout
 
+\begin_layout Standard
+Our prediction is lower than previous estimates,
+ likely even when accounting for the fact that we predict a mass-weighted average rather than the maximum along the line of sight.
+ This difference may be due to an underestimation of high densities,
+ as highlighted in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:U-Net-global-performance"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
 \begin_layout Subsection
 Polaris Flare
 \end_layout
 
+\begin_layout Standard
+The Polaris Flare is a diffuse cloud that exhibits little to no signs of ongoing star formation,
+ making it a quiescent star-forming region.
+ However,
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "ward-thompson_herschel_2010"
+literal "false"
+
+\end_inset
+
+ identified five possibly bound prestellar cores within the 
+\begin_inset Quotes eld
+\end_inset
+
+saxophone
+\begin_inset Quotes erd
+\end_inset
+
+ region with a mean density of 
+\begin_inset Formula $n_{H_{2},c}=5\times10^{4}cm^{-3}$
+\end_inset
+
+ and a mean radius near 
+\begin_inset Formula $0.03\text{pc}$
+\end_inset
+
+.
+ The Polaris Flare is characterized by diffuse gaseous structures and striations,
+ with a strong magnetic field threading the cloud 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "panopoulou_magnetic_2016"
+literal "false"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_polaris_columndensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Polaris Flare Column density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Using their probabilistic method,
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "gaches_probabilistic_2024"
+literal "false"
+
+\end_inset
+
+ found a diffuse density of 
+\begin_inset Formula $n_{H,\text{diffuse}}\sim10^{2}cm^{-3}$
+\end_inset
+
+ and a dense density 
+\begin_inset Formula $n_{H,\text{dense}}$
+\end_inset
+
+ reaching up to a few 
+\begin_inset Formula $10³cm^{-3}$
+\end_inset
+
+.
+ Our model prediction,
+ shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Polaris-Predicted"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ gives a mean diffuse density of 
+\begin_inset Formula $n_{H}=3\times10^{1}cm^{-3}$
+\end_inset
+
+ and a maximum mass-weighted density of 
+\begin_inset Formula $n_{H}=3\times10^{2}cm^{-3}$
+\end_inset
+
+ in the 
+\begin_inset Quotes eld
+\end_inset
+
+saxophone
+\begin_inset Quotes erd
+\end_inset
+
+ region.
+ This suggests our prediction is an order of magnitude lower for the diffuse region and likely several orders lower for the saxophone region,
+ where our basic model don't show any massive cores.
+ This could be due to a lack of diversity in the training dataset,
+ i.e.,
+ the absence of training data featuring a strong magnetic field and/or physical properties similar to those of the Polaris Flare cloud.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_polaris_volumedensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Polaris Flare Predicted mass-weighted density 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Polaris-Predicted"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+https://www.aanda.org/articles/aa/pdf/2010/10/aa14618-10.pdf <- coeurs denses dans polaris,
+ pourquoi pas rajouter la température dans le model ?
+ Faire un zoom sur le saxo avec les coeurs denses en highlight
+\end_layout
+
 \begin_layout Subsection
 Orion A
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_oriona_columndensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion A Column density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_oriona_volumedensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion A Predicted mass-weighted density 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:OrionA-Predicted-1"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_oriona_volumedensity_zoom.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion A,
+ Zoom on Predicted mass-weighted density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -2238,6 +2667,13 @@ end{multicols}
 
 \begin_layout Part
 From the p-p-v space to the p-p-p space
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
