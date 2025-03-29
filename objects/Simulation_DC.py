@@ -293,6 +293,33 @@ class Simulation_DC():
             "random_rotate": random_rotate,
         }
         return (imgs,settings)
+    
+    def plotSlice(self, axis=0, slice=256, N_arrows=20):
+            density = self.data[slice,:,:]
+            velocity = self.data_vel
+
+            Nx, Ny = density.shape
+            x = np.arange(Ny)
+            y = np.arange(Nx)
+            X, Y = np.meshgrid(x, y)
+
+            plt.figure(figsize=(8, 6))
+            plt.imshow(density, origin="lower", cmap="jet", extent=[0, Ny, 0, Nx], norm=LogNorm())
+            plt.colorbar(label="Density")
+
+            if not(velocity[0] is None):
+                Ux = velocity[0][slice,:,:]
+                Uy = velocity[1][slice,:,:]
+
+                step_x = max(Ny // N_arrows, 1)
+                step_y = max(Nx // N_arrows, 1)
+
+                X_sub = X[::step_y, ::step_x]
+                Y_sub = Y[::step_y, ::step_x]
+                Ux_sub = Ux[::step_y, ::step_x]
+                Uy_sub = Uy[::step_y, ::step_x]
+
+                plt.quiver(X_sub, Y_sub, Ux_sub, Uy_sub, color="white", scale=200)
 
     def plot(self,method=compute_column_density,plot_pdf=True,color_bar=False):
         """
@@ -365,7 +392,7 @@ class Simulation_DC():
 
         _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
         ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
-        ax.set_ylabel(r"Max density ($log_{10}(cm^{-3})$)")
+        ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
         plt.colorbar(hist, ax=ax, label="counts")
         fig.tight_layout()
         return fig, ax

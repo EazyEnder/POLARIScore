@@ -50,11 +50,11 @@ class Dataset():
         batch = np.array(self.batch)
         cut_index = int(cutoff * len(batch))
 
-        b1 = DataSet()
+        b1 = Dataset()
         b1.batch = batch[:cut_index]
         b1.settings = self.settings #TODO
         b1.name = self.name + "_b1"
-        b2 = DataSet()
+        b2 = Dataset()
         b2.batch = batch[cut_index:]
         b2.settings = self.settings #TODO
         b2.name = self.name + "_b2"

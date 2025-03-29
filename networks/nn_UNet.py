@@ -1,3 +1,8 @@
+import os
+import sys
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_dir)
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -145,3 +150,8 @@ class UNet(nn.Module):
         
         # Output
         return self.final_conv(x)
+    
+if __name__ == "__main__":
+    model = UNet()
+    x = torch.randn(1, 1, 128, 128)
+    print(model(x).shape)

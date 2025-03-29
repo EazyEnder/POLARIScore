@@ -29,7 +29,7 @@ def compute_pdf(data_slice, bins=100, func=lambda x: np.log(x)/np.log(10), cente
     Returns:
         probabilities, edges
     """
-    hist = np.histogram(func(data_slice.flatten()),bins=bins, density=True)
+    hist = np.histogram(func(data_slice.flatten()[~np.isnan(data_slice.flatten())]),bins=bins, density=True)
     probabilities = hist[0]
     edges = hist[1]
     if(center):

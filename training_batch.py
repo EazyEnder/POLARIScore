@@ -155,7 +155,8 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
         plt.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
         plt.legend()
 
-    plt.colorbar(hist, ax=ax)
+    plt.colorbar(hist, ax=ax, label="counts")
+    plt.legend()
     fig.tight_layout()
 
     return fig, ax
@@ -164,7 +165,9 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
 if __name__ == "__main__":
     from objects.Simulation_DC import *
 
-    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
+    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    sim_MHD.init(loadTemp=True, loadVel=True)
+    sim_MHD.plotSlice()
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     
     #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
@@ -174,10 +177,11 @@ if __name__ == "__main__":
     #plot_batch(final_b, same_limits=False)
     #plot_batch_correlation(final_b)
 
-    sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
-    batch, settings = sim.generate_batch(number=1000, force_size=128)
-    save_batch(batch, settings, name="highres")
-    plot_batch(batch, same_limits=False)
-    plot_batch_correlation(batch)
+    #sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
+
+    #batch, settings = sim.generate_batch(number=1000, force_size=128)
+    #save_batch(batch, settings, name="highres")
+    #plot_batch(batch, same_limits=False)
+    #plot_batch_correlation(batch)
 
     plt.show()

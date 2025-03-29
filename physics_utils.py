@@ -9,12 +9,15 @@ BOLTZMANN_CONSTANT = 1.380649e-23
 
 BLACKBODY_EMISSION = lambda nu,T: (2*PLANCK_CONSTANT*np.power(nu,3)/(LIGHT_SPEED**2))*(1/(np.exp(PLANCK_CONSTANT*nu/(BOLTZMANN_CONSTANT*T))-1))
 """Emmision of a blackbody in function of the frequency and temperature"""
+CMB_TEMPERATURE = 2.725
 
 CO_ABUNDANCE = 1e-4
-CO_J10_FREQUENCY = 115.271e9
-"""CO J=1-0 line frequency in Hz"""
-CO_J10_A = 7.203e-8
-"""CO J=1-0 line spontaneous emission coefficient in s^-1"""
-CO_J10_TEMP = 5.53
+CO_A = [7.203e-8,6.9e-7,2.5e-6]
+"""CO line spontaneous emission coefficient in s^-1"""
+CO_FREQUENCY= [115.271e9,230.538e9,345.796e9]
+"""CO line frequency in Hz"""
+
+CO_ROT_CST = 57.64e9
+ROT_ENERGY = lambda l,rot_cst: PLANCK_CONSTANT*rot_cst*l*(l+1)/BOLTZMANN_CONSTANT
 
 GAUSSIAN = lambda x,sigma: (1/(np.sqrt(2*np.pi)*sigma))*np.exp(-np.power(x,2)/(2*sigma**2))

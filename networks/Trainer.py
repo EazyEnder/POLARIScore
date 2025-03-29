@@ -79,7 +79,7 @@ class Trainer():
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
         return False
 
-    def train(self, epoch_number=50, compute_validation=10, auto_stop=0., auto_stop_min_loss=2.):
+    def train(self, epoch_number=50, batch_number=32, compute_validation=10, auto_stop=0., auto_stop_min_loss=2.):
         """
         Train the model (check trainer variables for settings)
 
@@ -88,7 +88,7 @@ class Trainer():
             compute_validation(int, default:10): compute validation losses each x epochs.
 
         """
-        LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type}")
+        LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}")
 
         training_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
         training_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
@@ -116,17 +116,27 @@ class Trainer():
         total_epoch = self.last_epoch
         l_ep = self.last_epoch
         break_flag = False
+        batch_size = len(self.training_batch)
         for epoch in range(epoch_number):
             total_epoch += 1
+            epoch_loss = 0
+            indices = torch.randperm(batch_size)
+            shuffled_input = training_input_tensor[indices]
+            shuffled_target = training_target_tensor[indices]
             self.optimizer.zero_grad()
-            if self.training_random_transform:
-                training_input_tensor, training_target_tensor = random_transform(training_input_tensor, training_target_tensor)
-            output = self.model(training_input_tensor)
-            loss = self.loss_method(output, training_target_tensor)
-            loss.backward()
+            for b in range(int(np.floor(batch_size/batch_number))):
+                t_input = shuffled_input[b*batch_number:(b+1)*batch_number]
+                t_target = shuffled_target[b*batch_number:(b+1)*batch_number]
+                if self.training_random_transform:
+                    t_input, t_target = random_transform(t_input, t_target)
+                output = self.model(t_input)
+                loss = self.loss_method(output, t_target)
+                loss.backward()
+                epoch_loss += loss.item()
             self.optimizer.step()
-            self.scheduler.step(loss)
-            self.training_losses.append((total_epoch, loss.item()))
+            epoch_loss /= int(np.ceil(batch_size / batch_number))
+            self.scheduler.step(epoch_loss)
+            self.training_losses.append((total_epoch, epoch_loss))
             v_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
                 with torch.no_grad():
@@ -140,11 +150,15 @@ class Trainer():
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
                 self.save() 
-            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number}, Training Loss: {loss.item()}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number}, Training Loss: {epoch_loss}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
             if break_flag:
                 break
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
+
+    def fit_residuals(self):
+        #TODO
+        pass
 
     def plot_losses(self, ax=None ,log10=True):
         """
@@ -691,27 +705,43 @@ if __name__ == "__main__":
         weighted_loss = torch.sum(per_image_loss * weights)
         return torch.sum(weighted_loss)
     
+    #trainer = load_trainer("UNet_BatchHighRes")
+    #trainer.validation_batch = validation_batch
+    #trainer.plot()
+    #trainer.plot_validation()
 
-    trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchHighRes")
-    #trainer = load_trainer("UKan")
+
+    #trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchHighRes3")
+    trainer = load_trainer("UNet_BatchHighRes")
     trainer.training_batch = train_batch
     trainer.validation_batch = validation_batch
+    """
     trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = ConvBlock
+    trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
     #trainer.loss_method = batch_loss
     trainer.training_random_transform = True
+    #trainer.weight_decay = 0.
     trainer.network_settings["attention"] = True
     trainer.init()
-    #trainer.auto_save = 400
-    trainer.train(5000,compute_validation=25)
+    #trainer.auto_save = 1000
+    trainer.train(1500,compute_validation=10)
     #trainer_list.append(trainer)
     trainer.save()
-    trainer.plot()
-    
-    trainer.plot_validation()
-    plot_models_accuracy([trainer],show_errors=True)
-    
+    trainer.plot()"""
+
+    #trainer.plot_validation()
+    t2 = load_trainer("UNet_At")
+    t2.validation_batch = validation_batch
+    t2.plot_validation()
+    """
+    fig, ax = plot_models_accuracy([trainer,t2],show_errors=True)
+    fig.savefig(FIGURE_FOLDER+"unet_highres_accuracy.jpg")
+    fig, ax, _ = plot_models_residuals([trainer,t2])
+    fig.savefig(FIGURE_FOLDER+"unet_highres_residuals.jpg")
+    """
+
+
     #from objects.Simulation_DC import Simulation_DC
     #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
     #print(sim_MHD.data_vel)
