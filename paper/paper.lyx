@@ -1411,7 +1411,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1764,7 +1764,81 @@ KAN Layer as an network convolutionnal output
 \end_layout
 
 \begin_layout Standard
-Our first idea is to simply replace the output convolutionnal layer of U-Net by a KAN convolutionnal layer.
+Our first idea is to simply replace the output convolutionnal layer of U-Net by a KAN convolutionnal layer,
+ creating a new architecture referred to as “K-Net”.
+ The goal is to evaluate whether the KAN layer improves training when the network has more layers.
+\end_layout
+
+\begin_layout Standard
+Since KAN layers are more computationally expensive,
+ training takes longer.
+ However,
+ replacing only one layer keeps the training time per epoch manageable,
+ allowing us to analyze the complexity map (Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:K-Net-complexity-map"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+The results show that K-Net's accuracy is slightly lower than U-Net's,
+ and the same trend persists:
+ accuracy decreases as the number of layers increases.
+ Thus,
+ this small modification does not provide significant benefits over the standard U-Net architecture.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/knet_compmap.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+K-Net complexity map 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:K-Net-complexity-map"
+
+\end_inset
+
+.
+ Each point is a trained U-Net with KAN conv output with attention blocks and with X Base Filters and Y Layers.
+ Yellow means higher accuracy and purple lower accuracy.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsubsection
