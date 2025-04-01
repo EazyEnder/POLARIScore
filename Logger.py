@@ -9,10 +9,10 @@ class Logger():
         self.log_file = None
         self.auto_save = auto_save
 
-    def print(self, message, type="warn", level=0):
+    def print(self, message, color="0m", type="warn", level=0):
         if self.level < level:
             return None
-        string = f"({type.upper()}) {message}"
+        string = f"(\033[{color}{type.upper()}\033[0m) {message}"
         print(string)
         self.messages.append(string)
         if self.auto_save > 0 and len(self.messages) % self.auto_save == 0:
@@ -20,11 +20,12 @@ class Logger():
         return string
 
     def warn(self, message):
-        return self.print(message, type="warn", level=1)
+        return self.print(message, type="warn", color="33m", level=1)
     def error(self, message):
-        return self.print(message, type="error", level=0)
+        message = "\033[31m"+message+"\033[0m"
+        return self.print(message, type="error", color="31m", level=0)
     def log(self, message):
-        return self.print(message, type="info", level=2)
+        return self.print(message, type="info", color="32m", level=2)
 
     def save(self):
         export_path = os.path.join(EXPORT_FOLDER,"logs")

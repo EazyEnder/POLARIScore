@@ -8,22 +8,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from nn_UNet import ConvBlock, AttentionBlock
+from nn_BaseModule import BaseModule
+import numpy as np
 
-class MultiNet(nn.Module):
-    def __init__(self, convBlock=ConvBlock, num_channels=1 , num_layers=4, base_filters=64, attention = False):
+class MultiNet(BaseModule):
+    def __init__(self, size_3D=256, convBlock=ConvBlock, num_channels=1 , num_layers=4, base_filters=64, attention = False):
         super(MultiNet, self).__init__()
 
         self.num_channels = num_channels
         self.num_layers = num_layers
         self.attention = attention
 
+        self.size_3D = size_3D
+
         filter_sizes = [int(base_filters * 2**i) for i in range(num_layers+1)]
 
         self.pool = nn.MaxPool2d(2, 2)
 
         #Channels Encoder
-        self.channels_encoder = []
-        self.channels_catconv = []
+        self.channels_encoder = nn.ModuleList()
+        self.channels_catconv = nn.ModuleList()
         for _ in range(num_channels): 
             encoders = nn.ModuleList()
             catconvs = nn.ModuleList()
@@ -72,9 +76,13 @@ class MultiNet(nn.Module):
         self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
     
     def forward(self, x):
-        B,C,W,H = x.shape
+        B,C,W,H,V = x.shape
+
+        #TODO
+        x = torch.sum(x, dim=4)
+
         channels = [x[:, i, :, :] for i in range(C)]
-        assert C == self.num_channels, LOGGER.error(f"Model not trained on {C} channels")
+        assert C == self.num_channels, LOGGER.error(f"Model with {self.num_channels} channels not trained on {C} channels")
 
         # list of enc_features for each channel
         channels_features=[]
@@ -119,8 +127,30 @@ class MultiNet(nn.Module):
         # Output
         return self.final_conv(x)
     
+    def shape_data(self, batch, target_index=1):
+        input_tensor = None
+        assert (len(batch)) > 0, LOGGER.error("Can't apply the model on the batch, the batch is empty.")
+        for i in range(len(batch[0])):
+            if i == target_index:
+                continue
+            xi = self.shape_image(np.array([b[i] for b in batch]))
+            if len(xi.shape) < 5:
+                xi = xi.unsqueeze(-1)
+                xi = torch.nn.functional.pad(xi, (0, self.size_3D - xi.shape[-1]), value=0)
+            assert xi.shape[-1] <= self.size_3D, LOGGER.error(f"Model was defined using {self.size_3D} 3D channels but an image has {xi.shape[-1]} channels.")
+
+            if input_tensor is None:
+                input_tensor = xi
+            else:
+                input_tensor = torch.cat([input_tensor,xi], dim=1)
+        input_tensor = input_tensor.to(self.device)
+        target_tensor = self.shape_image(np.array([b[target_index] for b in batch]))
+        return input_tensor, target_tensor
+    
 if __name__ == "__main__":
     model = MultiNet(num_channels=2)
-    x = torch.randn(1, 2, 128, 128)
+    x = torch.randn(1, 2, 128, 128, 1)
+    #shape: B, C, W, H, V
+    #where B is batch size, C channel size, W,H: width and size and V: 3D channel like for velocity/spectra
     print(x.shape)
     print(model(x).shape)

@@ -30,6 +30,15 @@ def _open_batch(batch_name):
         order.append(bc)
     return imgs, order
 
+def getDataset(name):
+    ds = Dataset()
+    try:
+        ds.load_from_name(name, changeName=True)
+    except AssertionError:
+        LOGGER.error(f"Can't load dataset: {name}")
+        return None
+    return ds
+
 class Dataset():
     """Dataset object which contains just the imgs paths for reduce the memory usage"""
     def __init__(self):
@@ -42,7 +51,15 @@ class Dataset():
 
         self.active_batch = []
 
-    def load_from_name(self, name):
+    def get_element_index(self, name):
+        assert "order" in self.settings, LOGGER.error("No order list in dataset settings")
+        for i,o in enumerate(self.settings["order"]):
+            if o == name:
+                return i
+
+    def load_from_name(self, name, changeName=False):
+        if changeName:
+            self.name = name
         batch, order = _open_batch(name)
         self.batch.extend(batch)
         self.settings["order"] = order
@@ -51,21 +68,13 @@ class Dataset():
         self.batch.append(imgs_path)
     
     def get(self, indexes = None):
-        b_min = 0 
-        b_max = -1
         if not(indexes is None):
-            if not(type(indexes) is list):
-                return self.load(np.array(self.batch)[indexes])
-            elif len(indexes) < 2:
+            if not(type(indexes) is list) or len(indexes) < 2:
                 return self.load(np.array(self.batch)[indexes])
             else:
-                b_min = indexes[0]
-                b_max = indexes[1]
+                return self.load(np.array(self.batch)[np.array(indexes)])
         else:
             return self.load(np.array(self.batch))
-        paths = np.array(self.batch)[b_min:b_max]
-        batch = self.load(paths)
-        return batch
 
     def load(self, paths):
         result = []
@@ -81,7 +90,7 @@ class Dataset():
         self.active_batch = result
         return result
 
-    def split(self, batch, cutoff=0.7):
+    def split(self, cutoff=0.7):
         batch = np.array(self.batch)
         cut_index = int(cutoff * len(batch))
 
@@ -96,7 +105,10 @@ class Dataset():
 
         return (b1, b2)
     
-    def save(self,batch, name=None):      
+    def save(self,batch=None, name=None):
+
+        batch = self.get() if batch is None else batch
+
         if not(os.path.exists(TRAINING_BATCH_FOLDER)):
             os.mkdir(TRAINING_BATCH_FOLDER)
 
@@ -106,7 +118,7 @@ class Dataset():
             LOGGER.warn(f"Batch {batch_uuid} already exists, change to: {str(self.name)}")
             batch_uuid = self.name
 
-        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid))
+        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1])
         os.mkdir(batch_path)
 
         with open(os.path.join(batch_path,'settings.json'), 'w') as file:

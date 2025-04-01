@@ -18,8 +18,9 @@ from networks.nn_MultiNet import MultiNet
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
+from objects.Dataset import getDataset
 class Trainer():
-    def __init__(self,network=None,training_batch=None,validation_batch=None,training_batch_name=None,validation_batch_name=None,learning_rate=0.001,model_name=None,auto_save=0):
+    def __init__(self,network=None,training_set=None,validation_set=None,learning_rate=0.001,model_name=None,auto_save=0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.auto_save = auto_save
@@ -34,20 +35,16 @@ class Trainer():
         if not(network is None):
             self.network_type = network.__name__
         self.learning_rate = learning_rate
-        self.training_batch = training_batch
-        self.validation_batch = validation_batch
-        self.training_batch_name = training_batch_name
-        self.validation_batch_name = validation_batch_name
-        if not(training_batch_name is None or training_batch_name=="None"):
-            self.training_batch = open_batch(training_batch_name)
-        if not(validation_batch_name is None or validation_batch_name=="None"):
-            self.validation_batch_name = open_batch(validation_batch_name)
+        self.training_set = training_set
+        self.validation_set = validation_set
 
         self.prediction_batch = None
 
 
         self.network = network
         self.network_settings ={}
+
+        self.target_name = "vdens"
 
         self.training_random_transform = False
 
@@ -90,15 +87,12 @@ class Trainer():
 
         """
         LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}")
-
-        training_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        training_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.training_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)        
+   
         self.model.train()
 
-        def random_transform(tensors_input, tensors_target):
+        def _random_transform(tensors_input, tensors_target):
             k = torch.randint(0, 4, (1,)).item()
+            #Maybe need to change this: See if it works ! 
             tensors_input = torch.rot90(tensors_input, k, [2, 3])
             tensors_target = torch.rot90(tensors_target, k, [2, 3])
 
@@ -113,23 +107,25 @@ class Trainer():
                 tensors_target = torch.flip(tensors_target, [3])
 
             return tensors_input, tensors_target
+        
+        validation_input_tensor, validation_target_tensor = self.model.shape_data(self.validation_set.get(), self.validation_set.get_element_index(self.target_name))
 
         total_epoch = self.last_epoch
         l_ep = self.last_epoch
         break_flag = False
-        batch_size = len(self.training_batch)
-        for epoch in range(epoch_number):
+        batch_size = len(self.training_set.batch)
+        for _ in range(epoch_number):
             total_epoch += 1
             epoch_loss = 0
-            indices = torch.randperm(batch_size)
-            shuffled_input = training_input_tensor[indices]
-            shuffled_target = training_target_tensor[indices]
+            shuffled_indices = torch.randperm(batch_size)  
             self.optimizer.zero_grad()
-            for b in range(int(np.floor(batch_size/batch_number))):
-                t_input = shuffled_input[b*batch_number:(b+1)*batch_number]
-                t_target = shuffled_target[b*batch_number:(b+1)*batch_number]
+            minbatch_nbr = int(np.floor(batch_size/batch_number))
+            for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
+                used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
+                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_name))
+
                 if self.training_random_transform:
-                    t_input, t_target = random_transform(t_input, t_target)
+                    t_input, t_target = _random_transform(t_input, t_target)
                 output = self.model(t_input)
                 loss = self.loss_method(output, t_target)
                 loss.backward()
@@ -206,21 +202,12 @@ class Trainer():
         Returns:
             prediction_batch:[(target_img1, prediction_img1), (target_img2, prediction_img2), ...]
         """
-
         if not(self.prediction_batch is None or force_compute):
             return self.prediction_batch
-
-        self.model.eval()
-        validation_input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        validation_target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in self.validation_batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        validation_output = self.model(validation_input_tensor)
-
-        validation_target_tensor, validation_output = validation_target_tensor.cpu().detach().numpy(), validation_output.cpu().detach().numpy()
-        validation_batch = rebuild_batch(np.exp(validation_target_tensor[:,0,:,:]), np.exp(validation_output[:,0,:,:]))
-
-        self.prediction_batch = validation_batch
+        
+        self.prediction_batch = self.predict(self.validation_set)
     
-        return validation_batch
+        return self.prediction_batch
 
     def plot_validation(self, inter=(None,None),number_per_row=8):
         """
@@ -287,26 +274,26 @@ class Trainer():
 
         return fig, ax
     
-    def predict(self, batch):
+    def predict(self, dataset):
         self.model.eval()
 
-        input_tensor = torch.from_numpy(np.pad(np.log(np.array([b[0] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
-        target_tensor = torch.from_numpy(np.pad(np.log(np.array([b[1] for b in batch])),(0,0))).float().unsqueeze(1).to(self.device)
+        input_tensor, target_tensor = self.model.shape_data(dataset.get(), dataset.get_element_index(self.target_name))
         
         output = self.model(input_tensor)
         output = output.cpu().detach().numpy()
 
         target_tensor = target_tensor.cpu().detach().numpy()
-        result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:]), np.exp(output[:,0,:,:]))
+        result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:])-1, np.exp(output[:,0,:,:])-1)
         return result_batch
     
     def predict_image(self, image):
         self.model.eval()
 
+        #TODO: generalize this function for image of nparray type and torch image
         input_tensor = torch.log(image).float().to(self.device)
         output = self.model(input_tensor)
         output = output.cpu().detach().numpy()
-        return np.exp(output)
+        return np.exp(output)-1
 
     def plot_sim_validation(self, simulation, plot_total=False):
         sim_col_dens = simulation._compute_c_density()
@@ -456,8 +443,8 @@ class Trainer():
             "learning_rate": str(self.learning_rate),
             "scheduler": str(type(self.scheduler)),
             "total_epoch": str(self.last_epoch),
-            "training_batch": str(self.training_batch_name),
-            "validation_batch": str(self.validation_batch_name),
+            "training_set": str(self.training_set.name),
+            "validation_set": str(self.validation_set.name),
             "training_losses": self.training_losses,
             "validation_losses": self.validation_losses,
         }
@@ -480,7 +467,11 @@ def load_trainer(model_name, load_model=True):
     with open(os.path.join(model_path,'settings.json')) as file:
         settings = json.load(file)
     
-    trainer = Trainer(model_name=settings["model_name"],validation_batch_name=settings["validation_batch"] if "validation_batch" in settings else None,training_batch_name=settings["training_batch"] if "training_batch" in settings else None)
+    trainer = Trainer(model_name=settings["model_name"])
+    if "training_set" in settings and not(settings["training_set"] is None):
+        trainer.training_set = getDataset(settings["training_set"])
+    if "validation_set" in settings and not(settings["validation_set"] is None):
+        trainer.validation_set = getDataset(settings["validation_set"])
 
     network_options = {"UNet" : UNet,
            "FCN" : FCN,
@@ -708,20 +699,24 @@ if __name__ == "__main__":
     #trainer.plot()
     #trainer.plot_validation()
 
-    trainer = Trainer(Multi, train_batch, validation_batch, model_name="UNet_BatchHighRes3")
-    trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = DoubleConvBlock
-    trainer.network_settings["num_layers"] = 4
-    #trainer.loss_method = batch_loss
-    trainer.training_random_transform = True
-    #trainer.weight_decay = 0.
-    trainer.network_settings["attention"] = True
-    trainer.init()
-    #trainer.auto_save = 1000
-    trainer.train(1500,compute_validation=10)
-    #trainer_list.append(trainer)
-    trainer.save()
+    ds = getDataset("batch_orionMHD_lowB_0.39_512")
+    ds1, ds2 = ds.split(cutoff=0.8)
+    #ds1.save()
+    #ds2.save()
+
+    #trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet")
+    trainer = load_trainer("MultiNet")
+    #trainer.network_settings["base_filters"] = 64
+    #trainer.network_settings["convBlock"] = DoubleConvBlock
+    #trainer.network_settings["num_layers"] = 4
+    #trainer.network_settings["num_channels"] = 2
+    #trainer.training_random_transform = False
+    #trainer.network_settings["attention"] = True
+    #trainer.init()
+    #trainer.train(1000,compute_validation=10)
+    #trainer.save()
     trainer.plot()
+    trainer.plot_validation()
 
     """
     fig, ax = plot_models_accuracy([trainer,t2],show_errors=True)
