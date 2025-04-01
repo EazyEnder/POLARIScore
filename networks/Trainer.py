@@ -14,6 +14,7 @@ from config import *
 import uuid
 from networks.nn_UNet import *
 from networks.nn_FCN import FCN
+from networks.nn_MultiNet import MultiNet
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
@@ -485,6 +486,7 @@ def load_trainer(model_name, load_model=True):
            "FCN" : FCN,
            "KNet" : KNet,
            "UneK": UneK,
+           "MultiNet": MultiNet,
            "None": None
     }
     network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock}
@@ -676,18 +678,15 @@ def generate_model_map(root_name, train_batch, validation_batch, network=UNet, l
             trainer.save()
 
 if __name__ == "__main__":
-    batch = open_batch("batch_highres")
-    train_batch, validation_batch = split_batch(batch, cutoff=0.8)
+    #batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
+    #train_batch, validation_batch = split_batch(batch, cutoff=0.8)
     
-    #trainer_list = [load_trainer("UNet_At"), load_trainer("UKan")]
+    #trainer_list = [load_trainer("UNet_At"),load_trainer("UKan")]
     #for t in trainer_list:
     #    t.training_batch = train_batch
     #    t.validation_batch = validation_batch
 
-    
-    #generate_model_map("KNet_CompMap",train_batch,validation_batch,network=KNet)
-    #fig, _ = heatmap("KNet_CompMap", validation_batch, [8,16,32,48,64,80], [2,3,4,5])
-    #fig.savefig(FIGURE_FOLDER+"knet_compmap.jpg")
+    #trainer_list[-1].plot()
 
     def binned_loss(output, target, bin_edges=[0,2,4,6,8,10]):
         loss = 0.0
@@ -705,17 +704,11 @@ if __name__ == "__main__":
         weighted_loss = torch.sum(per_image_loss * weights)
         return torch.sum(weighted_loss)
     
-    #trainer = load_trainer("UNet_BatchHighRes")
     #trainer.validation_batch = validation_batch
     #trainer.plot()
     #trainer.plot_validation()
 
-
-    #trainer = Trainer(UNet, train_batch, validation_batch, model_name="UNet_BatchHighRes3")
-    trainer = load_trainer("UNet_BatchHighRes")
-    trainer.training_batch = train_batch
-    trainer.validation_batch = validation_batch
-    """
+    trainer = Trainer(Multi, train_batch, validation_batch, model_name="UNet_BatchHighRes3")
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
@@ -728,29 +721,12 @@ if __name__ == "__main__":
     trainer.train(1500,compute_validation=10)
     #trainer_list.append(trainer)
     trainer.save()
-    trainer.plot()"""
+    trainer.plot()
 
-    #trainer.plot_validation()
-    t2 = load_trainer("UNet_At")
-    t2.validation_batch = validation_batch
-    t2.plot_validation()
     """
     fig, ax = plot_models_accuracy([trainer,t2],show_errors=True)
     fig.savefig(FIGURE_FOLDER+"unet_highres_accuracy.jpg")
     fig, ax, _ = plot_models_residuals([trainer,t2])
     fig.savefig(FIGURE_FOLDER+"unet_highres_residuals.jpg")
-    """
-
-
-    #from objects.Simulation_DC import Simulation_DC
-    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948)
-    #print(sim_MHD.data_vel)
-    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
-    #sim_MHD.plot_correlation(method=compute_max_density)
-    #sim_HD.plot_correlation(method=compute_mass_weighted_density)
-    #sim_HD.generate_batch(,number=64,force_size=128,)
-    #sim_HD.plot()"""
-
-    #trainer_list[-1].plot()
-    
+    """    
     plt.show()

@@ -9,6 +9,8 @@ from training_batch import compute_img_score
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
+from scripts.COSpectrum import getSimulationSpectra
+from objects.Dataset import Dataset
 
 class Simulation_DC():
     """
@@ -113,6 +115,9 @@ class Simulation_DC():
         """
         Load files and data in self variables
         """
+
+        LOGGER.log(f"Load simulation {self.name}")
+
         simfile = fits.open(self.file)
         self.data = simfile[0].data
         simfile.close()
@@ -123,8 +128,10 @@ class Simulation_DC():
         self.volumic_density_method = [None,None,None]
         
         if loadTemp:
+            LOGGER.log(f"Load temperature of simulation {self.name}")
             self.loadTemperature()
         if loadVel:
+            LOGGER.log(f"Load velocity of simulation {self.name}")
             self.loadVelocity()
 
         if os.path.exists(os.path.join(self.folder,"processing_config.json")):
@@ -137,6 +144,7 @@ class Simulation_DC():
             self.cell_size = self.cell_size.to(u.cm)
             self.size = self.global_size*self.relative_size
             self.axis = ([self.center[0]*self.global_size-self.size/2,self.center[0]*self.global_size+self.size/2],[self.center[1]*self.global_size-self.size/2,self.center[1]*self.global_size+self.size/2],[self.center[2]*self.global_size-self.size/2,self.center[2]*self.global_size+self.size/2])    
+        LOGGER.log(f"Loading finished for simulation {self.name}")
 
     def from_index_to_scale(self,index):
         """Return the size in cm"""
@@ -154,7 +162,7 @@ class Simulation_DC():
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,method=compute_mass_weighted_density,number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
+    def generate_batch(self,method=compute_mass_weighted_density,what_to_compute={"cospectra":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -169,16 +177,16 @@ class Simulation_DC():
             nearest_size_factor(float, default:0.75): If the new area picked is too close to an old area of a factor nearest_size_factor*area_size then we'll choose another area.
 
         Returns:
-            tuple: (batch,settings) where settings is a log dict.
+            flag: if dataset was correctly generated.
         """
 
         LOGGER.log(f"Generate {number} images using simulation {self.name}.")
-        column_density_xy = self._compute_c_density(axis=0)
-        column_density_xz = self._compute_c_density(axis=1)
-        column_density_yz = self._compute_c_density(axis=2)
-        volume_density_xy = self._compute_v_density(method, axis=0)
-        volume_density_xz = self._compute_v_density(method, axis=1)
-        volume_density_yz = self._compute_v_density(method, axis=2)
+        column_density = [self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]
+        volume_density = [self._compute_v_density(method, axis=0),self._compute_v_density(method, axis=1),self._compute_v_density(method, axis=2)]
+
+        flag_cospectra = what_to_compute["cospectra"] if "cospectra" in what_to_compute else False
+        if flag_cospectra:
+            co_spectra = getSimulationSpectra(self)
 
         imgs = []
         scores = []
@@ -192,20 +200,11 @@ class Simulation_DC():
                 LOGGER.warn("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
                 break
 
-            random = np.random.random()
-            c_dens = column_density_xy
-            v_dens = volume_density_xy
-            face = 0
-            if random < 1/3:
-                c_dens = column_density_xz
-                v_dens = volume_density_xz
-                face = 1
-            elif random < 2/3:
-                c_dens = column_density_yz
-                v_dens = volume_density_yz
-                face = 2
-
-                
+            face = int(np.floor(np.random.random()*3))
+            c_dens = column_density[face]
+            v_dens = volume_density[face]
+            if flag_cospectra:
+                co_spec = co_spectra[face]  
             
             limits = limit_area[face]
             if limits is None:
@@ -234,27 +233,27 @@ class Simulation_DC():
             end_x = c_x + s // 2 + s%2
             end_y = c_y + s // 2 + s%2
 
-
-            #If the random area is outside the sim
             if(start_x < 0 or start_y < 0 or end_x >= self.nres or end_y >= self.nres):
                 continue
-            cropped_cdens = c_dens[start_x:end_x, start_y:end_y]
-            cropped_vdens = v_dens[start_x:end_x, start_y:end_y]
 
-            #Verify if there is no low density region (outside cloud) inside the area
-            if(((cropped_vdens < 10).sum()) > s*s*0.01):
-                continue
+            def _process_img(img, k):
+                #If the random area is outside the sim
+                p_img = img
+                p_img = p_img[start_x:end_x, start_y:end_y]
 
-            # Randomly choose a rotation (0, 90, 180, or 270 degrees)
-            rotated_cdens = cropped_cdens
-            rotated_vdens = cropped_vdens
-            if random_rotate:
-                k = np.random.choice([0, 1, 2, 3])
-                rotated_cdens = np.rot90(cropped_cdens, k)
-                rotated_vdens = np.rot90(cropped_vdens, k)
+                #Verify if there is no low density region (outside cloud) inside the area
+                #if(((cropped_vdens < 10).sum()) > s*s*0.01), TODO:
+                #    continue
 
+                # Randomly choose a rotation (0, 90, 180, or 270 degrees)
+                if random_rotate:
+                    p_img = np.rot90(p_img, k)
+                return p_img
 
-            b = (rotated_cdens, rotated_vdens)
+            k = np.random.choice([0, 1, 2, 3])
+            b = [_process_img(c_dens,k),_process_img(v_dens,k)]
+            if flag_cospectra:
+                b.append(_process_img(co_spec,k))
 
             score = compute_img_score(b[0],b[1])
             if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
@@ -267,6 +266,7 @@ class Simulation_DC():
 
         print("")
         
+        #Random permutation
         random_idx = np.random.permutation(len(imgs))
         r_imgs = []
         for r_id in random_idx:
@@ -277,11 +277,17 @@ class Simulation_DC():
             r_scores.append(scores[r_id])
         imgs = r_imgs
         scores = [r[0] for r in r_scores]
-        
+
+
+        order = ["cdens","vdens"]
+        if flag_cospectra:
+            order.append("cospectra")
         
         settings = {
             "SIM_name":self.name,
             "method": method.__name__,
+            "order": order,
+            "what_was_computed": what_to_compute,
             "img_number": len(imgs),
             "img_size": size,
             "areas_explored":str(areas_explored),
@@ -292,7 +298,13 @@ class Simulation_DC():
             "iteration": iteration,
             "random_rotate": random_rotate,
         }
-        return (imgs,settings)
+
+        ds = Dataset()
+        ds.name = self.name
+        ds.settings = settings
+        ds.save(imgs)
+
+        return imgs
     
     def plotSlice(self, axis=0, slice=256, N_arrows=20):
             density = self.data[slice,:,:]

@@ -27,78 +27,11 @@ def compute_img_score(cdens,vdens):
     score += sr1
     return (score,(sm1,sm2,sr1))
 
-def split_batch(batch, cutoff=0.7):
-    batch = np.array(batch)
-    cut_index = int(cutoff * len(batch))
-    return (batch[:cut_index],batch[cut_index:])
-
-def check_if_batch_exists(settings):
-    #TODO
-    return False
-
-def save_batch(batch, settings, name=None):
-    if check_if_batch_exists(settings):
-        return False
-    
-    if not(os.path.exists(TRAINING_BATCH_FOLDER)):
-        os.mkdir(TRAINING_BATCH_FOLDER)
-
-    batch_uuid = uuid.uuid4() if name is None else name
-    while os.path.exists(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid))):
-        batch_uuid = uuid.uuid4()
-
-    batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid))
-    os.mkdir(batch_path)
-
-    with open(os.path.join(batch_path,'settings.json'), 'w') as file:
-        json.dump(settings, file, indent=4)
-
-    for i,img in enumerate(batch):
-        cdens = img[0]
-        vdens = img[1]
-        np.save(os.path.join(batch_path,str(i)+"_cdens.npy"), cdens)
-        np.save(os.path.join(batch_path,str(i)+"_vdens.npy"), vdens)
-
-    LOGGER.log(f"batch with {len(batch)} images saved.")
-
-    return True
-
 def rebuild_batch(cdens, vdens):
     batch = []
     for i in range(len(cdens)):
         batch.append((cdens[i], vdens[i]))
     return batch
-
-def open_batch(batch_name, return_path=False):
-    if not(os.path.exists(TRAINING_BATCH_FOLDER)):
-        return
-    batch_path = os.path.join(TRAINING_BATCH_FOLDER,batch_name)
-
-    imgs = []
-
-    files = glob.glob(batch_path+"/*.npy")
-    files = [f.split("/")[-1] for f in files]
-    ids = [int(f.split("_")[0]) for f in files]
-    indexes = np.argsort(ids)
-    
-    check_ids = []
-    for j,i in enumerate(indexes):
-        if ids[i] in check_ids:
-            continue
-        file1 = files[i]
-        file2 = files[indexes[j+1]]
-        if("cdens" in file1):
-            file_c = file1
-            file_v = file2
-        else:
-            file_c = file2
-            file_v = file1
-        check_ids.append(ids[i])
-        if return_path:
-            imgs.append(((os.path.join(batch_path,file_c)),(os.path.join(batch_path,file_v))))
-        else:
-            imgs.append((np.load(os.path.join(batch_path,file_c)),np.load(os.path.join(batch_path,file_v))))
-    return imgs
 
 def mix_batch(batch1, batch2, settings1=None, settings2=None,randomized=True):
     batch = batch1
@@ -112,7 +45,6 @@ def mix_batch(batch1, batch2, settings1=None, settings2=None,randomized=True):
     #mix the 2 settings dict
     settings = None
     return batch, settings
-    
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -160,14 +92,64 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     fig.tight_layout()
 
     return fig, ax
+
+def split_batch(batch, cutoff=0.7):
+    batch = np.array(batch)
+    cut_index = int(cutoff * len(batch))
+    return (batch[:cut_index],batch[cut_index:])
+
+def open_batch(batch_name, return_path=False):
+    if not(os.path.exists(TRAINING_BATCH_FOLDER)):
+        return
+    batch_path = os.path.join(TRAINING_BATCH_FOLDER,batch_name)
+
+    imgs = []
+
+    files = glob.glob(batch_path+"/*.npy")
+    files = [f.split("/")[-1] for f in files]
+    ids = [int(f.split("_")[0]) for f in files]
+    indexes = np.argsort(ids)
+    
+    check_ids = []
+    for j,i in enumerate(indexes):
+        if ids[i] in check_ids:
+            continue
+        file1 = files[i]
+        file2 = files[indexes[j+1]]
+        if("cdens" in file1):
+            file_c = file1
+            file_v = file2
+        else:
+            file_c = file2
+            file_v = file1
+        check_ids.append(ids[i])
+        if return_path:
+            imgs.append(((os.path.join(batch_path,file_c)),(os.path.join(batch_path,file_v))))
+        else:
+            imgs.append((np.load(os.path.join(batch_path,file_c)),np.load(os.path.join(batch_path,file_v))))
+    return imgs
     
 
 if __name__ == "__main__":
     from objects.Simulation_DC import *
 
-    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
-    sim_MHD.init(loadTemp=True, loadVel=True)
-    sim_MHD.plotSlice()
+    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    #sim_MHD.init(loadTemp=True, loadVel=True)
+    #sim_MHD.generate_batch(number=64, force_size=128, what_to_compute={"cospectra": True})
+
+    from objects.Dataset import Dataset
+    ds = Dataset()
+    ds.load_from_name("batch_orionMHD_lowB_0.39_512")
+    print(ds.settings["order"])
+    ds.plot_correlation(X_i=1,Y_i=0)
+    #imgs = ds.get(12)
+    from scripts.COSpectrum import getIntegratedIntensity
+    #plt.imshow(getIntegratedIntensity(imgs[2]))
+    #plt.figure()
+    #plt.imshow(imgs[1], norm=LogNorm())
+    #plt.figure()
+    #plt.imshow(imgs[0], norm=LogNorm())
+
     #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
     
     #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])

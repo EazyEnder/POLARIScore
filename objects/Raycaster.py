@@ -69,5 +69,6 @@ def ray_mapping(simulation,method,axis,region=[0,-1,0,-1]):
             raycaster = Raycaster(simulation, method, starting_pos, axis)
             result = raycaster.start()
             results[ir].append(result)
+    print("")
     return results
     

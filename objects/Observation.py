@@ -13,9 +13,19 @@ from utils import *
 from matplotlib.colors import LogNorm
 import torch
 import torch.nn.functional as F
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
+
+def _crop(wcs, lims):
+    ra_min, ra_max, dec_min, dec_max = lims
+    corner_coords = SkyCoord([ra_min, ra_max, ra_max, ra_min], 
+                            [dec_min, dec_min, dec_max, dec_max], 
+                            unit="deg", frame="fk5")
+    x_pix, y_pix = skycoord_to_pixel(corner_coords, wcs)
+    x_min, x_max = int(np.min(x_pix)), int(np.max(x_pix))
+    y_min, y_max = int(np.min(y_pix)), int(np.max(y_pix))
+    return (x_min,x_max,y_min,y_max)
 
 class Observation():
     def __init__(self,name,file_name):
@@ -30,7 +40,7 @@ class Observation():
         self.data = None
         self.prediction = None
         self.wcs = None
-        self.cores = self.getCores()
+        #self.cores = self.getCores()
         """Cores [{**core1_properties}]"""
 
         self.init()
@@ -92,36 +102,58 @@ class Observation():
         return output_matrix
 
     def getCores(self):
-        cores_path = os.path.join(self.folder, "observed_core_catalog.txt")
-        if(not(os.path.exists(cores_path))):
+        observed_cores_path = os.path.join(self.folder, "observed_core_catalog.txt")
+        if(not(os.path.exists(observed_cores_path))):
             return
+        with open(observed_cores_path, "r", encoding="utf-8") as file:
+            observed_lines = file.readlines()
+        derived_cores_path = os.path.join(self.folder, "derived_core_catalog.txt")
+        if(not(os.path.exists(observed_cores_path))):
+            return
+        with open(derived_cores_path, "r", encoding="utf-8") as file:
+            derived_lines = file.readlines()
 
-        with open(cores_path, "r", encoding="utf-8") as file:
-            lines = file.readlines()
-
-        cores = []
-        for i, line in enumerate(lines):
-            if line[0] != "!" and any(c.isalpha() for c in line):
+        observed_cores = []
+        for i, line in enumerate(observed_lines):
+            if line[0] != "!":
                 properties = line.strip().split()
                 ra_str = f"{properties[2]} {properties[3]} {properties[4]}"
                 dec_str = f"{properties[5]} {properties[6]} {properties[7]}"
-                coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg))
-                
+                coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg)) 
                 pc = {
                     "name": properties[1],
-                    "peak_ncol": float(properties[58]),
+                    "peak_ncol": float(properties[58])*1e21,
                     "radius": float(properties[62]),
                     "ra": coord.ra.deg,
                     "dec": coord.dec.deg
                 }
-
-                cores.append(pc)
+                observed_cores.append(pc)
+        derived_cores = []
+        for i, line in enumerate(derived_lines):
+            if line[0] != "!":
+                properties = line.strip().split()
+                pc = {
+                    "name": properties[1],
+                    "peak_n": float(properties[18])*1e4,
+                    "radius_pc": float(properties[8])
+                }
+                derived_cores.append(pc)
+        
+        cores = []
+        #Disgusting code, TODO
+        for obs_dict in observed_cores:
+            for der_dict in derived_cores:
+                if obs_dict["name"] != der_dict["name"]:
+                    continue
+                core = {**obs_dict, **der_dict}
+                cores.append(core)
+                break
 
         self.cores = cores
 
         return cores
 
-    def plotCores(self,ax,cores=None):
+    def plotCores(self,ax,cores=None,norm=None,vol_density=False):
         if cores is None:
             cores = self.cores
         if cores is None:
@@ -131,6 +163,10 @@ class Observation():
                 return
         ra = [c["ra"] for c in cores]
         dec = [c["dec"] for c in cores]
+        if vol_density:
+            values = np.array([c["peak_n"] for c in cores])
+        else:
+            values = np.array([c["peak_ncol"] for c in cores])
 
         world_coords = SkyCoord(ra, dec, unit="deg", frame="fk5")
         x_pix, y_pix = skycoord_to_pixel(world_coords, ax.wcs)
@@ -139,19 +175,28 @@ class Observation():
 
         pixel_scale = np.mean(np.abs(ax.wcs.pixel_scale_matrix.diagonal()))
 
-        ax.scatter(x_pix, y_pix, s=radius/pixel_scale, facecolors='none', edgecolors='black')
+        if norm is None:
+            colors = 'none'
+        else:
+            colors = plt.cm.rainbow(norm(values))
+
+
+        ax.scatter(x_pix, y_pix, s=radius/pixel_scale, facecolors=colors, edgecolors="black")
 
         return ax
         
     
-    def plot(self, data=None, norm=None):
+    def plot(self, data=None, norm=None, plotCores=False, crop=None):
         fig = plt.figure()
         ax = plt.subplot(projection=self.wcs)
         data = self.data if data is None else data
+        flag_vol_density = False
         label = r"$N_H(cm^{-2})$"
+        norm = norm if not(norm is None) else LogNorm()
         if np.nanpercentile(data,50) < 1e10:
+            flag_vol_density = True
             label=r"$n_H(cm^{-3})$"
-        im = ax.imshow(data, cmap="rainbow", norm=norm if not(norm is None) else LogNorm())
+        im = ax.imshow(data, cmap="rainbow", norm=norm)
         overlay = ax.get_coords_overlay('fk5')
         overlay.grid(color='black', ls='dotted')
         overlay[0].set_axislabel('Right Ascension (J2000)')
@@ -159,7 +204,13 @@ class Observation():
         plt.colorbar(im, label=label)
         fig.tight_layout()
 
-        self.plotCores(ax)
+        if plotCores:
+            self.plotCores(ax, norm=norm, vol_density=flag_vol_density)
+
+        if not(crop is None):
+            x_min, x_max, y_min, y_max = _crop(self.wcs, crop)
+            ax.set_xlim((x_min, x_max))
+            ax.set_ylim((y_min, y_max))
 
         return fig, ax
     
@@ -186,7 +237,7 @@ class Observation():
         return self.prediction
     
 def script_data_and_figures(save_fig=False):
-    name = "Polaris"
+    name = "OrionB"
     obs = Observation(name, "column_density_map")
     name = name.replace("_","")
     fig, ax = obs.plot(norm=LogNorm())
@@ -217,13 +268,16 @@ def script_data_and_figures(save_fig=False):
 
 if __name__ == "__main__":
 
-    #script_data_and_figures()
+    script_data_and_figures()
 
+    """
     name = "Taurus_L1495"
     obs = Observation(name, "column_density_map")
-    obs.plot()
+    cropped_region = [Angle("4h15m").deg, Angle("4h25m").deg, Angle("26d20m").deg, Angle("28d39m").deg]
+    obs.plot(crop=cropped_region)
     obs.load()
-    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1, vmax=1e4))
+    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1.5e1, vmax=1e4),crop=cropped_region)"
+    """
 
     #obs = Observation("Polaris","column_density_map")
     #obs.plot(norm=LogNorm(vmin=11,vmax=16))

@@ -16,11 +16,11 @@ VELOCITY_CHANNELS = 256
 VELOCITY_RESOLUTION = 1e3*0.5
 LSR_VELOCITY = 0
 V = LSR_VELOCITY+(np.array(range(VELOCITY_CHANNELS))-VELOCITY_CHANNELS/2)*VELOCITY_RESOLUTION
-DENSITY_THRESHOLD = 300
+DENSITY_THRESHOLD = 0
 
-#Line settings example for CO J=U-L
-L = 2
-U = 3
+#Line settings example for 12CO J=U-L
+L = 0
+U = 1
 LINE_SETTINGS = {
     "l":L,
     "u":U,
@@ -116,6 +116,10 @@ def plotSpectrum(intensity_map, pos=(0,0), ax=None, v_channels=VELOCITY_CHANNELS
 def saveSpectrum(intensity_map, name=None, replace=False):
     if name is None:
         name = "spectrum_"+str(uuid.uuid4())
+    else:
+        if not("spectrum" in name):
+            name = "spectrum_"+name
+
     if not(os.path.exists(CACHES_FOLDER)):
         os.mkdir(CACHES_FOLDER)
     path = os.path.join(CACHES_FOLDER,name+".npy")
@@ -133,6 +137,26 @@ def LoadSpectrum(name):
         return 
     return np.load(path)
 
+def getSimulationSpectra(simulation):
+
+    name = simulation.name
+    spectra = [LoadSpectrum("spectrum_"+name+"_"+str(int(i+1))) for i in range(3)]
+    for i,s in enumerate(spectra):
+        if s is None:
+            LOGGER.log(f"Spectrum for face {i} doesn't exist, generate it: ")
+            results = ray_mapping(simulation, compute_COSpectrum, axis=i, region=[0,-1,0,-1])
+            intensity_map = []
+            for k in range(len(results)):
+                intensity_map.append([])
+                for j in range(len(results[i])):
+                    intensity_map[k].append(results[k][j]["intensity_spectrum"])
+            intensity_map = intensity_map-BLACKBODY_EMISSION(((V)/LIGHT_SPEED+1)*LINE_SETTINGS["frequency"],CMB_TEMPERATURE)
+            intensity_map = np.array(intensity_map)
+            intensity_map = convertToKelvin(intensity_map,LINE_SETTINGS["frequency"])
+            saveSpectrum(intensity_map, name=name+"_"+str(i+1))
+            spectra[i] = intensity_map
+    return spectra
+
 def getIntegratedIntensity(intensity_map):
     intensity_map = np.array(intensity_map)
     return np.sum(intensity_map, axis=2)
@@ -149,7 +173,7 @@ def plot3D(data,threshold=15):
     return fig, ax
 
 def script_create_spectrum(simulation, region=[254,256,254,256], name=None):
-    results = ray_mapping(simulation, compute_COSpectrum, axis=0, region=[0,-1,0,-1])
+    results = ray_mapping(simulation, compute_COSpectrum, axis=1, region=[0,-1,0,-1])
     intensity_map = []
     for i in range(len(results)):
         intensity_map.append([])
@@ -163,14 +187,15 @@ def script_create_spectrum(simulation, region=[254,256,254,256], name=None):
 
 if __name__ == "__main__":
     from objects.Simulation_DC import Simulation_DC
-    simulation = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    #simulation = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     #sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
-    simulation.init(loadTemp=True,loadVel=True)
+    #simulation.init(loadTemp=True,loadVel=True)
 
-    #intensity_map = script_create_spectrum(simulation, name="32_withCMB")
+    #intensity_map = script_create_spectrum(simulation, name="32_withCMB_Y")
     #plotSpectrum(intensity_map, pos=(255,255))
     #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
 
+    intensity_map = LoadSpectrum("spectrum_orionMHD_lowB_0.39_512_1")
 
     """
     results = ray_mapping(simulation, compute_COSpectrum, axis=0, region=[0,50,0,50])
@@ -184,8 +209,9 @@ if __name__ == "__main__":
     saveSpectrum(intensity_map)"
     """
 
-    intensity_map = LoadSpectrum("32_withCMB")
+    #intensity_map = LoadSpectrum("32_withCMB")
     plotSpectrum(intensity_map, pos=(255,255))
+    plt.figure()
     plt.imshow(getIntegratedIntensity(intensity_map))
     #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
     #intensity_map = LoadSpectrum("spectrum_e271a125-d774-420a-81aa-5bcec00c6053")
