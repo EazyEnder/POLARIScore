@@ -7,7 +7,6 @@ import uuid
 import json
 import numpy as np
 import glob
-from networks.nn_UNet import UNet
 from utils import *
 
 import scipy
@@ -133,37 +132,35 @@ def open_batch(batch_name, return_path=False):
 if __name__ == "__main__":
     from objects.Simulation_DC import *
 
-    #sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
-    #sim_MHD.init(loadTemp=True, loadVel=True)
-    #sim_MHD.generate_batch(number=64, force_size=128, what_to_compute={"cospectra": True})
+    sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    sim_MHD.init(loadTemp=True, loadVel=True)
+    sim_MHD.generate_batch(number=64, force_size=128, what_to_compute={"cospectra": True, "density":True})
 
     from objects.Dataset import Dataset
-    ds = Dataset()
-    ds.load_from_name("batch_orionMHD_lowB_0.39_512")
-    print(ds.settings["order"])
-    ds.plot_correlation(X_i=1,Y_i=0)
-    #imgs = ds.get(12)
-    from scripts.COSpectrum import getIntegratedIntensity
-    #plt.imshow(getIntegratedIntensity(imgs[2]))
-    #plt.figure()
-    #plt.imshow(imgs[1], norm=LogNorm())
-    #plt.figure()
-    #plt.imshow(imgs[0], norm=LogNorm())
-
-    #sim_HD = Simulation_DC(name="orionHD_all_512", global_size=66.0948)
+    #ds = Dataset()
+    #ds.load_from_name("batch_orionMHD_lowB_0.39_512")
     
-    #bHD, settingsHD = sim_HD.generate_batch(number=64, force_size=128, limit_area=[None,None,None])
-    #bMHD, settingsMHD = sim_MHD.generate_batch(number=64, force_size=128)
-    #final_b, _ = mix_batch(bHD,bMHD)
-    #save_batch(final_b, settingsMHD, name="mixt")
-    #plot_batch(final_b, same_limits=False)
-    #plot_batch_correlation(final_b)
+    """
+    print(ds.settings["order"])
+    imgs = ds.get(12)
+    density = imgs[-1]
+    print(density.shape)
 
-    #sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
+    import plotly.figure_factory as ff
+    from skimage import measure
 
-    #batch, settings = sim.generate_batch(number=1000, force_size=128)
-    #save_batch(batch, settings, name="highres")
-    #plot_batch(batch, same_limits=False)
-    #plot_batch_correlation(batch)
+    log_data = np.log(sim_MHD.data) / np.log(10)
+    binary_mask = log_data > 3
+
+    # Extract isosurface at a chosen density threshold
+    verts, faces, _, _ = measure.marching_cubes(binary_mask.astype(float), level=0.5)
+
+    # Create 3D mesh
+    fig = ff.create_trisurf(x=verts[:, 0], y=verts[:, 1], z=verts[:, 2],
+                            simplices=faces, colormap="Viridis")
+
+    fig.show(renderer="iframe")"
+    """
+    
 
     plt.show()

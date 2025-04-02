@@ -5,8 +5,9 @@ import json
 import glob
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import shutil
 
-BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra"]
+BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density"]
 
 def _open_batch(batch_name):
     assert os.path.exists(TRAINING_BATCH_FOLDER), LOGGER.error(f"Can't open batch {batch_name}, no folder exists.")
@@ -58,6 +59,7 @@ class Dataset():
                 return i
 
     def load_from_name(self, name, changeName=False):
+        LOGGER.log(f"Loading dataset {name}")
         if changeName:
             self.name = name
         batch, order = _open_batch(name)
@@ -91,6 +93,7 @@ class Dataset():
         return result
 
     def split(self, cutoff=0.7):
+        LOGGER.log(f"Splitting dataset {self.name} with cutoff at {cutoff}")
         batch = np.array(self.batch)
         cut_index = int(cutoff * len(batch))
 
@@ -105,7 +108,60 @@ class Dataset():
 
         return (b1, b2)
     
-    def save(self,batch=None, name=None):
+    def clone(self, new_name):
+        ds = Dataset()
+        ds.batch = self.batch
+        ds.settings = self.settings
+        ds.name = new_name
+        return ds
+
+    def downsample(self, channel_names, target_depths, method="mean"):
+        LOGGER.log(f"Downsampling ({method}) channels: {channel_names} to depths {target_depths}")
+        ds = self.clone(self.name+"_downsampled")
+        ds.save(force=True)
+        channel_indexes = [ds.get_element_index(c) for c in channel_names] if type(channel_names) is list else [ds.get_element_index(channel_names)]
+        target_depths = target_depths if type(target_depths) is list else [target_depths]
+        for bi in range(len(ds.batch)):
+            batch = ds.get(bi)
+            for ci,i in enumerate(channel_indexes):
+                img = batch[i]
+                original_depth = img.shape[-1]
+                target_depth = target_depths[ci]
+                factor = original_depth // target_depth
+
+                if original_depth % target_depth != 0:
+                    LOGGER.warn(f"Warning: {original_depth} is not perfectly divisible by {target_depth}, possible data loss.")
+
+                if method == "mean":
+                    batch[i] = img.reshape(128, 128, target_depth, factor).mean(axis=-1)
+                elif method == "max":
+                    batch[i] = img.reshape(128, 128, target_depth, factor).max(axis=-1)
+                else:
+                    batch[i] = img[:, :, ::factor]
+            ds.save_batch(batch,bi)
+            del batch
+        return ds
+
+    def save_batch(self, batch, i):
+        if not(os.path.exists(TRAINING_BATCH_FOLDER)):
+            os.mkdir(TRAINING_BATCH_FOLDER)
+        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
+        if not(os.path.exists(batch_path)):
+            os.mkdir(batch_path)
+        order = self.settings["order"]
+        for j,o in enumerate(order):
+            np.save(os.path.join(batch_path,str(i)+"_"+o+".npy"), batch[j])
+
+    def save_settings(self):
+        if not(os.path.exists(TRAINING_BATCH_FOLDER)):
+            os.mkdir(TRAINING_BATCH_FOLDER)
+        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
+        if not(os.path.exists(batch_path)):
+            os.mkdir(batch_path)
+        with open(os.path.join(batch_path,'settings.json'), 'w') as file:
+            json.dump(self.settings, file, indent=4)
+    
+    def save(self,batch=None, name=None, force=False):
 
         batch = self.get() if batch is None else batch
 
@@ -113,9 +169,14 @@ class Dataset():
             os.mkdir(TRAINING_BATCH_FOLDER)
 
         batch_uuid = self.name if name is None else name
-        while os.path.exists(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid))):
+
+        if os.path.exists(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1])) and force:
+            LOGGER.warn(f"Dataset {batch_uuid} already exists, but force save enabled so previous batch was removed.")
+            shutil.rmtree(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1]))
+
+        while os.path.exists(os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1])):
             self.name = str(uuid.uuid4())
-            LOGGER.warn(f"Batch {batch_uuid} already exists, change to: {str(self.name)}")
+            LOGGER.warn(f"Dataset {batch_uuid} already exists, change to: {str(self.name)}")
             batch_uuid = self.name
 
         batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1])
@@ -129,7 +190,7 @@ class Dataset():
             for j,o in enumerate(order):
                 np.save(os.path.join(batch_path,str(i)+"_"+o+".npy"), img[j])
 
-        LOGGER.log(f"batch with {len(batch)} images saved.")
+        LOGGER.log(f"Dataset with {len(batch)} images saved.")
 
         return True
     

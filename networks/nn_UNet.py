@@ -6,14 +6,20 @@ sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import LOGGER
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, is3D):
         super(ConvBlock, self).__init__()
+        c = nn.Conv2d
+        b = nn.BatchNorm2d
+        if is3D:
+            c = nn.Conv3d
+            b = nn.BatchNorm3d
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            c(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
-            nn.BatchNorm2d(out_channels),
+            b(out_channels),
             #nn.Dropout2d(p=0.1),
         )
     
@@ -21,31 +27,41 @@ class ConvBlock(nn.Module):
         return self.conv(x)
     
 class DoubleConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, is3D):
         super(DoubleConvBlock, self).__init__()
+        c = nn.Conv2d
+        b = nn.BatchNorm2d
+        if is3D:
+            c = nn.Conv3d
+            b = nn.BatchNorm3d
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels//2, kernel_size=3, padding=1),
+            c(in_channels, out_channels//2, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
-            nn.BatchNorm2d(out_channels//2),
-            nn.Conv2d(out_channels//2, out_channels, kernel_size=3, padding=1),
+            b(out_channels//2),
+            c(out_channels//2, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
-            nn.BatchNorm2d(out_channels),
+            b(out_channels),
         )
     
     def forward(self, x):
         return self.conv(x)
     
 class ResConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, is3D):
         super(ResConvBlock, self).__init__()
+        c = nn.Conv2d
+        b = nn.BatchNorm2d
+        if is3D:
+            c = nn.Conv3d
+            b = nn.BatchNorm3d
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels//2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels//2),
+            c(in_channels, out_channels//2, kernel_size=3, padding=1),
+            b(out_channels//2),
             nn.ReLU(inplace=False),
-            nn.Conv2d(out_channels//2, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
+            c(out_channels//2, out_channels, kernel_size=3, padding=1),
+            b(out_channels),
         )
-        self.match_dim = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0) if in_channels != out_channels else None
+        self.match_dim = c(in_channels, out_channels, kernel_size=1, stride=1, padding=0) if in_channels != out_channels else None
     
     def forward(self, x):
         res = x.clone()
@@ -56,22 +72,28 @@ class ResConvBlock(nn.Module):
         return F.relu(x)
     
 class AttentionBlock(nn.Module):
-    def __init__(self, F_g, F_l, F_int):
+    def __init__(self, F_g, F_l, F_int, is3D):
         super(AttentionBlock, self).__init__()
+
+        c = nn.Conv2d
+        b = nn.BatchNorm2d
+        if is3D:
+            c = nn.Conv3d
+            b = nn.BatchNorm3d
         
         self.W_g = nn.Sequential(
-            nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(F_int)
+            c(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            b(F_int)
         )
 
         self.W_x = nn.Sequential(
-            nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(F_int)
+            c(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            b(F_int)
         )
 
         self.psi = nn.Sequential(
-            nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
-            nn.BatchNorm2d(1),
+            c(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            b(1),
             nn.Sigmoid()
         )
 
@@ -84,13 +106,14 @@ class AttentionBlock(nn.Module):
         psi = self.psi(psi)  # Apply sigmoid activation
         return x * psi  # Scale encoder features
 
-import math
-class UNet(nn.Module):
-    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, filter_function='constant', k=2., attention = False):
+from nn_BaseModule import BaseModule
+class UNet(BaseModule):
+    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, filter_function='constant', k=2., attention = False, is3D = False):
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
         self.attention = attention
+        self.is3D = is3D
 
         if filter_function == 'constant':
             filter_sizes = [int(base_filters * k**i) for i in range(num_layers+1)]
@@ -99,17 +122,20 @@ class UNet(nn.Module):
         
         # Encoder
         self.encoders = nn.ModuleList()
-        self.pool = nn.MaxPool2d(2, 2)
+        if is3D:
+            self.pool = nn.MaxPool3d(2, 2)
+        else:
+            self.pool = nn.MaxPool2d(2, 2)
 
         in_channels = 1
         for i in range(num_layers):
             out_channels = filter_sizes[i]
-            self.encoders.append(convBlock(in_channels, out_channels))
+            self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
             in_channels = out_channels
         out_channels = filter_sizes[-1]
 
         # Bottleneck
-        self.bottleneck = convBlock(in_channels, out_channels)
+        self.bottleneck = convBlock(in_channels, out_channels, is3D=is3D)
         in_channels = out_channels
 
         # Decoder
@@ -120,16 +146,25 @@ class UNet(nn.Module):
 
         for i in range(num_layers):
             out_channels = reversed_filters[1+i]
-            self.upconvs.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
+            if is3D:
+                self.upconvs.append(nn.ConvTranspose3d(in_channels, out_channels, kernel_size=2, stride=2))
+            else:
+                self.upconvs.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
             if self.attention:
-                self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2))
-            self.decoders.append(convBlock(2*out_channels, out_channels))
+                self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D))
+            self.decoders.append(convBlock(2*out_channels, out_channels, is3D=is3D))
             in_channels = out_channels
 
         # Output layer
-        self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
+        if is3D:
+            self.final_conv = nn.Conv3d(base_filters, 1, kernel_size=1)
+        else:
+            self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
     
     def forward(self, x):
+
+        assert (self.is3D and len(x.shape) > 4) or (not(self.is3D) and len(x.shape) < 5), LOGGER.error(f"U-Net is defined as {'3D' if self.is3D else '2D'} but input has {len(x.shape)-2} dimensions")
+
         # Encoder forward pass
         enc_features = []
         for i in range(self.num_layers):
@@ -152,6 +187,6 @@ class UNet(nn.Module):
         return self.final_conv(x)
     
 if __name__ == "__main__":
-    model = UNet()
-    x = torch.randn(1, 1, 128, 128)
+    model = UNet(is3D=True)
+    x = torch.randn(1, 1, 128, 128, 128)
     print(model(x).shape)

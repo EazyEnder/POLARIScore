@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 from sympy import limit_seq
@@ -15,6 +16,7 @@ import uuid
 from networks.nn_UNet import *
 from networks.nn_FCN import FCN
 from networks.nn_MultiNet import MultiNet
+from networks.nn_PPV import PPV
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
@@ -90,18 +92,21 @@ class Trainer():
    
         self.model.train()
 
+        def _format_time(seconds):
+            hours, rem = divmod(seconds, 3600)
+            minutes, seconds = divmod(rem, 60)
+            return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
         def _random_transform(tensors_input, tensors_target):
             k = torch.randint(0, 4, (1,)).item()
             #Maybe need to change this: See if it works ! 
             tensors_input = torch.rot90(tensors_input, k, [2, 3])
             tensors_target = torch.rot90(tensors_target, k, [2, 3])
 
-            # Apply random vertical flip
             if torch.rand(1).item() > 0.5:
                 tensors_input = torch.flip(tensors_input, [2])
                 tensors_target = torch.flip(tensors_target, [2])
 
-            # Apply random horizontal flip
             if torch.rand(1).item() > 0.5:
                 tensors_input = torch.flip(tensors_input, [3])
                 tensors_target = torch.flip(tensors_target, [3])
@@ -109,24 +114,34 @@ class Trainer():
             return tensors_input, tensors_target
         
         validation_input_tensor, validation_target_tensor = self.model.shape_data(self.validation_set.get(), self.validation_set.get_element_index(self.target_name))
+        if not(type(validation_input_tensor) is list):
+            validation_input_tensor = [validation_input_tensor]
+
 
         total_epoch = self.last_epoch
         l_ep = self.last_epoch
         break_flag = False
         batch_size = len(self.training_set.batch)
-        for _ in range(epoch_number):
+        start_time = time.process_time()
+        for epoch in range(epoch_number):
             total_epoch += 1
             epoch_loss = 0
             shuffled_indices = torch.randperm(batch_size)  
             self.optimizer.zero_grad()
             minbatch_nbr = int(np.floor(batch_size/batch_number))
+            epoch_time = time.process_time()
             for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
+                print(f'{b}', end = "\r")
                 used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
+                if batch_number == 1:
+                    used_batch = [used_batch]
                 t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_name))
+                if not(type(t_input) is list):
+                    t_input = [t_input]
 
                 if self.training_random_transform:
                     t_input, t_target = _random_transform(t_input, t_target)
-                output = self.model(t_input)
+                output = self.model(*t_input)
                 loss = self.loss_method(output, t_target)
                 loss.backward()
                 epoch_loss += loss.item()
@@ -138,7 +153,7 @@ class Trainer():
             if compute_validation>0 and total_epoch % compute_validation == 0:
                 with torch.no_grad():
                     #self.model.eval()
-                    validation_output = self.model(validation_input_tensor)
+                    validation_output = self.model(*validation_input_tensor)
                     v_loss = self.loss_method(validation_output,validation_target_tensor).item()
                     self.validation_losses.append((total_epoch,v_loss))
                     #self.model.train()
@@ -147,7 +162,13 @@ class Trainer():
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
                 self.save() 
-            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number}, Training Loss: {epoch_loss}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+
+            actual_time = time.process_time()
+            epoch_time = actual_time - epoch_time
+            time_left = (actual_time-start_time) / (epoch+1) * (epoch_number-(epoch+1))
+            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number} | Elapsed: {_format_time(actual_time-start_time)} | Time Left: {_format_time(time_left)} | Training Loss: {epoch_loss}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+            
+            
             if break_flag:
                 break
         self.last_epoch = total_epoch
@@ -278,8 +299,10 @@ class Trainer():
         self.model.eval()
 
         input_tensor, target_tensor = self.model.shape_data(dataset.get(), dataset.get_element_index(self.target_name))
-        
-        output = self.model(input_tensor)
+        if not(type(input_tensor) is list):
+            input_tensor = [input_tensor]
+
+        output = self.model(*input_tensor)
         output = output.cpu().detach().numpy()
 
         target_tensor = target_tensor.cpu().detach().numpy()
@@ -478,6 +501,7 @@ def load_trainer(model_name, load_model=True):
            "KNet" : KNet,
            "UneK": UneK,
            "MultiNet": MultiNet,
+           "PPV": PPV,
            "None": None
     }
     network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock}
@@ -699,22 +723,24 @@ if __name__ == "__main__":
     #trainer.plot()
     #trainer.plot_validation()
 
-    ds = getDataset("batch_orionMHD_lowB_0.39_512")
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
+    #ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    #trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet")
-    trainer = load_trainer("MultiNet")
-    #trainer.network_settings["base_filters"] = 64
+    trainer = Trainer(PPV, ds1, ds2, model_name="PPV")
+    #trainer = load_trainer("MultiNet")
+    trainer.network_settings["base_filters"] = 32
     #trainer.network_settings["convBlock"] = DoubleConvBlock
-    #trainer.network_settings["num_layers"] = 4
+    trainer.network_settings["num_layers"] = 3
     #trainer.network_settings["num_channels"] = 2
-    #trainer.training_random_transform = False
-    #trainer.network_settings["attention"] = True
-    #trainer.init()
-    #trainer.train(1000,compute_validation=10)
-    #trainer.save()
+    trainer.training_random_transform = False
+    trainer.network_settings["attention"] = True
+    trainer.target_name = "density"
+    trainer.init()
+    trainer.train(400,batch_number=1,compute_validation=10)
+    trainer.save()
     trainer.plot()
     trainer.plot_validation()
 

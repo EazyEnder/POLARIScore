@@ -116,7 +116,7 @@ class Simulation_DC():
         Load files and data in self variables
         """
 
-        LOGGER.log(f"Load simulation {self.name}")
+        LOGGER.log(f"Loading simulation {self.name}")
 
         simfile = fits.open(self.file)
         self.data = simfile[0].data
@@ -128,10 +128,10 @@ class Simulation_DC():
         self.volumic_density_method = [None,None,None]
         
         if loadTemp:
-            LOGGER.log(f"Load temperature of simulation {self.name}")
+            LOGGER.log(f"Loading temperature of simulation {self.name}")
             self.loadTemperature()
         if loadVel:
-            LOGGER.log(f"Load velocity of simulation {self.name}")
+            LOGGER.log(f"Loading velocity of simulation {self.name}")
             self.loadVelocity()
 
         if os.path.exists(os.path.join(self.folder,"processing_config.json")):
@@ -152,17 +152,19 @@ class Simulation_DC():
 
     def _compute_c_density(self, method=compute_column_density, axis=0, force=False):
         if self.column_density_method[axis] is None or self.column_density_method[axis] != method.__name__ or self.column_density[axis] is None or force:
+            LOGGER.log(f"Computing {method.__name__} for face {axis}, for {self.name}")
             self.column_density_method[axis] = method.__name__
             self.column_density[axis] = method(self.data, self.cell_size, axis=axis)
         return self.column_density[axis]
     
     def _compute_v_density(self, method=compute_mass_weighted_density, axis=0, force=False):
         if self.volumic_density_method[axis] is None or self.volumic_density_method[axis] != method.__name__ or self.volumic_density[axis] is None or force:
+            LOGGER.log(f"Computing {method.__name__} for face {axis}, for {self.name}")
             self.volumic_density_method[axis] = method.__name__
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,method=compute_mass_weighted_density,what_to_compute={"cospectra":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
+    def generate_batch(self,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -180,15 +182,25 @@ class Simulation_DC():
             flag: if dataset was correctly generated.
         """
 
-        LOGGER.log(f"Generate {number} images using simulation {self.name}.")
+        LOGGER.log(f"Generating {number} images using simulation {self.name}.")
         column_density = [self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]
         volume_density = [self._compute_v_density(method, axis=0),self._compute_v_density(method, axis=1),self._compute_v_density(method, axis=2)]
 
         flag_cospectra = what_to_compute["cospectra"] if "cospectra" in what_to_compute else False
         if flag_cospectra:
             co_spectra = getSimulationSpectra(self)
+        flag_number_density = what_to_compute["density"] if "density" in what_to_compute else False
 
-        imgs = []
+        order = ["cdens","vdens"]
+        if flag_cospectra:
+            order.append("cospectra")
+        if flag_number_density:
+            order.append("density")
+
+        ds = Dataset()
+        ds.name = self.name
+        ds.settings = {"order": order}
+
         scores = []
         img_generated = 0
         areas_explored = [[],[],[]]
@@ -197,7 +209,7 @@ class Simulation_DC():
             iteration += 1
             print(f'{iteration}', end = "\r")
             if iteration >= number*100:
-                LOGGER.warn("Failed to generated all the requested random batches, nbr of imgs generated:"+str(len(imgs)))
+                LOGGER.warn("Failed to generated all the requested random batches, nbr of imgs generated:"+str(img_generated))
                 break
 
             face = int(np.floor(np.random.random()*3))
@@ -237,7 +249,6 @@ class Simulation_DC():
                 continue
 
             def _process_img(img, k):
-                #If the random area is outside the sim
                 p_img = img
                 p_img = p_img[start_x:end_x, start_y:end_y]
 
@@ -247,19 +258,34 @@ class Simulation_DC():
 
                 # Randomly choose a rotation (0, 90, 180, or 270 degrees)
                 if random_rotate:
-                    p_img = np.rot90(p_img, k)
+                    p_img = np.rot90(p_img, k, axes=(0,1))
                 return p_img
 
             k = np.random.choice([0, 1, 2, 3])
             b = [_process_img(c_dens,k),_process_img(v_dens,k)]
             if flag_cospectra:
                 b.append(_process_img(co_spec,k))
+            if flag_number_density:
+                if face == 0:
+                    densities = self.data[:, start_x:end_x, start_y:end_y]
+                elif face == 1:
+                    densities = self.data[start_x:end_x, :, start_y:end_y]
+                elif face == 2:
+                    densities = self.data[start_x:end_x, start_y:end_y, :]
+
+                if densities.shape[0] == 512:
+                    densities = np.moveaxis(densities, 0, -1)
+                elif densities.shape[1] == 512:
+                    densities = np.moveaxis(densities, 1, -1)
+                b.append(densities)
+
 
             score = compute_img_score(b[0],b[1])
             if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
                 continue
 
-            imgs.append(b)
+            ds.save_batch(b, img_generated)
+            del b
             scores.append(score)
             areas_explored[face].append(center)
             img_generated += 1
@@ -267,6 +293,7 @@ class Simulation_DC():
         print("")
         
         #Random permutation
+        '''
         random_idx = np.random.permutation(len(imgs))
         r_imgs = []
         for r_id in random_idx:
@@ -275,20 +302,16 @@ class Simulation_DC():
         r_scores = []
         for r_id in random_idx:
             r_scores.append(scores[r_id])
-        imgs = r_imgs
-        scores = [r[0] for r in r_scores]
-
-
-        order = ["cdens","vdens"]
-        if flag_cospectra:
-            order.append("cospectra")
+        imgs = r_imgs'
+        '''
+        scores = [r[0] for r in scores]
         
         settings = {
             "SIM_name":self.name,
             "method": method.__name__,
             "order": order,
             "what_was_computed": what_to_compute,
-            "img_number": len(imgs),
+            "img_number": img_generated,
             "img_size": size,
             "areas_explored":str(areas_explored),
             "scores": str(scores),
@@ -298,13 +321,12 @@ class Simulation_DC():
             "iteration": iteration,
             "random_rotate": random_rotate,
         }
-
-        ds = Dataset()
-        ds.name = self.name
         ds.settings = settings
-        ds.save(imgs)
+        ds.save_settings()
 
-        return imgs
+        LOGGER.log(f"New dataset {ds.name} saved")
+    
+        return ds
     
     def plotSlice(self, axis=0, slice=256, N_arrows=20):
             density = self.data[slice,:,:]
