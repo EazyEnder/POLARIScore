@@ -112,16 +112,13 @@ class Trainer():
                 tensors_target = torch.flip(tensors_target, [3])
 
             return tensors_input, tensors_target
-        
-        validation_input_tensor, validation_target_tensor = self.model.shape_data(self.validation_set.get(), self.validation_set.get_element_index(self.target_name))
-        if not(type(validation_input_tensor) is list):
-            validation_input_tensor = [validation_input_tensor]
 
 
         total_epoch = self.last_epoch
         l_ep = self.last_epoch
         break_flag = False
         batch_size = len(self.training_set.batch)
+        validation_batch_size = len(self.validation_set.batch)
         start_time = time.process_time()
         for epoch in range(epoch_number):
             total_epoch += 1
@@ -131,7 +128,7 @@ class Trainer():
             minbatch_nbr = int(np.floor(batch_size/batch_number))
             epoch_time = time.process_time()
             for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
-                print(f'{b}', end = "\r")
+                printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
                 used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                 if batch_number == 1:
                     used_batch = [used_batch]
@@ -149,15 +146,27 @@ class Trainer():
             epoch_loss /= int(np.ceil(batch_size / batch_number))
             self.scheduler.step(epoch_loss)
             self.training_losses.append((total_epoch, epoch_loss))
-            v_loss = None
+            val_total_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
                 with torch.no_grad():
                     #self.model.eval()
-                    validation_output = self.model(*validation_input_tensor)
-                    v_loss = self.loss_method(validation_output,validation_target_tensor).item()
-                    self.validation_losses.append((total_epoch,v_loss))
+                    minbatch_nbr = int(np.floor(validation_batch_size/batch_number))
+                    val_total_loss = 0
+                    for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
+                        printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
+                        used_batch = self.validation_set.get(indexes=list(range(len(self.validation_set.batch)))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
+                        if batch_number == 1:
+                            used_batch = [used_batch]
+                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_name))
+                        if not(type(v_input_tensor) is list):
+                            v_input_tensor = [v_input_tensor]
+                        validation_output = self.model(*v_input_tensor)
+                        v_loss = self.loss_method(validation_output,v_target_tensor).item()
+                        val_total_loss += v_loss
+                        self.validation_losses.append((total_epoch,val_total_loss))
                     #self.model.train()
-                if(auto_stop > 0 and np.abs(v_loss-loss.item()) < auto_stop and v_loss < auto_stop_min_loss):
+                val_total_loss /= int(np.ceil(validation_batch_size / batch_number))
+                if(auto_stop > 0 and np.abs(val_total_loss-loss.item()) < auto_stop and val_total_loss < auto_stop_min_loss):
                     break_flag = True
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
@@ -166,7 +175,7 @@ class Trainer():
             actual_time = time.process_time()
             epoch_time = actual_time - epoch_time
             time_left = (actual_time-start_time) / (epoch+1) * (epoch_number-(epoch+1))
-            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number} | Elapsed: {_format_time(actual_time-start_time)} | Time Left: {_format_time(time_left)} | Training Loss: {epoch_loss}, Validation loss: {v_loss if v_loss else "Not computed"}', type="training", level=1)
+            LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number} | Elapsed: {_format_time(actual_time-start_time)} | Time Left: {_format_time(time_left)} | Training Loss: {epoch_loss}, Validation loss: {val_total_loss if val_total_loss else "Not computed"}', type="training", level=1, color="34m")
             
             
             if break_flag:
@@ -724,7 +733,7 @@ if __name__ == "__main__":
     #trainer.plot_validation()
 
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
-    #ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128])
+    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()

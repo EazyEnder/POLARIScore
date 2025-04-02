@@ -71,8 +71,10 @@ class Dataset():
     
     def get(self, indexes = None):
         if not(indexes is None):
-            if not(type(indexes) is list) or len(indexes) < 2:
+            if not(type(indexes) is list):
                 return self.load(np.array(self.batch)[indexes])
+            elif len(indexes) < 2:
+                return self.load(np.array(self.batch)[indexes[0]])
             else:
                 return self.load(np.array(self.batch)[np.array(indexes)])
         else:
@@ -115,12 +117,13 @@ class Dataset():
         ds.name = new_name
         return ds
 
-    def downsample(self, channel_names, target_depths, method="mean"):
-        LOGGER.log(f"Downsampling ({method}) channels: {channel_names} to depths {target_depths}")
+    def downsample(self, channel_names, target_depths, methods="mean"):
+        LOGGER.log(f"Downsampling ({methods}) channels: {channel_names} to depths {target_depths}")
         ds = self.clone(self.name+"_downsampled")
         ds.save(force=True)
         channel_indexes = [ds.get_element_index(c) for c in channel_names] if type(channel_names) is list else [ds.get_element_index(channel_names)]
         target_depths = target_depths if type(target_depths) is list else [target_depths]
+        methods = methods if type(methods) is list else [methods]
         for bi in range(len(ds.batch)):
             batch = ds.get(bi)
             for ci,i in enumerate(channel_indexes):
@@ -132,10 +135,14 @@ class Dataset():
                 if original_depth % target_depth != 0:
                     LOGGER.warn(f"Warning: {original_depth} is not perfectly divisible by {target_depth}, possible data loss.")
 
+                method = methods[ci]
                 if method == "mean":
                     batch[i] = img.reshape(128, 128, target_depth, factor).mean(axis=-1)
                 elif method == "max":
                     batch[i] = img.reshape(128, 128, target_depth, factor).max(axis=-1)
+                elif method == "crop":
+                    assert target_depth % 2 == 0, LOGGER.error(f"Target depth {target_depth} need to be even if method 'crop' is used for downsampling.")
+                    batch[i] = img[:, :, img.shape[-1]//2-target_depth//2:img.shape[-1]//2+target_depth//2]
                 else:
                     batch[i] = img[:, :, ::factor]
             ds.save_batch(batch,bi)
