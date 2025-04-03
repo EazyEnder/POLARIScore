@@ -100,15 +100,15 @@ class Trainer():
         def _random_transform(tensors_input, tensors_target):
             k = torch.randint(0, 4, (1,)).item()
             #Maybe need to change this: See if it works ! 
-            tensors_input = torch.rot90(tensors_input, k, [2, 3])
+            tensors_input = [torch.rot90(t, k, [2, 3]) for t in tensors_input]
             tensors_target = torch.rot90(tensors_target, k, [2, 3])
 
             if torch.rand(1).item() > 0.5:
-                tensors_input = torch.flip(tensors_input, [2])
+                tensors_input = [torch.flip(t, [2]) for t in tensors_input]
                 tensors_target = torch.flip(tensors_target, [2])
 
             if torch.rand(1).item() > 0.5:
-                tensors_input = torch.flip(tensors_input, [3])
+                tensors_input = [torch.flip(t, [3]) for t in tensors_input]
                 tensors_target = torch.flip(tensors_target, [3])
 
             return tensors_input, tensors_target
@@ -163,9 +163,9 @@ class Trainer():
                         validation_output = self.model(*v_input_tensor)
                         v_loss = self.loss_method(validation_output,v_target_tensor).item()
                         val_total_loss += v_loss
-                        self.validation_losses.append((total_epoch,val_total_loss))
                     #self.model.train()
                 val_total_loss /= int(np.ceil(validation_batch_size / batch_number))
+                self.validation_losses.append((total_epoch,val_total_loss))
                 if(auto_stop > 0 and np.abs(val_total_loss-loss.item()) < auto_stop and val_total_loss < auto_stop_min_loss):
                     break_flag = True
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
@@ -304,18 +304,26 @@ class Trainer():
 
         return fig, ax
     
-    def predict(self, dataset):
+    def predict(self, dataset, batch_number=1):
         self.model.eval()
 
-        input_tensor, target_tensor = self.model.shape_data(dataset.get(), dataset.get_element_index(self.target_name))
-        if not(type(input_tensor) is list):
-            input_tensor = [input_tensor]
+        result_batch = []
 
-        output = self.model(*input_tensor)
-        output = output.cpu().detach().numpy()
+        batch_size = len(dataset.batch)
+        minbatch_nbr = int(np.floor(batch_size/batch_number))
+        for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
+            printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
+            used_batch = dataset.get(indexes=list(range(batch_size))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
+            if batch_number == 1:
+                used_batch = [used_batch]
+            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_name))
+            if not(type(input_tensor) is list):
+                input_tensor = [input_tensor]
+            output = self.model(*input_tensor)
+            target_tensor = target_tensor.cpu().detach().numpy()
+            output = output.cpu().detach().numpy()
+            result_batch.append((*(np.exp(target_tensor[:,0])), *(np.exp(output[:,0]))))
 
-        target_tensor = target_tensor.cpu().detach().numpy()
-        result_batch = rebuild_batch(np.exp(target_tensor[:,0,:,:])-1, np.exp(output[:,0,:,:])-1)
         return result_batch
     
     def predict_image(self, image):
@@ -325,7 +333,7 @@ class Trainer():
         input_tensor = torch.log(image).float().to(self.device)
         output = self.model(input_tensor)
         output = output.cpu().detach().numpy()
-        return np.exp(output)-1
+        return np.exp(output)
 
     def plot_sim_validation(self, simulation, plot_total=False):
         sim_col_dens = simulation._compute_c_density()
@@ -388,7 +396,7 @@ class Trainer():
         else:
             fig = ax.figure
         batch = self.get_prediction_batch()
-        target_imgs = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
+        target_imgs = np.array([np.log10(b[0]) for b in batch]).flatten()
         min_t, max_t = np.min(target_imgs), np.max(target_imgs)
         plot_batch_correlation(batch, ax=ax)
         ax.set_xlabel("Target (log10)")
@@ -513,7 +521,7 @@ def load_trainer(model_name, load_model=True):
            "PPV": PPV,
            "None": None
     }
-    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock}
+    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock, "ConvBlock":ConvBlock}
     network_settings = settings["network_settings"] if "network_settings" in settings else {}
     if "convBlock" in network_settings:
         network_settings["convBlock"] = network_convblock_options[network_settings["convBlock"]]
@@ -727,10 +735,6 @@ if __name__ == "__main__":
         weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
         weighted_loss = torch.sum(per_image_loss * weights)
         return torch.sum(weighted_loss)
-    
-    #trainer.validation_batch = validation_batch
-    #trainer.plot()
-    #trainer.plot_validation()
 
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["crop","mean"])
@@ -739,19 +743,19 @@ if __name__ == "__main__":
     #ds2.save()
 
     trainer = Trainer(PPV, ds1, ds2, model_name="PPV")
-    #trainer = load_trainer("MultiNet")
+    #trainer = load_trainer("PPV")
     trainer.network_settings["base_filters"] = 32
-    #trainer.network_settings["convBlock"] = DoubleConvBlock
+    trainer.network_settings["convBlock"] = ConvBlock
     trainer.network_settings["num_layers"] = 3
     #trainer.network_settings["num_channels"] = 2
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     trainer.target_name = "density"
     trainer.init()
-    trainer.train(400,batch_number=1,compute_validation=10)
+    trainer.train(150,batch_number=1,compute_validation=10)
     trainer.save()
     trainer.plot()
-    trainer.plot_validation()
+    #trainer.plot_validation()
 
     """
     fig, ax = plot_models_accuracy([trainer,t2],show_errors=True)

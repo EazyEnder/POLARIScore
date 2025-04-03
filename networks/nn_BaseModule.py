@@ -9,7 +9,7 @@ class BaseModule(nn.Module):
         self.to(self.device)
 
     def shape_image(self, image):
-        return torch.from_numpy(np.pad(np.log(image+1),(0,0))).float().unsqueeze(1).to(self.device)
+        return torch.from_numpy(np.pad(np.log(image),(0,0))).float().unsqueeze(1).to(self.device)
 
     def shape_data(self, batch, target_index=1):
         input_tensor = self.shape_image(np.array([b[0] for b in batch]))

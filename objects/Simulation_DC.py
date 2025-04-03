@@ -1,6 +1,10 @@
+import os
+import sys
+if __name__ == "__main__":
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.append(parent_dir)
 from utils import *
 from config import *
-import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import json
@@ -329,7 +333,15 @@ class Simulation_DC():
         return ds
     
     def plotSlice(self, axis=0, slice=256, N_arrows=20):
+            
+            if not(axis in [0,1,2]):
+                LOGGER.warn(f"Slice plot: Axis {axis} is not valid -> take the default axis: 0")
+
             density = self.data[slice,:,:]
+            if axis == 1:
+                density = self.data[:,slice,:]
+            elif axis == 2:
+                density = self.data[:,:,slice]
             velocity = self.data_vel
 
             Nx, Ny = density.shape
@@ -344,6 +356,12 @@ class Simulation_DC():
             if not(velocity[0] is None):
                 Ux = velocity[0][slice,:,:]
                 Uy = velocity[1][slice,:,:]
+                if axis == 1:
+                    Ux = velocity[0][:,slice,:]
+                    Uy = velocity[2][:,slice,:]
+                elif axis == 2:
+                    Ux = velocity[1][:,:,slice]
+                    Uy = velocity[2][:,:,slice]
 
                 step_x = max(Ny // N_arrows, 1)
                 step_y = max(Nx // N_arrows, 1)
@@ -500,3 +518,21 @@ def openSimulation(name_root, global_size, use_cache=True):
     sim.data = fp
     return sim
 
+if __name__ == "__main__":
+    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    sim.init(loadTemp=True,loadVel=True)
+    sim.plotSlice(axis=2, N_arrows=50, slice=256)
+
+    from objects.Dataset import getDataset
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
+
+    from scripts.COSpectrum import plotSpectrum
+    pair = ds.get(5)
+
+    intensity_map = pair[2]
+    column_density = pair[0]
+
+    plotSpectrum(intensity_map, pos=(60,96),v_channels=128)
+    plt.figure()
+    plt.imshow(column_density, norm=LogNorm())
+    plt.show()

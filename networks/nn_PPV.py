@@ -8,22 +8,25 @@ import torch.nn as nn
 import torch.nn.functional as F
 from config import LOGGER
 from nn_BaseModule import BaseModule
-from nn_UNet import UNet
+from nn_UNet import UNet, AttentionBlock
 import numpy as np
-
 class PPV(BaseModule):
     def __init__(self, **kwargs):
         super(PPV, self).__init__()
+
+        self.unet = UNet(**kwargs, is3D=True)
         
-        self.unet_density = UNet(**kwargs, is3D=False)
-        self.unet_velocity = UNet(**kwargs, is3D=True)
+        #elf.unet_density = UNet(**kwargs, is3D=False)
+        #self.unet_velocity = UNet(**kwargs, is3D=True)
     
     def forward(self, x, v):
-        
-        x = self.unet_density(x)
-        v = self.unet_velocity(v)
 
         n = x.unsqueeze(-1) * v
+        n = self.unet(n)
+        
+        #x = self.unet_density(x)
+        #v = self.unet_velocity(v)
+    
         return n
 
     def shape_data(self, batch, target_index=1):
@@ -35,5 +38,5 @@ class PPV(BaseModule):
 if __name__ == "__main__":
     model = PPV()
     x = torch.randn(1, 1, 128, 128)
-    v = torch.randn(1, 1, 128, 128, 256)
+    v = torch.randn(1, 1, 128, 128, 128)
     print(model(*[x, v]).shape)
