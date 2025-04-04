@@ -52,11 +52,27 @@ class Dataset():
 
         self.active_batch = []
 
-    def get_element_index(self, name):
+    def get_element_index(self, names):
         assert "order" in self.settings, LOGGER.error("No order list in dataset settings")
-        for i,o in enumerate(self.settings["order"]):
-            if o == name:
-                return i
+
+        names = names if type(names) is list else [names]
+
+        indexes = []
+        for n in names:
+            found = False
+            for i,o in enumerate(self.settings["order"]):
+                if o == n:
+                    indexes.append(i)
+                    found = True
+                    break
+            assert found, LOGGER.error(f"Index not found for {n}")
+
+        if len(indexes) == 1:
+            return indexes[0]
+        if len(indexes) == 0:
+            return None
+        
+        return indexes
 
     def load_from_name(self, name, changeName=False):
         LOGGER.log(f"Loading dataset {name}")

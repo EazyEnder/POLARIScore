@@ -47,18 +47,23 @@ class Trainer():
         self.network_settings ={}
 
         self.target_name = "vdens"
+        self.input_names = ["cdens"]
 
         self.training_random_transform = False
 
         self.model = None
         self.optimizer = None
+        self.optimizer_name = str(type(torch.optim.Adam))
         self.scheduler = None
         self.weight_decay = 1e-4
         
 
         if not(self.network is None):
             self.model = network(**self.network_settings).to(self.device)
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+            if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam"):
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+            elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD"):
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
         self.loss_method = nn.MSELoss()
@@ -73,7 +78,10 @@ class Trainer():
                 self.model = self.network(**self.network_settings).to(self.device)
             else:
                 self.model = model
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+            if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam"):
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+            elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD"):
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
@@ -132,7 +140,7 @@ class Trainer():
                 used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                 if batch_number == 1:
                     used_batch = [used_batch]
-                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_name))
+                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_name), self.training_set.get_element_index(self.input_names))
                 if not(type(t_input) is list):
                     t_input = [t_input]
 
@@ -157,7 +165,7 @@ class Trainer():
                         used_batch = self.validation_set.get(indexes=list(range(len(self.validation_set.batch)))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                         if batch_number == 1:
                             used_batch = [used_batch]
-                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_name))
+                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_name), self.validation_set.get_element_index(self.input_names))
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = self.model(*v_input_tensor)
@@ -316,7 +324,7 @@ class Trainer():
             used_batch = dataset.get(indexes=list(range(batch_size))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
             if batch_number == 1:
                 used_batch = [used_batch]
-            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_name))
+            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_name), dataset.get_element_index(self.input_names))
             if not(type(input_tensor) is list):
                 input_tensor = [input_tensor]
             output = self.model(*input_tensor)
@@ -534,11 +542,12 @@ def load_trainer(model_name, load_model=True):
     trainer.training_losses = settings["training_losses"]
     trainer.validation_losses = settings["validation_losses"]
 
+    trainer.optimizer_name = settings["optimizer"]
+
     if load_model:
         model = trainer.network(**trainer.network_settings)
         model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
         model.to(trainer.device)
-        model.eval()
         trainer.init(model=model)
 
     LOGGER.log(f"{model_name} loaded")
@@ -736,23 +745,32 @@ if __name__ == "__main__":
         weighted_loss = torch.sum(per_image_loss * weights)
         return torch.sum(weighted_loss)
 
+    def column_density_loss(output, target):
+        
+        loss = torch.mean(torch.log(torch.abs(torch.sum(torch.exp(output), dim=4)-torch.sum(torch.exp(target), dim=4)))**2)   
+
+        return loss
+
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    trainer = Trainer(PPV, ds1, ds2, model_name="PPV")
+    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet")
     #trainer = load_trainer("PPV")
     trainer.network_settings["base_filters"] = 32
     trainer.network_settings["convBlock"] = ConvBlock
     trainer.network_settings["num_layers"] = 3
-    #trainer.network_settings["num_channels"] = 2
+    trainer.network_settings["channel_dimensions"] = [2,3]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
+    trainer.learning_rate = 0.05
+    #trainer.loss_method = column_density_loss
     trainer.target_name = "density"
+    trainer.input_names = ["cdens", "cospectra"]
     trainer.init()
-    trainer.train(150,batch_number=1,compute_validation=10)
+    trainer.train(500,batch_number=1,compute_validation=10)
     trainer.save()
     trainer.plot()
     #trainer.plot_validation()

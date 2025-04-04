@@ -269,6 +269,8 @@ class Simulation_DC():
             b = [_process_img(c_dens,k),_process_img(v_dens,k)]
             if flag_cospectra:
                 b.append(_process_img(co_spec,k))
+
+            #THE ERROR IS HERE ! NO ROTATION IS INCLUDED AND WTF I'M DOING 
             if flag_number_density:
                 if face == 0:
                     densities = self.data[:, start_x:end_x, start_y:end_y]
@@ -277,9 +279,9 @@ class Simulation_DC():
                 elif face == 2:
                     densities = self.data[start_x:end_x, start_y:end_y, :]
 
-                if densities.shape[0] == 512:
+                if densities.shape[0] == self.nres:
                     densities = np.moveaxis(densities, 0, -1)
-                elif densities.shape[1] == 512:
+                elif densities.shape[1] == self.nres:
                     densities = np.moveaxis(densities, 1, -1)
                 b.append(densities)
 
