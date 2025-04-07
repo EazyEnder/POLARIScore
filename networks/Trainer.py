@@ -21,6 +21,8 @@ from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 import json
 from objects.Dataset import getDataset
+import shutil
+
 class Trainer():
     def __init__(self,network=None,training_set=None,validation_set=None,learning_rate=0.001,model_name=None,auto_save=0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,7 +43,6 @@ class Trainer():
         self.validation_set = validation_set
 
         self.prediction_batch = None
-
 
         self.network = network
         self.network_settings ={}
@@ -78,22 +79,24 @@ class Trainer():
                 self.model = self.network(**self.network_settings).to(self.device)
             else:
                 self.model = model
-            if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam"):
+            if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam") or "Adam" in self.optimizer_name:
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-            elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD"):
+            elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD") or "SGD" in self.optimizer_name:
                 self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
         return False
 
-    def train(self, epoch_number=50, batch_number=32, compute_validation=10, auto_stop=0., auto_stop_min_loss=2.):
+    def train(self, epoch_number=50, batch_number=32, compute_validation=10, cache=True):
         """
         Train the model (check trainer variables for settings)
 
         Args:
             epoch_number(int, default: 50): train the model for x epochs.
+            batch_number(int, default: 32): How many images will be processed at a time in the GPU/CPU.
             compute_validation(int, default:10): compute validation losses each x epochs.
+            cache(bool, default:True): If the validation loss is less than a previous epoch, the model will be saved in a cache.
 
         """
         LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}")
@@ -124,10 +127,12 @@ class Trainer():
 
         total_epoch = self.last_epoch
         l_ep = self.last_epoch
-        break_flag = False
         batch_size = len(self.training_set.batch)
         validation_batch_size = len(self.validation_set.batch)
         start_time = time.process_time()
+
+        minimimum_validation_loss = 2.5
+
         for epoch in range(epoch_number):
             total_epoch += 1
             epoch_loss = 0
@@ -174,20 +179,19 @@ class Trainer():
                     #self.model.train()
                 val_total_loss /= int(np.ceil(validation_batch_size / batch_number))
                 self.validation_losses.append((total_epoch,val_total_loss))
-                if(auto_stop > 0 and np.abs(val_total_loss-loss.item()) < auto_stop and val_total_loss < auto_stop_min_loss):
-                    break_flag = True
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
-                self.save() 
+                self.save()
+            if cache and not(val_total_loss is None) and val_total_loss < minimimum_validation_loss:
+                minimimum_validation_loss = val_total_loss
+                self.last_epoch = total_epoch
+                self.save(is_cache=True)
 
             actual_time = time.process_time()
             epoch_time = actual_time - epoch_time
             time_left = (actual_time-start_time) / (epoch+1) * (epoch_number-(epoch+1))
             LOGGER.print(f'Epoch {total_epoch}/{l_ep + epoch_number} | Elapsed: {_format_time(actual_time-start_time)} | Time Left: {_format_time(time_left)} | Training Loss: {epoch_loss}, Validation loss: {val_total_loss if val_total_loss else "Not computed"}', type="training", level=1, color="34m")
             
-            
-            if break_flag:
-                break
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
@@ -442,16 +446,18 @@ class Trainer():
 
         plt.tight_layout()
 
-    def save(self, model_name=None):
+    def save(self, model_name=None, is_cache=False):
         """
         Save model and model settings in a new folder
 
         Args:
-            model_name (str, optional): set model name, if None it will take the trainer model_name if user had set it or a random uuid
+            model_name (str, optional): set model name, if None it will take the trainer model_name if user had set it or a random uuid.
+            is_cache (bool, default:False): Save the model as a cache (just one cached model can exists).
 
         Returns:
             bool: If this is a success
         """
+
         if(not(model_name is None)):
             self.model_name = model_name
         
@@ -462,16 +468,23 @@ class Trainer():
             self.model_name = str(uuid.uuid4())
 
         model_path = os.path.join(MODEL_FOLDER,self.model_name.rsplit("_epoch",1)[0])
+        if is_cache:
+            model_path = os.path.join(MODEL_FOLDER, "cached_model")
         if not(os.path.exists(model_path)):
             os.mkdir(model_path)
+        elif is_cache:
+            LOGGER.warn(f"A previous cached model was removed.")
+            shutil.rmtree(model_path)
+            os.mkdir(model_path)
+
 
         ep = self.last_epoch
-        self.model_name = self.model_name.rsplit("_epoch",1)[0]+"_epoch"+str(ep)
-        if os.path.exists(os.path.join(model_path,self.model_name+".pth")):
-            LOGGER.warn(f"Can't save {self.model_name} with epoch: {ep}")
+        model_name = self.model_name.rsplit("_epoch",1)[0]+"_epoch"+str(ep) if not(is_cache) else "cached_model"
+        if os.path.exists(os.path.join(model_path,model_name+".pth")):
+            LOGGER.warn(f"Can't save {model_name} with epoch: {ep}")
             return
         
-        torch.save(self.model.state_dict(),os.path.join(model_path,self.model_name+".pth"))
+        torch.save(self.model.state_dict(),os.path.join(model_path,model_name+".pth"))
 
         loss_method_name = ""
         try:
@@ -479,13 +492,15 @@ class Trainer():
         except AttributeError:
             loss_method_name = "Custom"
 
+        cloned_network_settings = self.network_settings.copy()
+
         if "convBlock" in self.network_settings:
-            self.network_settings["convBlock"] = self.network_settings["convBlock"].__name__
+            cloned_network_settings["convBlock"] = self.network_settings["convBlock"].__name__ if not(type(self.network_settings["convBlock"]) is str) else self.network_settings["convBlock"]
 
         settings = {
             "model_name": self.model_name,
             "network": self.network_type,
-            "network_settings": self.network_settings,
+            "network_settings": cloned_network_settings,
             "loss_method": loss_method_name,
             "optimizer": str(type(self.optimizer)),
             "learning_rate": str(self.learning_rate),
@@ -747,7 +762,7 @@ if __name__ == "__main__":
 
     def column_density_loss(output, target):
         
-        loss = torch.mean(torch.log(torch.abs(torch.sum(torch.exp(output), dim=4)-torch.sum(torch.exp(target), dim=4)))**2)   
+        loss = torch.mean(torch.log(torch.abs(torch.sum(torch.exp(output), dim=4)-torch.sum(torch.exp(target), dim=4))+1)**2)   
 
         return loss
 
@@ -757,12 +772,12 @@ if __name__ == "__main__":
     #ds1.save()
     #ds2.save()
 
-    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet")
-    #trainer = load_trainer("PPV")
+    trainer = Trainer(PPV, ds1, ds2, model_name="MultiNet")
+    #trainer = load_trainer("cached_model")
     trainer.network_settings["base_filters"] = 32
     trainer.network_settings["convBlock"] = ConvBlock
     trainer.network_settings["num_layers"] = 3
-    trainer.network_settings["channel_dimensions"] = [2,3]
+    #trainer.network_settings["channel_dimensions"] = [2,3]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     trainer.learning_rate = 0.05

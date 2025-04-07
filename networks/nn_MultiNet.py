@@ -12,7 +12,7 @@ from nn_BaseModule import BaseModule
 import numpy as np
 
 class MultiNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2] , num_layers=4, base_filters=64, attention = False):
+    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2] , num_layers=4, base_filters=64, attention = False, is3D=None):
         super(MultiNet, self).__init__()
 
         self.num_channels = len(channel_dimensions) if type(channel_dimensions) is list else 1
@@ -20,7 +20,7 @@ class MultiNet(BaseModule):
         channel_is3D = []
         for dim in self.channel_dimensions:
             channel_is3D.append(True if dim == 3 else False)
-        self.is3D = True if True in channel_is3D else False
+        self.is3D = (True if True in channel_is3D else False) if is3D is None else is3D
 
         self.num_layers = num_layers
         self.attention = attention
@@ -102,7 +102,8 @@ class MultiNet(BaseModule):
             if not _is3D(t):
                 t = t.unsqueeze(-1)
                 t = t.expand(-1,-1,-1, -1, t.shape[-2])
-            elif t.shape[-1] != t.shape[-2]:
+                t = t.permute(0, 1, 4, 2, 3)
+            elif t.shape[-1] != t.shape[-3]:
                 t = torch.nn.functional.pad(t, (0, t.shape[-2] - t.shape[-1]))
             return t
 
@@ -151,7 +152,8 @@ class MultiNet(BaseModule):
             x = self.decoders[i](x)
         
         # Output
-        return self.final_conv(x)
+        f_x = self.final_conv(x)
+        return f_x.permute(0, 1, 3, 4, 2) if self.is3D else f_x
     
     def shape_data(self, batch, target_index=3, input_indexes=[0,2]):
         input_tensors = []
@@ -164,6 +166,8 @@ class MultiNet(BaseModule):
             if i == target_index:
                 continue
             xi = self.shape_image(np.array([b[i] for b in batch])).to(self.device)
+            if len(xi.shape) > 4:
+                xi = xi.permute(0, 1, 4, 2, 3)
             input_tensors.append(xi)
 
         target_tensor = self.shape_image(np.array([b[target_index] for b in batch]))

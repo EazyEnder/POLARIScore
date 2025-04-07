@@ -270,7 +270,6 @@ class Simulation_DC():
             if flag_cospectra:
                 b.append(_process_img(co_spec,k))
 
-            #THE ERROR IS HERE ! NO ROTATION IS INCLUDED AND WTF I'M DOING 
             if flag_number_density:
                 if face == 0:
                     densities = self.data[:, start_x:end_x, start_y:end_y]
@@ -283,6 +282,10 @@ class Simulation_DC():
                     densities = np.moveaxis(densities, 0, -1)
                 elif densities.shape[1] == self.nres:
                     densities = np.moveaxis(densities, 1, -1)
+
+                if random_rotate:
+                    densities = np.rot90(densities, k, axes=(0,1))
+
                 b.append(densities)
 
 
@@ -523,18 +526,23 @@ def openSimulation(name_root, global_size, use_cache=True):
 if __name__ == "__main__":
     sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     sim.init(loadTemp=True,loadVel=True)
-    sim.plotSlice(axis=2, N_arrows=50, slice=256)
 
     from objects.Dataset import getDataset
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
 
     from scripts.COSpectrum import plotSpectrum
-    pair = ds.get(5)
+    pair = ds.get(15)
 
     intensity_map = pair[2]
     column_density = pair[0]
+    density = pair[3]
+    c_density = np.sum(density, axis=2)
 
-    plotSpectrum(intensity_map, pos=(60,96),v_channels=128)
+    #plotSpectrum(intensity_map, pos=(60,96),v_channels=128)
+    plt.figure()
+    plt.imshow(np.sum(intensity_map,2), norm=LogNorm())
     plt.figure()
     plt.imshow(column_density, norm=LogNorm())
+    plt.figure()
+    plt.imshow(c_density, norm=LogNorm())
     plt.show()

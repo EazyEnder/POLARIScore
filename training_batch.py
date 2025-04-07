@@ -136,8 +136,9 @@ if __name__ == "__main__":
     sim_MHD.init(loadTemp=True, loadVel=True)
     sim_MHD.generate_batch(number=64, force_size=128, what_to_compute={"cospectra": True, "density":True})
 
-    from objects.Dataset import Dataset
-    #ds = Dataset()
+    from objects.Dataset import getDataset
+    ds = getDataset("batch_orionMHD_lowB_0.39_512")
+    ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["crop","mean"])
     #ds.load_from_name("batch_orionMHD_lowB_0.39_512")
     
     """

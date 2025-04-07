@@ -86,6 +86,9 @@ class Dataset():
         self.batch.append(imgs_path)
     
     def get(self, indexes = None):
+        if len(self.batch) == 0:
+            LOGGER.error("Can't load images in dataset because it's empty.")
+            return
         if not(indexes is None):
             if not(type(indexes) is list):
                 return self.load(np.array(self.batch)[indexes])

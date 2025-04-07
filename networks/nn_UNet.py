@@ -13,14 +13,16 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         c = nn.Conv2d
         b = nn.BatchNorm2d
+        d = nn.Dropout2d
         if is3D:
             c = nn.Conv3d
             b = nn.BatchNorm3d
+            d = nn.Dropout3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
             b(out_channels),
-            #nn.Dropout2d(p=0.1),
+            d(p=0.1),
         )
     
     def forward(self, x):
@@ -35,10 +37,10 @@ class DoubleConvBlock(nn.Module):
             c = nn.Conv3d
             b = nn.BatchNorm3d
         self.conv = nn.Sequential(
-            c(in_channels, out_channels//2, kernel_size=3, padding=1),
+            c(in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
-            b(out_channels//2),
-            c(out_channels//2, out_channels, kernel_size=3, padding=1),
+            b(out_channels),
+            c(out_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=False),
             b(out_channels),
         )
