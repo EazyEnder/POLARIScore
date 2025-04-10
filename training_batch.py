@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     sim_MHD = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     sim_MHD.init(loadTemp=True, loadVel=True)
-    sim_MHD.generate_batch(number=64, force_size=128, what_to_compute={"cospectra": True, "density":True})
+    sim_MHD.generate_batch(number=100, method=compute_max_density, force_size=128, what_to_compute={"cospectra": True, "density":True})
 
     from objects.Dataset import getDataset
     ds = getDataset("batch_orionMHD_lowB_0.39_512")

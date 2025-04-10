@@ -13,7 +13,7 @@ class BaseModule(nn.Module):
             image = np.log(image)
         return torch.from_numpy(image).float().unsqueeze(1).to(self.device)
 
-    def shape_data(self, batch, target_index=1):
+    def shape_data(self, batch, target_index=1, input_indexes=[]):
         input_tensor = self.shape_image(np.array([b[0] for b in batch]))
         target_tensor = self.shape_image(np.array([b[target_index] for b in batch]))
         return input_tensor, target_tensor

@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from astropy.coordinates import SkyCoord, Angle
 from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
+import re
 
 def _crop(wcs, lims):
     ra_min, ra_max, dec_min, dec_max = lims
@@ -40,7 +41,7 @@ class Observation():
         self.data = None
         self.prediction = None
         self.wcs = None
-        #self.cores = self.getCores()
+        self.cores = None
         """Cores [{**core1_properties}]"""
 
         self.init()
@@ -113,29 +114,58 @@ class Observation():
         with open(derived_cores_path, "r", encoding="utf-8") as file:
             derived_lines = file.readlines()
 
+        border_car = ["!","|"]
+
+        def _search_for_property(name, lines):
+            for i, line in enumerate(observed_lines):
+                if not(line[0] in border_car):
+                    continue
+                if not(name.lower() in line.lower()):
+                    continue
+                match = re.search(r"\((\d+)\)", line)
+                if match:
+                    return int(match.group(1))
+                else:
+                    LOGGER.error("Can't get cores properties, there is no int in () for property {name} in cores files.")
+                    return None
+            LOGGER.error("Can't get cores properties, there is no match for property {name} in cores files.")
+            return None
+
+
         observed_cores = []
         for i, line in enumerate(observed_lines):
-            if line[0] != "!":
+            if not(line[0] in border_car):
                 properties = line.strip().split()
-                ra_str = f"{properties[2]} {properties[3]} {properties[4]}"
-                dec_str = f"{properties[5]} {properties[6]} {properties[7]}"
-                coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg)) 
+                if len(properties) < 3:
+                    continue
+                offset_index = 4
+                try:
+                    ra_str = f"{properties[2]} {properties[3]} {properties[4]}"
+                    dec_str = f"{properties[5]} {properties[6]} {properties[7]}"
+                    coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg)) 
+                except ValueError:
+                    ra_str = f"{properties[2]}"
+                    dec_str = f"{properties[3]}"
+                    offset_index = 0
+                    coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg)) 
                 pc = {
                     "name": properties[1],
-                    "peak_ncol": float(properties[58])*1e21,
-                    "radius": float(properties[62]),
+                    "peak_ncol": float(properties[54+offset_index])*1e21,
+                    "radius": float(properties[58+offset_index]),
                     "ra": coord.ra.deg,
                     "dec": coord.dec.deg
                 }
                 observed_cores.append(pc)
         derived_cores = []
         for i, line in enumerate(derived_lines):
-            if line[0] != "!":
+            if not(line[0] in border_car):
                 properties = line.strip().split()
+                if len(properties) < 3:
+                    continue
                 pc = {
                     "name": properties[1],
-                    "peak_n": float(properties[18])*1e4,
-                    "radius_pc": float(properties[8])
+                    "peak_n": float(properties[14+offset_index])*1e4,
+                    "radius_pc": float(properties[4+offset_index])
                 }
                 derived_cores.append(pc)
         
@@ -268,16 +298,16 @@ def script_data_and_figures(save_fig=False):
 
 if __name__ == "__main__":
 
-    script_data_and_figures()
+    #script_data_and_figures()
 
-    """
-    name = "Taurus_L1495"
+    
+    name = "OrionB"
     obs = Observation(name, "column_density_map")
-    cropped_region = [Angle("4h15m").deg, Angle("4h25m").deg, Angle("26d20m").deg, Angle("28d39m").deg]
-    obs.plot(crop=cropped_region)
+    cropped_region = [Angle("5h49m").deg, Angle("5h45m").deg, Angle("-0d20m").deg, Angle("1d00m").deg]
+    #obs.plot(crop=cropped_region)
     obs.load()
-    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1.5e1, vmax=1e4),crop=cropped_region)"
-    """
+    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1.5e1, vmax=5e4), crop=cropped_region, plotCores=True)
+    
 
     #obs = Observation("Polaris","column_density_map")
     #obs.plot(norm=LogNorm(vmin=11,vmax=16))

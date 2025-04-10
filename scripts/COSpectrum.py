@@ -16,7 +16,7 @@ VELOCITY_CHANNELS = 256
 VELOCITY_RESOLUTION = 1e3*0.5
 LSR_VELOCITY = 0
 V = LSR_VELOCITY+(np.array(range(VELOCITY_CHANNELS))-VELOCITY_CHANNELS/2)*VELOCITY_RESOLUTION
-DENSITY_THRESHOLD = 0
+DENSITY_THRESHOLD = 300
 
 #Line settings example for 12CO J=U-L
 L = 0
@@ -83,7 +83,7 @@ def convertToKelvin(intensity_map,frequency):
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-def plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2), mean_mod=False, ax=None, norm=None):
+def plotMap(intensity_map, simulation, slice=int(VELOCITY_CHANNELS/2), mean_mod=False, ax=None, norm=None):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -143,7 +143,7 @@ def getSimulationSpectra(simulation):
     spectra = [LoadSpectrum("spectrum_"+name+"_"+str(int(i+1))) for i in range(3)]
     for i,s in enumerate(spectra):
         if s is None:
-            LOGGER.log(f"Spectrum for face {i} doesn't exist, generate it: ")
+            LOGGER.log(f"Spectrum for face {i} doesn't exist, generating it: ")
             results = ray_mapping(simulation, compute_COSpectrum, axis=i, region=[0,-1,0,-1])
             intensity_map = []
             for k in range(len(results)):

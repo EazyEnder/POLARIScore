@@ -531,18 +531,18 @@ if __name__ == "__main__":
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
 
     from scripts.COSpectrum import plotSpectrum
-    pair = ds.get(15)
+    pair = ds.get(3)
 
     intensity_map = pair[2]
     column_density = pair[0]
     density = pair[3]
     c_density = np.sum(density, axis=2)
 
-    #plotSpectrum(intensity_map, pos=(60,96),v_channels=128)
+    plotSpectrum(intensity_map, pos=(55,55),v_channels=128)
     plt.figure()
     plt.imshow(np.sum(intensity_map,2), norm=LogNorm())
-    plt.figure()
-    plt.imshow(column_density, norm=LogNorm())
-    plt.figure()
-    plt.imshow(c_density, norm=LogNorm())
+    #plt.figure()
+    #plt.imshow(column_density, norm=LogNorm())
+    #plt.figure()
+    #plt.imshow(c_density, norm=LogNorm())
     plt.show()

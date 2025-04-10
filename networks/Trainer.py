@@ -56,7 +56,7 @@ class Trainer():
         self.optimizer = None
         self.optimizer_name = str(type(torch.optim.Adam))
         self.scheduler = None
-        self.weight_decay = 1e-4
+        self.weight_decay = 0.
         
 
         if not(self.network is None):
@@ -64,7 +64,7 @@ class Trainer():
             if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam"):
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
             elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD"):
-                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.5)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
         self.loss_method = nn.MSELoss()
@@ -78,11 +78,11 @@ class Trainer():
             if model is None:
                 self.model = self.network(**self.network_settings).to(self.device)
             else:
-                self.model = model
+                self.model = model.to(self.device)
             if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam") or "Adam" in self.optimizer_name:
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
             elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD") or "SGD" in self.optimizer_name:
-                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.9)
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.5)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
             return True
         LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
@@ -99,7 +99,7 @@ class Trainer():
             cache(bool, default:True): If the validation loss is less than a previous epoch, the model will be saved in a cache.
 
         """
-        LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}")
+        LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}, model has {sum(p.numel() for p in self.model.parameters())} parameters.")
    
         self.model.train()
 
@@ -131,7 +131,7 @@ class Trainer():
         validation_batch_size = len(self.validation_set.batch)
         start_time = time.process_time()
 
-        minimimum_validation_loss = 2.5
+        minimimum_validation_loss = 1.5
 
         for epoch in range(epoch_number):
             total_epoch += 1
@@ -156,7 +156,7 @@ class Trainer():
                 loss.backward()
                 epoch_loss += loss.item()
             self.optimizer.step()
-            epoch_loss /= int(np.ceil(batch_size / batch_number))
+            epoch_loss /= minbatch_nbr if minbatch_nbr != 0 else 1 
             self.scheduler.step(epoch_loss)
             self.training_losses.append((total_epoch, epoch_loss))
             val_total_loss = None
@@ -521,6 +521,8 @@ class Trainer():
 
 def load_trainer(model_name, load_model=True):
 
+    folder_model_name = model_name
+
     model_path = os.path.join(MODEL_FOLDER, model_name)
     if(not(os.path.exists(model_path))):
         LOGGER.error(f"Can't load {model_name}, file {model_path} doesn't exist.")
@@ -561,7 +563,13 @@ def load_trainer(model_name, load_model=True):
 
     if load_model:
         model = trainer.network(**trainer.network_settings)
-        model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
+        try:
+            model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
+        except FileNotFoundError:
+            try:
+                model.load_state_dict(torch.load(os.path.join(model_path,folder_model_name+".pth")))
+            except FileNotFoundError:
+                model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+f"_epoch{trainer.last_epoch}.pth")))
         model.to(trainer.device)
         trainer.init(model=model)
 
@@ -715,6 +723,52 @@ def heatmap(root_name, validation_batch, X, Y, ax=None):
 
     return fig, ax
 
+import glob
+import re
+def plot_modelset(root_name, validation_batch=None, prefix="t", ax=None):
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    models_paths = glob.glob(os.path.join(MODEL_FOLDER,root_name)+f"_{prefix}*")
+    X = []
+    names = []
+    for p in models_paths:
+        p = p.split('/')[-1]
+        match = re.search(r"_t(\d+)", p)
+        if match:
+            X.append(int(match.group(1)))
+            names.append(p)
+        else:
+            LOGGER.warn(f"Can't read property in model name: {p}.")
+            continue
+
+    indexes = np.argsort(X)
+    X = np.array(X)[indexes]
+    names = np.array(names)[indexes]
+
+    Y = []
+    for n in names:
+        trainer = load_trainer(n)
+        if trainer is None:
+            continue
+        if not(validation_batch is None):
+            trainer.validation_set = validation_batch
+        acc, std = compute_batch_accuracy(trainer.get_prediction_batch(),sigma=0.3)
+        Y.append(acc)
+        del trainer
+    
+    ax.plot(X, Y)
+    ax.scatter(X, Y)
+    ax.grid(True)
+    ax.set_xlabel("Size of the training set")
+    ax.set_ylabel(r"Accuracy for $\sigma=0.3$")
+    fig.tight_layout()
+
+    return fig, ax
+
 def generate_model_map(root_name, train_batch, validation_batch, network=UNet, layers=[2,3,4,5], base_filters=[8,16,32,48,64,80]):
 
     for i,l in enumerate(layers):
@@ -733,16 +787,32 @@ def generate_model_map(root_name, train_batch, validation_batch, network=UNet, l
             trainer.train(int(2000+1000*(1-i/len(layers))*(1-i/len(base_filters))))
             trainer.save()
 
-if __name__ == "__main__":
-    #batch = open_batch("batch_37392b55-be04-4e8c-aa49-dca42fa684fc")
-    #train_batch, validation_batch = split_batch(batch, cutoff=0.8)
-    
-    #trainer_list = [load_trainer("UNet_At"),load_trainer("UKan")]
-    #for t in trainer_list:
-    #    t.training_batch = train_batch
-    #    t.validation_batch = validation_batch
+def generate_model_training_map(root_name, train_batch, validation_batch, network=UNet, training=[8,16,32,48,64,80]):
 
-    #trainer_list[-1].plot()
+    for i,l in enumerate(training):
+        if l > 1:
+            l = l/len(train_batch.batch)
+        dataset, _ = train_batch.split(l)
+        l = len(dataset.batch)
+        model_path = os.path.join(MODEL_FOLDER, root_name+f"_t{str(l)}")
+        if(os.path.exists(model_path)):
+            LOGGER.warn(root_name+f"_t{str(l)}"+f" already exists, delete the folder if you want to train a new model with these settings.")
+            continue
+        LOGGER.log(f"Now training: {l}({str(np.round((i)/(len(training))*100,3))}%)")
+        trainer  = Trainer(network, dataset ,validation_batch, model_name=root_name+f"_t{str(l)}")
+        trainer.network_settings["base_filters"] = 64
+        trainer.network_settings["num_layers"] = 4
+        #trainer.network_settings["convBlock"] = DoubleConvBlock
+        trainer.training_random_transform = True
+        trainer.network_settings["attention"] = True
+        trainer.target_name = "vdens"
+        trainer.input_names = ["cdens"]
+        trainer.optimizer_name = "SGD"
+        trainer.init()
+        trainer.train(1000, batch_number=16, cache=False)
+        trainer.save()
+
+if __name__ == "__main__":
 
     def binned_loss(output, target, bin_edges=[0,2,4,6,8,10]):
         loss = 0.0
@@ -765,29 +835,33 @@ if __name__ == "__main__":
         loss = torch.mean(torch.log(torch.abs(torch.sum(torch.exp(output), dim=4)-torch.sum(torch.exp(target), dim=4))+1)**2)   
 
         return loss
-
+    
     ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
-    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["crop","mean"])
+    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[64,64], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    trainer = Trainer(PPV, ds1, ds2, model_name="MultiNet")
-    #trainer = load_trainer("cached_model")
+    trainer = Trainer(PPV, ds1, ds2, model_name="Max_1UNet_COSpectra")
+    
     trainer.network_settings["base_filters"] = 32
-    trainer.network_settings["convBlock"] = ConvBlock
-    trainer.network_settings["num_layers"] = 3
+    trainer.network_settings["convBlock"] = DoubleConvBlock
+    trainer.network_settings["num_layers"] = 4
     #trainer.network_settings["channel_dimensions"] = [2,3]
-    trainer.training_random_transform = False
+    #trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
-    trainer.learning_rate = 0.05
-    #trainer.loss_method = column_density_loss
-    trainer.target_name = "density"
-    trainer.input_names = ["cdens", "cospectra"]
+    #trainer.learning_rate = 0.05
+    #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
+    trainer.optimizer_name = "SGD"
+    trainer.target_name = "vdens"
+    trainer.input_names = ["cdens","cospectra"]
     trainer.init()
-    trainer.train(500,batch_number=1,compute_validation=10)
+    trainer.train(1500,batch_number=10,compute_validation=10)
     trainer.save()
-    trainer.plot()
+    #trainer = load_trainer("cached_model")
+    #trainer.input_names = ["cdens","cospectra"]
+    #trainer.target_name = "vdens"
+    #trainer.plot()
     #trainer.plot_validation()
 
     """

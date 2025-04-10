@@ -832,7 +832,7 @@ literal "false"
 
 \end_inset
 
-.
+ or stochastic gradient descent (SGD).
 \end_layout
 
 \begin_layout Itemize
@@ -2068,6 +2068,163 @@ We can conclude that,
  the model must have been trained on that specific size.
  Otherwise,
  it is necessary to downsample the observation map before applying the prediction.
+\end_layout
+
+\begin_layout Subsection
+Size of the training set
+\end_layout
+
+\begin_layout Standard
+In previous sections,
+ we already discussed the effect of training set size on model performance,
+ specifically,
+ that a larger training set can lead to better results.
+ This short section aims to validate that assumption.
+ Note that we are still working within the same parameter range;
+ this is not about generalization to unseen parameters.
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-SizeDataset"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ clearly shows this performance improvement.
+ However,
+ there's a slight drop in performance for a training set size of around 60.
+ This is explained by our training method:
+ to limit memory usage,
+ the dataset is split into N subsets that are processed sequentially within a single epoch.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_sizeset.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Effect of the training set size on the model accuracy 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-SizeDataset"
+
+\end_inset
+
+.
+ Each point is a model trained on respectively a set size of 7,19,39,59 and 79 images with a virtual batch size of 32.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+To avoid noisy gradients,
+ it's possible that the model does not see the entire dataset during a single epoch.
+ For instance,
+ if batches are divided into chunks of 32 images,
+ and the total batch contains 60 images (as shown in the figure),
+ 28 images will not be seen in that epoch.
+ Since sampling is randomized at each epoch,
+ they may be seen in the next one.
+ If the model had been trained with 64 images,
+ this drop in performance would likely not have occurred.
+ Therefore,
+ it's important to consider how the training set size interacts with the chosen batch subdivision.
+ Later,
+ when we introduce additional information,
+ the dataset will become more memory-intensive,
+ and we won’t be able to load the entire set onto the GPU at once.
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-SizeDataset-1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ highlights the importance of ensuring that the training set size is a proper multiple of the batch size.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unet_sizeset2.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Net Effect of the training set size on the model accuracy 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Net-SizeDataset-1"
+
+\end_inset
+
+.
+ Each point is a model trained on respectively a set size of 8,16,32,48 and 64 images with a virtual batch size of 16.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section

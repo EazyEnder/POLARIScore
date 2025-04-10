@@ -20,9 +20,9 @@ class ConvBlock(nn.Module):
             d = nn.Dropout3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
+            nn.ReLU(inplace=True),
             b(out_channels),
-            d(p=0.1),
+            d(p=0.05),
         )
     
     def forward(self, x):
@@ -33,16 +33,18 @@ class DoubleConvBlock(nn.Module):
         super(DoubleConvBlock, self).__init__()
         c = nn.Conv2d
         b = nn.BatchNorm2d
+        d = nn.Dropout2d
         if is3D:
             c = nn.Conv3d
             b = nn.BatchNorm3d
+            d = nn.Dropout3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
             b(out_channels),
+            nn.ReLU(inplace=True),
             c(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
             b(out_channels),
+            nn.ReLU(inplace=True),
         )
     
     def forward(self, x):
@@ -110,12 +112,14 @@ class AttentionBlock(nn.Module):
 
 from nn_BaseModule import BaseModule
 class UNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, filter_function='constant', k=2., attention = False, is3D = False):
+    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, in_channels=1, out_channels=None,  filter_function='constant', k=2., attention = False, is3D = False):
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
         self.attention = attention
         self.is3D = is3D
+        self.in_channels = in_channels
+        self.out_channels = in_channels if out_channels is None else out_channels
 
         if filter_function == 'constant':
             filter_sizes = [int(base_filters * k**i) for i in range(num_layers+1)]
@@ -129,7 +133,7 @@ class UNet(BaseModule):
         else:
             self.pool = nn.MaxPool2d(2, 2)
 
-        in_channels = 1
+        in_channels =  self.in_channels
         for i in range(num_layers):
             out_channels = filter_sizes[i]
             self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
@@ -159,9 +163,9 @@ class UNet(BaseModule):
 
         # Output layer
         if is3D:
-            self.final_conv = nn.Conv3d(base_filters, 1, kernel_size=1)
+            self.final_conv = nn.Conv3d(base_filters, self.out_channels, kernel_size=1)
         else:
-            self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
+            self.final_conv = nn.Conv2d(base_filters, self.out_channels, kernel_size=1)
     
     def forward(self, x):
 
