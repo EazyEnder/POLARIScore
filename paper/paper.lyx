@@ -2475,7 +2475,7 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -2716,9 +2716,77 @@ name "fig:Polaris-Predicted"
 \end_layout
 
 \begin_layout Standard
-https://www.aanda.org/articles/aa/pdf/2010/10/aa14618-10.pdf <- coeurs denses dans polaris,
- pourquoi pas rajouter la température dans le model ?
- Faire un zoom sur le saxo avec les coeurs denses en highlight
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_polaris_saxo_columndensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Polaris Flare Saxophone Region:
+ Column density
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_polaris_saxo_volumedensity.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Polaris Flare Saxophone Region Predicted mass-weighted density;
+ The dots are the dense cores.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -2887,6 +2955,10 @@ end{multicols}
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+Orion B
 \end_layout
 
 \begin_layout Standard
