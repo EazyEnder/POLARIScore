@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config import LOGGER
-from nn_BaseModule import BaseModule
-from nn_UNet import UNet, AttentionBlock
+from networks.nn_BaseModule import BaseModule
+from networks.nn_UNet import UNet, AttentionBlock
 import numpy as np
 
 class PPV(BaseModule):

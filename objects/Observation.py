@@ -266,21 +266,20 @@ class Observation():
         self.prediction = np.load(path) 
         return self.prediction
     
-def script_data_and_figures(save_fig=False):
-    name = "OrionB"
+def script_data_and_figures(name,crop=None,save_fig=False,normcol=[None,None],normvol=[None,None]):
     obs = Observation(name, "column_density_map")
     name = name.replace("_","")
-    fig, ax = obs.plot(norm=LogNorm())
+    fig, ax = obs.plot(norm=LogNorm(vmin=normcol[0], vmax= normcol[1]),crop=crop)
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_columndensity.jpg")
 
     from networks.Trainer import load_trainer
-    trainer = load_trainer("UNet_BatchHighRes")
     obs.load()
     if obs.prediction is None:
+        trainer = load_trainer("UneK_HighRes")
         obs.predict(trainer,patch_size=(512,512), overlap=0.9)
-    obs.save()
-    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1, vmax=1e4))
+        obs.save()
+    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop)
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity.jpg")
     
@@ -300,14 +299,8 @@ if __name__ == "__main__":
 
     #script_data_and_figures()
 
-    
-    name = "OrionB"
-    obs = Observation(name, "column_density_map")
-    cropped_region = [Angle("5h49m").deg, Angle("5h45m").deg, Angle("-0d20m").deg, Angle("1d00m").deg]
-    #obs.plot(crop=cropped_region)
-    obs.load()
-    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=1.5e1, vmax=5e4), crop=cropped_region, plotCores=True)
-    
+    cropped_region =  None
+    script_data_and_figures("OrionA", normcol=[1e19,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region)
 
     #obs = Observation("Polaris","column_density_map")
     #obs.plot(norm=LogNorm(vmin=11,vmax=16))

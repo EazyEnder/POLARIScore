@@ -161,9 +161,9 @@ class Trainer():
             self.training_losses.append((total_epoch, epoch_loss))
             val_total_loss = None
             if compute_validation>0 and total_epoch % compute_validation == 0:
+                minbatch_nbr = int(np.floor(validation_batch_size/batch_number))
                 with torch.no_grad():
                     #self.model.eval()
-                    minbatch_nbr = int(np.floor(validation_batch_size/batch_number))
                     val_total_loss = 0
                     for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
                         printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
@@ -177,7 +177,7 @@ class Trainer():
                         v_loss = self.loss_method(validation_output,v_target_tensor).item()
                         val_total_loss += v_loss
                     #self.model.train()
-                val_total_loss /= int(np.ceil(validation_batch_size / batch_number))
+                val_total_loss /= minbatch_nbr if minbatch_nbr > 0 else 1
                 self.validation_losses.append((total_epoch,val_total_loss))
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
@@ -614,7 +614,7 @@ def plot_models_residuals(trainers = [], ax=None):
     return fig, ax, colors
 
 def plot_models_residuals_extended(trainers = []):
-    plt.figure()
+    fig = plt.figure()
 
     ax1 = plt.subplot2grid((len(trainers), 2), (0, 0), rowspan=len(trainers))
     _,_, colors = plot_models_residuals(trainers=trainers, ax=ax1)
@@ -627,6 +627,7 @@ def plot_models_residuals_extended(trainers = []):
         ax.set_ylabel("")
 
     plt.tight_layout()
+    return fig, ax
 
 def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_errors = False):
     if ax is None:
@@ -836,38 +837,47 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
+    ds = getDataset("batch_highres")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[64,64], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    trainer = Trainer(PPV, ds1, ds2, model_name="Max_1UNet_COSpectra")
-    
-    trainer.network_settings["base_filters"] = 32
-    trainer.network_settings["convBlock"] = DoubleConvBlock
+    """
+    trainer = Trainer(UneK, ds1, ds2, model_name="UneK_HighRes")
+    trainer.network_settings["base_filters"] = 64
+    trainer.network_settings["convBlock"] = ConvBlock
     trainer.network_settings["num_layers"] = 4
     #trainer.network_settings["channel_dimensions"] = [2,3]
-    #trainer.training_random_transform = True
+    trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
     #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
-    trainer.optimizer_name = "SGD"
+    trainer.optimizer_name = "Adam"
     trainer.target_name = "vdens"
-    trainer.input_names = ["cdens","cospectra"]
+    trainer.input_names = ["cdens"]
     trainer.init()
-    trainer.train(1500,batch_number=10,compute_validation=10)
+    trainer.train(1000,batch_number=16,compute_validation=10)
     trainer.save()
-    #trainer = load_trainer("cached_model")
-    #trainer.input_names = ["cdens","cospectra"]
-    #trainer.target_name = "vdens"
-    #trainer.plot()
-    #trainer.plot_validation()
+    trainer.plot()
+    trainer.plot_validation()"""
 
-    """
-    fig, ax = plot_models_accuracy([trainer,t2],show_errors=True)
-    fig.savefig(FIGURE_FOLDER+"unet_highres_accuracy.jpg")
-    fig, ax, _ = plot_models_residuals([trainer,t2])
-    fig.savefig(FIGURE_FOLDER+"unet_highres_residuals.jpg")
-    """    
+    trainer = load_trainer("UneK_HighRes")
+    trainer_highres = load_trainer("Unet_highres2_t80")
+    trainer_highres.validation_set = ds2
+    trainer_highres.input_names = ["cdens"]
+    trainer_highres.target_name = "vdens"
+    trainer.input_names = ["cdens"]
+    trainer.target_name = "vdens"
+    trainer.validation_set = ds2
+    trainer.plot()
+    trainer.plot_validation()
+    list_t = [trainer, trainer_highres]
+    fig, _ = plot_models_accuracy(list_t, show_errors=True)
+    fig.savefig(FIGURE_FOLDER+"unek_accuracy")
+    fig, _ = plot_models_residuals_extended(list_t)
+    fig.savefig(FIGURE_FOLDER+"unek_residuals")
+
+    
+  
     plt.show()

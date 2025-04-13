@@ -110,7 +110,7 @@ class AttentionBlock(nn.Module):
         psi = self.psi(psi)  # Apply sigmoid activation
         return x * psi  # Scale encoder features
 
-from nn_BaseModule import BaseModule
+from networks.nn_BaseModule import BaseModule
 class UNet(BaseModule):
     def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, in_channels=1, out_channels=None,  filter_function='constant', k=2., attention = False, is3D = False):
         super(UNet, self).__init__()

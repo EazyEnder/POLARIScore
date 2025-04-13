@@ -1,8 +1,14 @@
+import os
+import sys
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from networks.utils.fastkanconv import FastKANConvLayer
 from networks.nn_UNet import ConvBlock, UNet
+from networks.nn_BaseModule import BaseModule
+
     
 class KanConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -22,7 +28,7 @@ class KNet(UNet):
         self.final_conv = FastKANConvLayer(base_filters, 1, kernel_size=1)
         
 from kan import KAN
-class UneK(nn.Module):
+class UneK(BaseModule):
     def __init__(self, **kwargs):
         super(UneK, self).__init__()
         self.unet = UNet(**kwargs)
@@ -37,6 +43,17 @@ class UneK(nn.Module):
         return x
     def getKAN(self):
         return self.kan
-
+    
+class JustKAN(BaseModule):
+    def __init__(self, **kwargs):
+        super(JustKAN, self).__init__()
+        self.kan = KAN(width=[1,[5,5],[5,5],[5,5],1], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+    def forward(self, x):
+        B, C, H, W = x.shape
+        x_flat = x.reshape(B*C*H*W, 1)
+        x_kan = self.kan(x_flat)
+        x_kan = x_kan.reshape(B, C, H, W)
+        x = x_kan
+        return x
 
 

@@ -7,8 +7,8 @@ from config import LOGGER
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from nn_UNet import ConvBlock, AttentionBlock
-from nn_BaseModule import BaseModule
+from networks.nn_UNet import ConvBlock, AttentionBlock
+from networks.nn_BaseModule import BaseModule
 import numpy as np
 
 class MultiNet(BaseModule):

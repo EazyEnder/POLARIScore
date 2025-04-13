@@ -69,6 +69,40 @@ def group_matrix(mats):
                col_idx * final_dim: (col_idx + 1) * final_dim] = np.array(mat)
     return result
 
+def movingAverage(l, n=5):
+    cs=np.cumsum(l, dtype=float)
+    cs[n:]=cs[n:]-cs[:-n]
+    return cs[n-1:]/n
+
+def applyBaseline(t,y,T,R):
+    X = R[0]
+    last_t = 0
+    last_y = [y[0]]
+
+    coefs = []
+    for i in range(len(y)):
+        y1 = y[i]
+        t1 = t[i]
+        coefs.append((y1 - last_y[-1]) / (t1 - last_t))
+        last_t = t1
+        last_y.append(y1)
+    coefs.append(0.)
+
+    int_time = []
+    for j in range(len(t)+1):
+        t_left = 0
+        if j > 0:
+            t_left = t[j-1]
+        t_right = T[-1]
+        if j < len(t):
+            t_right = t[j]
+        int_time.append((t_left,t_right))
+    for i in range(len(T)):
+        for j,(tl,tr) in enumerate(int_time):
+            if T[i] >= tl and T[i] <= tr:
+                X[i] = X[i]-(coefs[j]*(T[i]-tl)+last_y[j])
+                break
+    return X
 
 import matplotlib.pyplot as plt
 def plot_function(function, ax=None, res=100, lims=[0,1], **args):
