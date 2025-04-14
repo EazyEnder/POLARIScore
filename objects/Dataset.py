@@ -8,6 +8,12 @@ from matplotlib.colors import LogNorm
 import shutil
 
 BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density"]
+AUGMENTS = {
+    "sum": lambda x: np.sum(x, dim=-1)
+}
+
+def _formate_name(name):
+    return name.split("_")[-1]
 
 def _open_batch(batch_name):
     assert os.path.exists(TRAINING_BATCH_FOLDER), LOGGER.error(f"Can't open batch {batch_name}, no folder exists.")
@@ -61,7 +67,7 @@ class Dataset():
         for n in names:
             found = False
             for i,o in enumerate(self.settings["order"]):
-                if o == n:
+                if o == _formate_name(n):
                     indexes.append(i)
                     found = True
                     break

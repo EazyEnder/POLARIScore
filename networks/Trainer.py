@@ -3,7 +3,6 @@ import sys
 import time
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from sympy import limit_seq
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,9 +15,10 @@ import uuid
 from networks.nn_UNet import *
 from networks.nn_FCN import FCN
 from networks.nn_MultiNet import MultiNet
-from networks.nn_PPV import PPV
+from networks.nn_PPV import PPV, Test
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
+from utils import movingAverage, applyBaseline
 import json
 from objects.Dataset import getDataset
 import shutil
@@ -58,6 +58,7 @@ class Trainer():
         self.scheduler = None
         self.weight_decay = 0.
         
+        self.baseline = None
 
         if not(self.network is None):
             self.model = network(**self.network_settings).to(self.device)
@@ -195,9 +196,42 @@ class Trainer():
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
-    def fit_residuals(self):
-        #TODO
-        pass
+    def fit_baseline(self,n=1000, force_compute=False, log=True):
+        if not(force_compute) and not(self.baseline is None):
+            return self.baseline
+        if log:
+            LOGGER.log(f"Computing baseline for model: {self.network_type}")
+        batch = self.get_prediction_batch()
+        d_target = np.array([np.log10(b[0]) for b in batch]).flatten()
+        d_prediction = np.array([np.log10(b[1]) for b in batch]).flatten()
+        residuals = d_prediction-d_target
+
+        sorted_indexes = np.argsort(d_target)
+        d_prediction = d_prediction[sorted_indexes]
+        residuals = residuals[sorted_indexes]
+
+        mresiduals = movingAverage(residuals, n=n)
+        mx = movingAverage(d_prediction, n=n)
+
+        self.baseline = (mx,mresiduals)
+
+        return self.baseline
+    
+    def apply_baseline(self, prediction, log=True):
+        if log:
+            LOGGER.log(f"Applying baseline for prediction {prediction.shape[0]}x{prediction.shape[1]}")
+        if self.baseline is None:
+            self.fit_baseline(log=log)
+
+        H,W = prediction.shape
+        d_prediction = np.array(np.log10(prediction)).flatten()
+
+        d_prediction = applyBaseline(self.baseline[0],self.baseline[1],d_prediction,d_prediction)
+        d_prediction = d_prediction.reshape((H,W))
+
+        d_prediction = np.exp(d_prediction * np.log(10))
+
+        return d_prediction
 
     def plot_losses(self, ax=None ,log10=True):
         """
@@ -257,7 +291,7 @@ class Trainer():
         """
         plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=True, number_per_row=number_per_row)
 
-    def plot_residuals(self, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
+    def plot_residuals(self, batch=None, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
         """
         Plot model predictions residuals
 
@@ -275,7 +309,8 @@ class Trainer():
             fig, ax = plt.subplots()
         else:
             fig = ax.figure
-        batch = self.get_prediction_batch()
+        if batch is None:
+            batch = self.get_prediction_batch()
         d_target = np.array([np.log(b[0])/np.log(10) for b in batch]).flatten()
         d_prediction = np.array([np.log(b[1])/np.log(10) for b in batch]).flatten()
 
@@ -544,6 +579,7 @@ def load_trainer(model_name, load_model=True):
            "UneK": UneK,
            "MultiNet": MultiNet,
            "PPV": PPV,
+           "Test": Test,
            "None": None
     }
     network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock, "ConvBlock":ConvBlock}
@@ -843,40 +879,65 @@ if __name__ == "__main__":
     #ds1.save()
     #ds2.save()
 
-    """
-    trainer = Trainer(UneK, ds1, ds2, model_name="UneK_HighRes")
-    trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = ConvBlock
-    trainer.network_settings["num_layers"] = 4
+    #trainer = Trainer(Test, ds1, ds2, model_name="cospectra_to_columndensity")
+    trainer = load_trainer("UneK_HighRes")
+    #trainer.network_settings["base_filters"] = 64
+    #trainer.network_settings["convBlock"] = DoubleConvBlock
+    #trainer.network_settings["num_layers"] = 4
     #trainer.network_settings["channel_dimensions"] = [2,3]
-    trainer.training_random_transform = True
-    trainer.network_settings["attention"] = True
+    #trainer.training_random_transform = True
+    #trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
     #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
-    trainer.optimizer_name = "Adam"
+    #trainer.validation_set = ds2
+    trainer.optimizer_name = "SGD"
     trainer.target_name = "vdens"
     trainer.input_names = ["cdens"]
-    trainer.init()
-    trainer.train(1000,batch_number=16,compute_validation=10)
-    trainer.save()
+    trainer.fit_baseline()
+    batch = trainer.get_prediction_batch()
     trainer.plot()
-    trainer.plot_validation()"""
+    reconstructed_batch = []
+    for b in batch:
+        pred = b[1]
+        pred = trainer.apply_baseline(pred)
+        reconstructed_batch.append((b[0], pred))
+    trainer.prediction_batch = reconstructed_batch
+    #trainer.init()
+    
+    #trainer.train(1000,batch_number=4,compute_validation=10)
+    #trainer.save()
+    trainer.plot()
+    trainer.plot_validation()
+    trainer.plot_validation_spatial_error()
 
+    """
     trainer = load_trainer("UneK_HighRes")
-    trainer_highres = load_trainer("Unet_highres2_t80")
-    trainer_highres.validation_set = ds2
-    trainer_highres.input_names = ["cdens"]
-    trainer_highres.target_name = "vdens"
+    #trainer_highres = load_trainer("Unet_highres2_t80")
+    #trainer_highres.validation_set = ds2
+    #trainer_highres.input_names = ["cdens"]
+    #trainer_highres.target_name = "vdens"
     trainer.input_names = ["cdens"]
     trainer.target_name = "vdens"
     trainer.validation_set = ds2
+    #trainer.plot_validation()
+
     trainer.plot()
-    trainer.plot_validation()
-    list_t = [trainer, trainer_highres]
-    fig, _ = plot_models_accuracy(list_t, show_errors=True)
-    fig.savefig(FIGURE_FOLDER+"unek_accuracy")
-    fig, _ = plot_models_residuals_extended(list_t)
-    fig.savefig(FIGURE_FOLDER+"unek_residuals")
+    trainer.fit_baseline()
+
+    batch = trainer.get_prediction_batch()
+    reconstructed_batch = []
+    for b in batch:
+        pred = b[1]
+        pred = trainer.apply_baseline(pred)
+        reconstructed_batch.append((b[0], pred))
+    trainer.prediction_batch = reconstructed_batch
+    trainer.plot()
+
+    #list_t = [trainer, trainer_highres]
+    #fig, _ = plot_models_accuracy(list_t, show_errors=True)
+    #fig.savefig(FIGURE_FOLDER+"unek_accuracy")
+    #fig, _ = plot_models_residuals_extended(list_t)
+    #fig.savefig(FIGURE_FOLDER+"unek_residuals")"""
 
     
   

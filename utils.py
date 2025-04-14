@@ -74,8 +74,8 @@ def movingAverage(l, n=5):
     cs[n:]=cs[n:]-cs[:-n]
     return cs[n-1:]/n
 
-def applyBaseline(t,y,T,R):
-    X = R[0]
+def applyBaseline(t,y,T,Y):
+
     last_t = 0
     last_y = [y[0]]
 
@@ -97,12 +97,14 @@ def applyBaseline(t,y,T,R):
         if j < len(t):
             t_right = t[j]
         int_time.append((t_left,t_right))
+    t_edges = np.array([0] + list(t))
+    indices = np.searchsorted(t_edges[1:], T, side='right')
     for i in range(len(T)):
-        for j,(tl,tr) in enumerate(int_time):
-            if T[i] >= tl and T[i] <= tr:
-                X[i] = X[i]-(coefs[j]*(T[i]-tl)+last_y[j])
-                break
-    return X
+        j = indices[i]
+        tl = t_edges[j]
+        Y[i] = Y[i] - (coefs[j] * (T[i] - tl) + last_y[j])
+
+    return Y
 
 import matplotlib.pyplot as plt
 def plot_function(function, ax=None, res=100, lims=[0,1], **args):

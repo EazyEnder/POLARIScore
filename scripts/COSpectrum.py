@@ -113,6 +113,24 @@ def plotSpectrum(intensity_map, pos=(0,0), ax=None, v_channels=VELOCITY_CHANNELS
 
     return fig, ax
 
+def plot(intensity_map):
+    fig, ax = plt.subplots()
+    image = ax.imshow(getIntegratedIntensity(intensity_map))
+
+    fig2, ax2 = plt.subplots()
+    plotSpectrum(intensity_map, ax=ax2, pos=(255, 255))
+
+    def onclick(event):
+        if event.inaxes == ax:
+            y = int(round(event.xdata))
+            x = int(round(event.ydata))
+            ax2.cla()
+            plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
+            ax2.set_title(f"Spectrum at ({x}, {y})")
+            plt.show()
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+
 def saveSpectrum(intensity_map, name=None, replace=False):
     if name is None:
         name = "spectrum_"+str(uuid.uuid4())
@@ -187,36 +205,19 @@ def script_create_spectrum(simulation, region=[254,256,254,256], name=None):
 
 if __name__ == "__main__":
     from objects.Simulation_DC import Simulation_DC
-    #simulation = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    simulation = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     #sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
-    #simulation.init(loadTemp=True,loadVel=True)
+    simulation.init(loadTemp=True,loadVel=True)
 
     #intensity_map = script_create_spectrum(simulation, name="32_withCMB_Y")
     #plotSpectrum(intensity_map, pos=(255,255))
     #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
 
-    intensity_map = LoadSpectrum("spectrum_orionMHD_lowB_0.39_512_1")
+    intensity_map = LoadSpectrum("spectrum_woutlims_orionMHD_lowB_0.39_512_1")
+    plot(intensity_map)
+    simulation.plot()
 
-    """
-    results = ray_mapping(simulation, compute_COSpectrum, axis=0, region=[0,50,0,50])
-    intensity_map = []
-    for i in range(len(results)):
-        intensity_map.append([])
-        for j in range(len(results[i])):
-            intensity_map[i].append(results[i][j]["intensity_spectrum"])
-    intensity_map = np.array(intensity_map)
-    intensity_map = convertToKelvin(intensity_map)
-    saveSpectrum(intensity_map)"
-    """
-
-    #intensity_map = LoadSpectrum("32_withCMB")
-    plotSpectrum(intensity_map, pos=(255,255))
-    plt.figure()
-    plt.imshow(getIntegratedIntensity(intensity_map))
-    #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
-    #intensity_map = LoadSpectrum("spectrum_e271a125-d774-420a-81aa-5bcec00c6053")
-    #plotSpectrum(intensity_map, pos=(255,255), v_channels=128, v_res=1e3*0.25)
-    #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
+    #plotSpectrum(intensity_map, pos=(255,255))
 
     plt.show()
 

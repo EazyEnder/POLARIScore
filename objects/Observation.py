@@ -53,7 +53,7 @@ class Observation():
         self.wcs = WCS(f.header)
         file.close()
 
-    def predict(self, model_trainer, patch_size=(128, 128), nan_value=-1.0, overlap=0.5, downsample_factor=1):
+    def predict(self, model_trainer, patch_size=(128, 128), nan_value=-1.0, overlap=0.5, downsample_factor=1, apply_baseline=True):
 
         input_matrix = self.data
         input_tensor = torch.tensor(input_matrix.astype(np.float32))
@@ -85,6 +85,9 @@ class Observation():
                 
                 output_patch = model_trainer.predict_image(patch)
                 output_patch = output_patch.squeeze(0).squeeze(0) 
+
+                if apply_baseline:
+                    output_patch = model_trainer.apply_baseline(output_patch, log=False)
                 
                 output_tensor[i:i+patch_height, j:j+patch_width] += output_patch
                 count_tensor[i:i+patch_height, j:j+patch_width] += 1
@@ -277,7 +280,7 @@ def script_data_and_figures(name,crop=None,save_fig=False,normcol=[None,None],no
     obs.load()
     if obs.prediction is None:
         trainer = load_trainer("UneK_HighRes")
-        obs.predict(trainer,patch_size=(512,512), overlap=0.9)
+        obs.predict(trainer,patch_size=(512,512), overlap=0.5)
         obs.save()
     fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop)
     if save_fig:

@@ -378,19 +378,26 @@ class Simulation_DC():
 
                 plt.quiver(X_sub, Y_sub, Ux_sub, Uy_sub, color="white", scale=200)
 
-    def plot(self,method=compute_column_density,plot_pdf=True,color_bar=False):
+    def plot(self,method=compute_column_density,axis=[0],plot_pdf=False,color_bar=False):
         """
         Plot simulations faces with probabiliy density function
 
         Args:
             method(function): Method to compute column density
         """
-        column_density_xy = self._compute_c_density(method=method, axis=0)  # Top-down
-        column_density_xz = self._compute_c_density(method=method, axis=1)  # Side view
-        column_density_yz = self._compute_c_density(method=method, axis=2) # Front view
+
+        axis = axis if type(axis) is list else [axis]
+        axis = np.array(axis)
+        axis = axis[np.argsort(axis)]
+
+        densities = []
+        for ax in axis:
+            densities.append(method(self.data, self.cell_size, axis=ax))
         
 
-        fig, axes = plt.subplots(2 if plot_pdf else 1, 3, figsize=(12, 6 if plot_pdf else 3.5))
+        fig, axes = plt.subplots(2 if plot_pdf else 1, len(axis), figsize=(4*len(axis), 6 if plot_pdf else 3.5))
+        if len(axis) <= 1:
+            axes = [axes]
         if not(plot_pdf):
             axes = [axes]
 
@@ -406,23 +413,11 @@ class Simulation_DC():
             return cd, pdf
 
         # XY Projection (Top-down)
-        _plot(0,column_density_xy)
-        axes[0][0].set_title("Top-Down View (XY Projection)")
-        axes[0][0].set_xlabel("X [pc]")
-        axes[0][0].set_ylabel("Y [pc]")
-
-        # XZ Projection (Side view)
-        _plot(1,column_density_xz)
-
-        axes[0][1].set_title("Side View (XZ Projection)")
-        axes[0][1].set_xlabel("X [pc]")
-        axes[0][1].set_ylabel("Z [pc]")
-
-        # YZ Projection (Front view)
-        cd, _ =  _plot(2,column_density_yz)
-        axes[0][2].set_title("Front View (YZ Projection)")
-        axes[0][2].set_xlabel("Y [pc]")
-        axes[0][2].set_ylabel("Z [pc]")
+        for i,_ in enumerate(axis):
+            cd = _plot(0,densities[i])
+            axes[0][i].set_title("Top-Down View (XY Projection)")
+            axes[0][i].set_xlabel("X [pc]")
+            axes[0][i].set_ylabel("Y [pc]")
 
         if color_bar:
             cbar = plt.colorbar(cd, ax=axes[0], orientation="vertical", fraction=0.02, pad=0.02)
