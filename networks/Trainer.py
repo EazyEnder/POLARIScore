@@ -57,6 +57,7 @@ class Trainer():
         self.optimizer_name = str(type(torch.optim.Adam))
         self.scheduler = None
         self.weight_decay = 0.
+        self.cache_threshold = 2.
         
         self.baseline = None
 
@@ -132,7 +133,7 @@ class Trainer():
         validation_batch_size = len(self.validation_set.batch)
         start_time = time.process_time()
 
-        minimimum_validation_loss = 1.5
+        minimimum_validation_loss = self.cache_threshold
 
         for epoch in range(epoch_number):
             total_epoch += 1
@@ -873,42 +874,30 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_highres")
+    ds = getDataset("batch_main_downsampled")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[64,64], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    #trainer = Trainer(Test, ds1, ds2, model_name="cospectra_to_columndensity")
-    trainer = load_trainer("UneK_HighRes")
-    #trainer.network_settings["base_filters"] = 64
-    #trainer.network_settings["convBlock"] = DoubleConvBlock
-    #trainer.network_settings["num_layers"] = 4
+    trainer = Trainer(Test, ds1, ds2, model_name="ppv")
+    #trainer = load_trainer("UneK_HighRes")
+    trainer.network_settings["base_filters"] = 32
+    trainer.network_settings["convBlock"] = ConvBlock
+    trainer.network_settings["num_layers"] = 3
     #trainer.network_settings["channel_dimensions"] = [2,3]
     #trainer.training_random_transform = True
-    #trainer.network_settings["attention"] = True
+    trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
-    #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
+    trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
     #trainer.validation_set = ds2
     trainer.optimizer_name = "SGD"
-    trainer.target_name = "vdens"
-    trainer.input_names = ["cdens"]
-    trainer.fit_baseline()
-    batch = trainer.get_prediction_batch()
+    trainer.target_name = "density"
+    trainer.input_names = ["cdens", "cospectra"]
+    trainer.init()
+    trainer.train(1000,batch_number=1,compute_validation=10)
+    trainer.save()
     trainer.plot()
-    reconstructed_batch = []
-    for b in batch:
-        pred = b[1]
-        pred = trainer.apply_baseline(pred)
-        reconstructed_batch.append((b[0], pred))
-    trainer.prediction_batch = reconstructed_batch
-    #trainer.init()
-    
-    #trainer.train(1000,batch_number=4,compute_validation=10)
-    #trainer.save()
-    trainer.plot()
-    trainer.plot_validation()
-    trainer.plot_validation_spatial_error()
 
     """
     trainer = load_trainer("UneK_HighRes")

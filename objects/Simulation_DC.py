@@ -15,6 +15,8 @@ from astropy import units as u
 import numpy as np
 from scripts.COSpectrum import getSimulationSpectra
 from objects.Dataset import Dataset
+from matplotlib.widgets import Slider
+
 
 class Simulation_DC():
     """
@@ -337,46 +339,77 @@ class Simulation_DC():
     
         return ds
     
-    def plotSlice(self, axis=0, slice=256, N_arrows=20):
+    def plotSlice(self, axis=0, slice=256, N_arrows=20, show_velocity=True, enable_slider=True):
             
             if not(axis in [0,1,2]):
                 LOGGER.warn(f"Slice plot: Axis {axis} is not valid -> take the default axis: 0")
 
-            density = self.data[slice,:,:]
-            if axis == 1:
-                density = self.data[:,slice,:]
-            elif axis == 2:
-                density = self.data[:,:,slice]
-            velocity = self.data_vel
+            fig, ax = plt.subplots()
+            plt.subplots_adjust(bottom=0.2)
 
-            Nx, Ny = density.shape
+            velocity = self.data_vel if show_velocity else [None,None,None]
+
+            artists = {'im': None, 'qui': None}
+
+            Nx, Ny = self.data.shape[1], self.data.shape[2]
             x = np.arange(Ny)
             y = np.arange(Nx)
             X, Y = np.meshgrid(x, y)
 
-            plt.figure(figsize=(8, 6))
-            plt.imshow(density, origin="lower", cmap="jet", extent=[0, Ny, 0, Nx], norm=LogNorm())
-            plt.colorbar(label="Density")
+            def _plotData(slice=slice):
 
-            if not(velocity[0] is None):
-                Ux = velocity[0][slice,:,:]
-                Uy = velocity[1][slice,:,:]
+                global im, qui
+
+                density = self.data[slice,:,:]
                 if axis == 1:
-                    Ux = velocity[0][:,slice,:]
-                    Uy = velocity[2][:,slice,:]
+                    density = self.data[:,slice,:]
                 elif axis == 2:
-                    Ux = velocity[1][:,:,slice]
-                    Uy = velocity[2][:,:,slice]
+                    density = self.data[:,:,slice]
 
-                step_x = max(Ny // N_arrows, 1)
-                step_y = max(Nx // N_arrows, 1)
+                if not(velocity[0] is None):
+                    Ux = velocity[0][slice,:,:]
+                    Uy = velocity[1][slice,:,:]
+                    if axis == 1:
+                        Ux = velocity[0][:,slice,:]
+                        Uy = velocity[2][:,slice,:]
+                    elif axis == 2:
+                        Ux = velocity[1][:,:,slice]
+                        Uy = velocity[2][:,:,slice]
 
-                X_sub = X[::step_y, ::step_x]
-                Y_sub = Y[::step_y, ::step_x]
-                Ux_sub = Ux[::step_y, ::step_x]
-                Uy_sub = Uy[::step_y, ::step_x]
+                    step_x = max(Ny // N_arrows, 1)
+                    step_y = max(Nx // N_arrows, 1)
 
-                plt.quiver(X_sub, Y_sub, Ux_sub, Uy_sub, color="white", scale=200)
+                    X_sub = X[::step_y, ::step_x]
+                    Y_sub = Y[::step_y, ::step_x]
+                    Ux_sub = Ux[::step_y, ::step_x]
+                    Uy_sub = Uy[::step_y, ::step_x]
+
+                if artists["im"] is None:
+                    artists["im"] = ax.imshow(density, origin="lower", cmap="jet", extent=[0, Ny, 0, Nx], norm=LogNorm())
+                else:
+                    artists["im"].set_data(density)
+
+                if not(velocity[0] is None):
+                    if artists["qui"] is None:
+                        artists["qui"] = ax.quiver(X_sub, Y_sub, Ux_sub, Uy_sub, color="white", scale=200)
+                    else:
+                        artists["qui"].set_UVC(Ux_sub, Uy_sub)
+
+                ax.set_title(f"Slice {slice}")
+                fig.canvas.draw_idle()
+
+            _plotData(slice=slice)
+            plt.colorbar(artists["im"], ax=ax, label="Density")
+
+            if enable_slider:
+                ax_slider = plt.axes([0.2, 0.05, 0.6, 0.03])
+                slider = Slider(ax_slider, 'Slice', 0, self.data.shape[0]-1, valinit=slice, valfmt='%0.0f')
+
+                def update_slice(val):
+                    slice_idx = int(slider.val)
+                    _plotData(slice=slice_idx)
+
+                slider.on_changed(update_slice)
 
     def plot(self,method=compute_column_density,axis=[0],plot_pdf=False,color_bar=False):
         """

@@ -13,7 +13,7 @@ import uuid
 #Output settings
 VELOCITY_CHANNELS = 256
 #resolution of 1km/s * x
-VELOCITY_RESOLUTION = 1e3*0.5
+VELOCITY_RESOLUTION = 1e3*0.1
 LSR_VELOCITY = 0
 V = LSR_VELOCITY+(np.array(range(VELOCITY_CHANNELS))-VELOCITY_CHANNELS/2)*VELOCITY_RESOLUTION
 DENSITY_THRESHOLD = 300
@@ -82,21 +82,33 @@ def convertToKelvin(intensity_map,frequency):
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.widgets import Slider
 
-def plotMap(intensity_map, simulation, slice=int(VELOCITY_CHANNELS/2), mean_mod=False, ax=None, norm=None):
+def plotMap(intensity_map, simulation=None, slice=int(VELOCITY_CHANNELS/2), mean_mod=False, ax=None, norm=None, enable_slider=True):
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
     if mean_mod:
         I = np.sum(intensity_map,axis=2)
-        im = ax.imshow(I/VELOCITY_CHANNELS,extent=[simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="jet", norm=LogNorm() if norm is None else norm)
+        im = ax.imshow(I/VELOCITY_CHANNELS,extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]] , cmap="jet", norm=LogNorm() if norm is None else norm)
     else:
-        im = ax.imshow(intensity_map[:,:,slice],extent=[simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="viridis")
+        im = ax.imshow(intensity_map[:,:,slice],extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="viridis")
     plt.colorbar(im, label="Intensity (K)")
     ax.set_xlabel(r"$x_1$ [pc]")
     ax.set_ylabel(r"$x_2$ [pc]")
     ax.legend()
+
+    if not(mean_mod) and enable_slider:
+        ax_slider = plt.axes([0.2, 0.05, 0.6, 0.03])
+        slider = Slider(ax_slider, 'Slice', 0, intensity_map.shape[2] - 1, valinit=slice, valfmt='%0.0f')
+
+        def update_slice(val):
+            slice_idx = int(slider.val)
+            im.set_data(intensity_map[:,:,slice_idx])
+            fig.canvas.draw_idle()
+
+        slider.on_changed(update_slice)
 
     return fig, ax
 
@@ -125,7 +137,10 @@ def plot(intensity_map):
             y = int(round(event.xdata))
             x = int(round(event.ydata))
             ax2.cla()
-            plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
+            #data, data_fit = fit_gaussians(intensity_map[x,y,:])
+            #plot_fit(data,data_fit, ax=ax2)
+            custom_fit(intensity_map[x,y,:], ax=ax2)
+            #plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
             ax2.set_title(f"Spectrum at ({x}, {y})")
             plt.show()
 
@@ -190,8 +205,8 @@ def plot3D(data,threshold=15):
 
     return fig, ax
 
-def script_create_spectrum(simulation, region=[254,256,254,256], name=None):
-    results = ray_mapping(simulation, compute_COSpectrum, axis=1, region=[0,-1,0,-1])
+def script_create_spectrum(simulation, region=[254,256,254,256], name=None, axis=0):
+    results = ray_mapping(simulation, compute_COSpectrum, axis=axis, region=[0,-1,0,-1])
     intensity_map = []
     for i in range(len(results)):
         intensity_map.append([])
@@ -203,19 +218,134 @@ def script_create_spectrum(simulation, region=[254,256,254,256], name=None):
     saveSpectrum(intensity_map, name=name)
     return intensity_map
 
+import pickle
+import gausspy.gp as gp
+def fit_gaussians(spectrum):
+    channels = np.arange(len(spectrum))
+    errors = np.ones(channels.shape)*0.1
+
+    data = {}
+    data['data_list'] = data.get('data_list', []) + [spectrum]
+    data['x_values'] = data.get('x_values', []) + [channels]
+    data['errors'] = data.get('errors', []) + [errors]
+    FILENAME = CACHES_FOLDER+"spectrum.pickle"
+    pickle.dump(data, open(FILENAME, 'wb'))
+    g = gp.GaussianDecomposer()
+    g.set('phase', 'one')
+    g.set('SNR_thresh', [0.1])
+    g.set('alpha1',0.0001)
+    data_decomp = g.batch_decomposition(FILENAME)
+    return data,data_decomp
+
+def plot_fit(data,data_decomp,ax=None):
+    def _gaussian(amp, fwhm, mean):
+        return lambda x: amp * np.exp(-4. * np.log(2) * (x-mean)**2 / fwhm**2)
+
+    def _unravel(list):
+        return np.array([i for array in list for i in array])
+    
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    spectrum = _unravel(data['data_list'])
+    chan = _unravel(data['x_values'])
+    errors = _unravel(data['errors'])
+
+    means_fit = _unravel(data_decomp['means_fit'])
+    amps_fit = _unravel(data_decomp['amplitudes_fit'])
+    fwhms_fit = _unravel(data_decomp['fwhms_fit'])
+
+    model = np.zeros(len(chan))
+
+    for j in range(len(means_fit)):
+        component = _gaussian(amps_fit[j], fwhms_fit[j], means_fit[j])(chan)
+        model += component
+        ax.plot(chan, component, color='red', lw=1.5)
+
+    ax.plot(chan, spectrum, label='Data', color='black', linewidth=1.5)
+    ax.plot(chan, model, label = r'$\log\alpha=1.$', color='purple', linewidth=2.)
+    ax.plot(chan, errors, label = 'Errors', color='green', linestyle='dashed', linewidth=2.)
+
+    ax.set_xlabel('Channels')
+    ax.set_ylabel('Amplitude')
+
+    ax.set_xlim(0,len(chan))
+    ax.set_ylim(np.min(spectrum),np.max(spectrum))
+    ax.legend(loc=2)
+
+    return fig, ax
+
+def gaussian_sum(x, params, N):
+    y = np.zeros_like(x)
+    for i in range(N):
+        A, mu, sigma = params[3*i], params[3*i+1], params[3*i+2]
+        y += np.abs(A) * np.exp(-((x - mu)**2) / (2 * sigma**2))
+    return y
+
+from scipy.optimize import minimize
+def custom_fit(Y, max_N=5, ax=None):
+    X = np.arange(len(Y), dtype=float)
+
+    def chi_squared(params, x, y, N):
+        y_model = gaussian_sum(x, params, N)
+        return np.sum((y - y_model)**2/(y_model+1e-8))
+    
+    best_result = None
+    results = []
+
+    best_bic = np.inf
+    for N in range(1, max_N+1):
+        guess = []
+        for i in range(N):
+            guess.extend([np.random.uniform(min(Y), max(Y)), X[int(len(X)/2)], np.random.uniform(1,10)])
+        
+        res = minimize(chi_squared, guess, args=(X, Y, N), method='L-BFGS-B')
+        k = len(res.x)
+        chi2 = chi_squared(res.x, X, Y, N)
+        n = len(X)
+        bic = 2.*k + chi2
+        results.append((N, res, bic))
+        print(N,bic)
+        if bic < best_bic:
+            best_bic = bic
+            best_result = (N, res)
+
+    N_best, res = best_result
+    y_fit = gaussian_sum(X, res.x, N_best)
+
+    if not(ax is None):
+        ax.plot(X, Y, label='Data')
+        ax.plot(X, y_fit, 'r-', label=f'Fit (N={N_best})')
+        ax.legend()
+        ax.set_title(f'Best BIC model: N = {N_best}')
+
+    return (N_best, res.x)
+
+
+
+
 if __name__ == "__main__":
     from objects.Simulation_DC import Simulation_DC
     simulation = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     #sim = openSimulation("orionMHD_lowB_multi_", global_size=66.0948, use_cache=True)
     simulation.init(loadTemp=True,loadVel=True)
 
-    #intensity_map = script_create_spectrum(simulation, name="32_withCMB_Y")
-    #plotSpectrum(intensity_map, pos=(255,255))
-    #plotMap(intensity_map, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
+    intensity_map = LoadSpectrum("spectrum_orionMHD_lowB_0.39_512_1")
 
-    intensity_map = LoadSpectrum("spectrum_woutlims_orionMHD_lowB_0.39_512_1")
+    #pos = (255,255)
+    #plotSpectrum(intensity_map, pos=pos)
+    from utils import movingMin, movingAverage
+    #Y = intensity_map[pos[0],pos[1],:]
+    #custom_fit(Y, max_N=10, plot=True)
+
     plot(intensity_map)
-    simulation.plot()
+
+    #plotMap(intensity_map, simulation=simulation, slice=int(VELOCITY_CHANNELS/2),mean_mod=False, norm=LogNorm(vmin=1e-3,vmax=20))
+    #simulation.plotSlice(show_velocity=False, axis=2)
+    #plot(intensity_map)
+    #simulation.plot()
 
     #plotSpectrum(intensity_map, pos=(255,255))
 

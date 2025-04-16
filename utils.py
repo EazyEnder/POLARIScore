@@ -74,6 +74,21 @@ def movingAverage(l, n=5):
     cs[n:]=cs[n:]-cs[:-n]
     return cs[n-1:]/n
 
+def movingMin(l, n=5, exclude_zeros=False):
+    result = []
+    for i in range(len(l) - n + 1):
+        window = l[i:i+n]
+        if exclude_zeros:
+            flag = [False for _ in range(n)]
+            for j,w in enumerate(window):
+                if w < 1e-5:
+                    flag[j] = True
+            if True in flag and False in flag:
+                result.extend(window)
+                continue
+        result.append(min(window))
+    return np.array(result, dtype=object)
+
 def applyBaseline(t,y,T,Y):
 
     last_t = 0

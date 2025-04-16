@@ -64,6 +64,7 @@ class PPV(BaseModule):
         #target_tensor = (t_tensor > 4.).float().to(self.device)
         return [density_input_tensor,velocity_input_tensor], t_tensor
 
+"""
 class Test(BaseModule):
     def __init__(self, **kwargs):
         super(Test, self).__init__()
@@ -82,6 +83,27 @@ class Test(BaseModule):
         t_tensor = torch.from_numpy(np.log(np.array([b[target_index] for b in batch]))).float().unsqueeze(1).to(self.device)
         #target_tensor = (t_tensor > 4.).float().to(self.device)
         return [input_tensor], t_tensor
+"""
+    
+class Test(BaseModule):
+    def __init__(self, **kwargs):
+        super(Test, self).__init__()
+        
+        self.unet = UNet(**kwargs, is3D=True)
+    
+    def forward(self, x, v):
+
+        W = torch.sum(v, dim=-1, keepdim=True)
+        out = F.relu(self.unet(x.unsqueeze(-1)*v/(W+1e-8)))
+        out = out
+        return out
+
+    def shape_data(self, batch, target_index=1, input_indexes=[0,2]):
+        density_input_tensor = torch.from_numpy(np.log(np.array([b[input_indexes[0]] for b in batch]))).float().unsqueeze(1).to(self.device)
+        velocity_input_tensor = torch.from_numpy((np.array([b[input_indexes[1]] for b in batch]))).float().unsqueeze(1).to(self.device)
+        t_tensor = torch.from_numpy(np.log(np.array([b[target_index] for b in batch]))).float().unsqueeze(1).to(self.device)
+        target_tensor = (t_tensor > 3.).float().to(self.device)
+        return [density_input_tensor, velocity_input_tensor], target_tensor
     
 if __name__ == "__main__":
     model = PPV().to("cuda")

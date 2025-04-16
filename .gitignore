@@ -22,3 +22,5 @@ voldens5.py
 data/
 
 iframe_figures/
+
+*.pickle
