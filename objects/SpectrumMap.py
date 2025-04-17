@@ -1,0 +1,308 @@
+import os
+import sys
+if __name__ == "__main__":
+    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.append(parent_dir)
+from config import LOGGER, SPECTRA_FOLDER
+import numpy as np
+from physics_utils import *
+from objects.Raycaster import ray_mapping
+from objects.Spectrum import Spectrum, loadSpectrum
+import json
+import shutil
+import glob
+import re
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+from matplotlib.widgets import Slider
+
+DEFAULT_OUTPUT_SETTINGS = {
+    "velocity_channels": 256,
+    "velocity_resolution": 1e3*0.1,
+    "lsr_velocity": 0,
+    "v_function": lambda lsr,chan,res: lsr+(np.array(range(chan))-chan/2)*res,
+}
+
+#Line settings example for 12CO J=U-L
+_L = 0
+_U = 1
+DEFAULT_LINE_SETTINGS = {
+    "l":_L,
+    "u":_U,
+    "abundance":CO_ABUNDANCE,
+    "temp_low":ROT_ENERGY(_L,CO_ROT_CST),
+    "temperature":ROT_ENERGY(_U,CO_ROT_CST)-ROT_ENERGY(_L,CO_ROT_CST),
+    "frequency":CO_FREQUENCY[_U-1],
+    "estein_emission":CO_A[_U-1]
+}
+
+DEFAULT_GLOBAL_SETTINGS = {
+    "density_threshold": 300,
+    "with_turbulence": True
+}
+
+#TODO As for training sets, make this memory less by open the spectra just when it is needed
+class SpectrumMap():
+    def __init__(self, name,map=None, load=True):
+
+        self.name = name
+
+        self.map = map
+        
+        self.line_settings = DEFAULT_LINE_SETTINGS
+        self.output_settings = DEFAULT_OUTPUT_SETTINGS
+        self.global_settings = DEFAULT_GLOBAL_SETTINGS
+
+        if load:
+            self.load()
+
+    def load(self, name=None):
+        name = self.name if name is None else name
+        folder = os.path.join(SPECTRA_FOLDER, name)
+        if not(os.path.exists(folder)):
+            LOGGER.error(f"Can't load spectrum map {self.name} because there is no folder named this way.")
+            return None
+        spectra_folder = os.path.join(folder, "spectra")
+        if not(os.path.exists(spectra_folder)):
+            LOGGER.error(f"Can't load spectrum map {self.name} because there is no spectra.")
+            return None
+    
+        file_pattern = 'x*_y*.npy'
+        file_pattern = os.path.join(spectra_folder, file_pattern)
+        regex = re.compile(r'x(\d+)_y(\d+)\.npy')
+
+        max_x = 0
+        max_y = 0
+        for file in glob.glob(file_pattern):
+            match = regex.search(file)
+            if match:
+                x = int(match.group(1))
+                y = int(match.group(2))
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+        map = []
+        for x in range(max_x+1):
+            map.append([])
+            for y in range(max_y+1):
+                map[x].append(None)
+
+        for file in glob.glob(file_pattern):
+            match = regex.search(file)
+            if match:
+                x = int(match.group(1))
+                y = int(match.group(2))
+                spectra = loadSpectrum("", absolute_path=file)
+                map[x][y] = spectra
+        self.map = map
+
+        global_settings = {}
+        if os.path.exists(os.path.join(folder,'global_settings.json')):
+            with open(os.path.join(folder,'global_settings.json')) as file:
+                global_settings = json.load(file)
+        else:
+            LOGGER.warn("No global settings json found in the spectrum map folder -> Using the default one")
+        self.global_settings = self.global_settings | global_settings
+        line_settings = {}
+        if os.path.exists(os.path.join(folder,'line_settings.json')):
+            with open(os.path.join(folder,'line_settings.json')) as file:
+                line_settings = json.load(file)
+        else:
+            LOGGER.warn("No line settings json found in the spectrum map folder -> Using the default one")
+        self.line_settings = self.line_settings | line_settings
+        output_settings = {}
+        if os.path.exists(os.path.join(folder,'output_settings.json')):
+            with open(os.path.join(folder,'output_settings.json')) as file:
+                output_settings = json.load(file)
+        else:
+            LOGGER.warn("No output settings json found in the spectrum map folder -> Using the default one")
+        self.output_settings = self.output_settings | output_settings
+
+        return self
+                
+    def save(self, name=None, replace=True):
+        if(not(name is None)):
+            self.name = name
+        if self.map is None:
+            LOGGER.error("Can't save a map when there is nothing in it.")
+            return None
+        if not(os.path.exists(SPECTRA_FOLDER)):
+            os.mkdir(SPECTRA_FOLDER)
+        folder = os.path.join(SPECTRA_FOLDER, name)
+        if os.path.exists(folder):
+            if replace:
+                LOGGER.warn(f"A previous spectrum map named similar was removed.")
+                shutil.rmtree(folder)
+            else:
+                LOGGER.error(f"Can't save spectrum map {self.name} because there is already a spectrum map called this way and replace is set to False")
+                return None
+        if not(os.path.exists(folder)):
+            os.mkdir(folder)
+
+        spectra_folder = os.path.join(folder, "spectra")
+        os.mkdir(spectra_folder)
+        for x in self.map:
+            for s in x:
+                s.save(folder=spectra_folder, log=False)
+
+        with open(os.path.join(folder,'global_settings.json'), 'w') as file:
+            json.dump(self.global_settings, file, indent=4)
+        with open(os.path.join(folder,'line_settings.json'), 'w') as file:
+            json.dump(self.line_settings, file, indent=4)
+        with open(os.path.join(folder,'output_settings.json'), 'w') as file:
+            json.dump(self.output_settings, file, indent=4)
+
+        LOGGER.log(f"Spectrum map {self.name} saved.")
+
+    def getIntegratedIntensity(self):
+        return np.sum(self.getFlattenIntensity(), axis=2)
+
+    def getFlattenIntensity(self):
+        if self.map is None:
+            LOGGER.error("Can't flatten the intensity map if there is no map.")
+            return self.map
+        flatten_intensity = []
+        for x in range(len(self.map)):
+            flatten_intensity.append([])
+            for y in range(len(self.map[x])):
+                flatten_intensity[x].append(self.map[x][y].spectrum)
+        flatten_intensity = np.array(flatten_intensity)
+
+    def compute(self, simulation=None, axis=None, force_compute=False):
+
+        LOGGER.global_color = LOGGER._init_gc
+        LOGGER.border("Spectrum-Computing", level=1)
+
+        if not(self.map is None) and not(force_compute):
+            LOGGER.log("Intensity is already computed, use force_compute=True to recompute the map")
+            return self.map
+
+        if simulation is None:
+            if "simulation_name" in self.global_settings and not(self.global_settings["simulation_name"] is None):
+                LOGGER.warn("Simulation is loaded using the settings, this can give an error if the simulation can't be opened by the easy way.")
+                from objects.Simulation_DC import Simulation_DC
+                simulation = Simulation_DC(name=self.global_settings["simulation_name"], global_size=66.0948, init=False)
+                simulation.init(loadTemp=True,loadVel=True)
+            else:
+                LOGGER.error(f"Can't compute spectrum map because there is no simulation specified.")
+                return None
+            
+        if axis is None:
+            LOGGER.warn("Axis is not defined, setting it to 0 (face XY)")
+            axis = 0
+
+        LOGGER.log(f"Computing spectrum map for simulation {simulation.name} and for face/axis: {axis}")
+
+        def _compute_function(simulation, position, direction, last_step, spectra_object):
+            temperature = simulation.data_temp[position[0],position[1],position[2]]
+
+            line_settings = spectra_object.line_settings
+            global_settings = spectra_object.global_settings
+            output_settings = spectra_object.output_settings
+
+            g_l = 2*line_settings["l"]+1
+            g_u = 2*line_settings["u"]+1
+
+            V = output_settings["v_function"](output_settings["lsr_velocity"],output_settings["velocity_channels"],output_settings["velocity_resolution"])
+
+            def _get_velocity(pos):
+                if not(all(0 <= pos[i] < simulation.nres for i in range(len(pos)))):
+                    return _get_velocity(position)[0], False
+                v = np.array([simulation.data_vel[0][pos[0],pos[1],pos[2]],simulation.data_vel[1][pos[0],pos[1],pos[2]],simulation.data_vel[2][pos[0],pos[1],pos[2]]])
+                return np.dot(v,direction)*1e3, True
+
+            density = simulation.data[position[0],position[1],position[2]]
+            velocity, _ = _get_velocity(position)
+
+            if not("intensity_spectrum" in last_step):
+                intensity_spectrum = BLACKBODY_EMISSION((V/LIGHT_SPEED+1)*line_settings["frequency"],CMB_TEMPERATURE)
+            else:
+                intensity_spectrum = last_step["intensity_spectrum"]
+
+            if density < global_settings["density_threshold"]:
+                return {"intensity_spectrum": intensity_spectrum}
+
+
+            sigma_doppler = 0.08*1e3*np.sqrt(temperature/20)
+            sigma_turb = 0
+            if global_settings["with_turbulence"]:
+                vm1,fm1 = _get_velocity((position-direction).astype(int))
+                vp1,fp1 = _get_velocity((position+direction).astype(int))
+                sigma_turb = 0.5*(vp1-vm1) if fm1 and fp1 else vp1-vm1
+            sigma = np.sqrt(sigma_doppler**2 + sigma_turb**2)
+
+            #TODO Change the fct partition approximation, this is an approximation valid just to CO J=1-0
+            low_density_col = 1e4*simulation.cell_size.value*density*line_settings["abundance"]*g_l*np.exp(-line_settings["temp_low"]/(temperature))/(1/3+2*temperature/5.5)
+            tau0 = LIGHT_SPEED**3/(8*np.pi*line_settings["frequency"]**3)*line_settings["estein_emission"] * g_u/g_l * (1-np.exp(-line_settings["temperature"]/temperature)) * low_density_col
+            tau = tau0 * GAUSSIAN(V-velocity,sigma)
+
+            tau_exp = np.exp(-tau)
+            intensity_spectrum = intensity_spectrum*tau_exp+BLACKBODY_EMISSION(nu=line_settings["frequency"],T=temperature)*(1-tau_exp) 
+
+            result = {
+                "intensity_spectrum": intensity_spectrum,
+            }
+            return result
+        results = ray_mapping(simulation, lambda simulation,position,direction,last_step: _compute_function(simulation,position,direction,last_step,self), axis=axis, region=[0,-1,0,-1])
+        
+        intensity_map = []
+        for i in range(len(results)):
+            intensity_map.append([])
+            for j in range(len(results[i])):
+                intensity_map[i].append(results[i][j]["intensity_spectrum"])
+        V = self.output_settings["v_function"](self.output_settings["lsr_velocity"],self.output_settings["velocity_channels"],self.output_settings["velocity_resolution"])
+        intensity_map = intensity_map-BLACKBODY_EMISSION(((V)/LIGHT_SPEED+1)*self.line_settings["frequency"],CMB_TEMPERATURE)
+        intensity_map = np.array(intensity_map)
+        intensity_map = CONVERT_INTENSITY_TO_KELVIN(intensity_map,self.line_settings["frequency"])
+        
+
+        formatted_intensity_map = []
+        for x in range(len(intensity_map)):
+            formatted_intensity_map.append([])
+            for y in range(len(intensity_map[x])):
+                spectrum = intensity_map[x,y]
+                s_name = f'x{x}_y{y}'
+                S = Spectrum(name=s_name, spectrum=spectrum)
+                formatted_intensity_map[x].append(S)
+
+        intensity_map = formatted_intensity_map
+        self.map = intensity_map
+
+        self.save()
+
+        LOGGER.border("", level=1)
+        LOGGER.reset()
+
+        return intensity_map
+    
+    def plotChannelMap(self, intensity_map, simulation=None, slice=None, mean_mod=False, ax=None, norm=None, enable_slider=True):
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        velocity_channels = self.output_settings["velocity_channels"]
+        if slice is None:
+            slice = int(velocity_channels/2)
+
+        if mean_mod:
+            I = np.sum(intensity_map,axis=2)
+            im = ax.imshow(I/velocity_channels,extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]] , cmap="jet", norm=LogNorm() if norm is None else norm)
+        else:
+            im = ax.imshow(intensity_map[:,:,slice],extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="viridis")
+        plt.colorbar(im, label="Intensity (K)")
+        ax.set_xlabel(r"$x_1$ [pc]")
+        ax.set_ylabel(r"$x_2$ [pc]")
+        ax.legend()
+
+        if not(mean_mod) and enable_slider:
+            ax_slider = plt.axes([0.2, 0.05, 0.6, 0.03])
+            slider = Slider(ax_slider, 'Slice', 0, intensity_map.shape[2] - 1, valinit=slice, valfmt='%0.0f')
+
+            def update_slice(val):
+                slice_idx = int(slider.val)
+                im.set_data(intensity_map[:,:,slice_idx])
+                fig.canvas.draw_idle()
+
+            slider.on_changed(update_slice)
+
+        return fig, ax

@@ -500,8 +500,8 @@ class Trainer():
         if not(os.path.exists(MODEL_FOLDER)):
             os.mkdir(MODEL_FOLDER)
 
-        while os.path.exists(os.path.join(MODEL_FOLDER,self.model_name)):
-            self.model_name = str(uuid.uuid4())
+        #while os.path.exists(os.path.join(MODEL_FOLDER,self.model_name)):
+        #    self.model_name = str(uuid.uuid4())
 
         model_path = os.path.join(MODEL_FOLDER,self.model_name.rsplit("_epoch",1)[0])
         if is_cache:
@@ -551,7 +551,7 @@ class Trainer():
         with open(os.path.join(model_path,'settings.json'), 'w') as file:
             json.dump(settings, file, indent=4)
 
-        LOGGER.log(f"{self.model_name} saved")
+        LOGGER.log(f"{self.model_name} saved.")
 
         return True
 
@@ -874,42 +874,39 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_main_downsampled")
+    ds = getDataset("batch_highres")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[64,64], methods=["crop","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
     #ds1.save()
     #ds2.save()
 
-    trainer = Trainer(Test, ds1, ds2, model_name="ppv")
-    #trainer = load_trainer("UneK_HighRes")
-    trainer.network_settings["base_filters"] = 32
-    trainer.network_settings["convBlock"] = ConvBlock
-    trainer.network_settings["num_layers"] = 3
+    #trainer = Trainer(UNet, ds1, ds2, model_name="UKan")
+    trainer = load_trainer("UKan")
+    trainer.network_settings["base_filters"] = 64
+    trainer.network_settings["convBlock"] = KanConvBlock
+    trainer.network_settings["convBlock_layer"] = 2
+    trainer.network_settings["num_layers"] = 5
     #trainer.network_settings["channel_dimensions"] = [2,3]
-    #trainer.training_random_transform = True
+    trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
-    trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
+    #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
     #trainer.validation_set = ds2
-    trainer.optimizer_name = "SGD"
-    trainer.target_name = "density"
-    trainer.input_names = ["cdens", "cospectra"]
-    trainer.init()
-    trainer.train(1000,batch_number=1,compute_validation=10)
-    trainer.save()
-    trainer.plot()
-
-    """
-    trainer = load_trainer("UneK_HighRes")
-    #trainer_highres = load_trainer("Unet_highres2_t80")
-    #trainer_highres.validation_set = ds2
-    #trainer_highres.input_names = ["cdens"]
-    #trainer_highres.target_name = "vdens"
-    trainer.input_names = ["cdens"]
+    trainer.optimizer_name = "Adam"
     trainer.target_name = "vdens"
-    trainer.validation_set = ds2
+    trainer.input_names = ["cdens"]
+    #trainer.init()
+    #trainer.train(2000,batch_number=16,compute_validation=10)
+    #trainer.save()
+    #trainer.plot()
     #trainer.plot_validation()
 
+    trainer_highres = load_trainer("Unet_highres2_t80")
+    trainer_highres.validation_set = ds2
+    trainer_highres.input_names = ["cdens"]
+    trainer_highres.target_name = "vdens"
+
+    """
     trainer.plot()
     trainer.fit_baseline()
 
@@ -921,13 +918,15 @@ if __name__ == "__main__":
         reconstructed_batch.append((b[0], pred))
     trainer.prediction_batch = reconstructed_batch
     trainer.plot()
+    """
+    
 
-    #list_t = [trainer, trainer_highres]
-    #fig, _ = plot_models_accuracy(list_t, show_errors=True)
-    #fig.savefig(FIGURE_FOLDER+"unek_accuracy")
-    #fig, _ = plot_models_residuals_extended(list_t)
-    #fig.savefig(FIGURE_FOLDER+"unek_residuals")"""
+    list_t = [trainer, trainer_highres]
+    fig, _ = plot_models_accuracy(list_t, show_errors=True)
+    fig.savefig(FIGURE_FOLDER+"ukan_accuracy")
+    fig, _, _ = plot_models_residuals(list_t)
+    fig.savefig(FIGURE_FOLDER+"ukan_residuals")
 
     
   
-    plt.show()
+    #plt.show()

@@ -14,6 +14,8 @@ TRAINING_BATCH_FOLDER = os.path.join(EXPORT_FOLDER,"training_batchs")
 """Path to the training batchs"""
 MODEL_FOLDER = os.path.join(EXPORT_FOLDER,"models")
 """Path to the models folder"""
+SPECTRA_FOLDER = os.path.join(EXPORT_FOLDER,"spectra")
+"""Path to the spectra folder"""
 
 RANDOM_BATCH_SCORE_offset = 1.
 RANDOM_BATCH_SCORE_fct = lambda x: 1./(1+np.exp(-2*(x-RANDOM_BATCH_SCORE_offset)))

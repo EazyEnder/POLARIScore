@@ -21,3 +21,5 @@ CO_ROT_CST = 57.64e9
 ROT_ENERGY = lambda l,rot_cst: PLANCK_CONSTANT*rot_cst*l*(l+1)/BOLTZMANN_CONSTANT
 
 GAUSSIAN = lambda x,sigma: (1/(np.sqrt(2*np.pi)*sigma))*np.exp(-np.power(x,2)/(2*sigma**2))
+
+CONVERT_INTENSITY_TO_KELVIN = lambda I,nu: I*LIGHT_SPEED**2 / (2.*BOLTZMANN_CONSTANT*nu**2)

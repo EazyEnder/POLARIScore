@@ -11,7 +11,7 @@ from networks.nn_BaseModule import BaseModule
 
     
 class KanConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels,is3D=False):
         super(KanConvBlock, self).__init__()
         self.conv = nn.Sequential(
             FastKANConvLayer(in_channels, out_channels, kernel_size=3, padding=1),

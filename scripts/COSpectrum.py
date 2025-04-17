@@ -13,7 +13,7 @@ import uuid
 #Output settings
 VELOCITY_CHANNELS = 256
 #resolution of 1km/s * x
-VELOCITY_RESOLUTION = 1e3*0.1
+VELOCITY_RESOLUTION = 1e3*0.5
 LSR_VELOCITY = 0
 V = LSR_VELOCITY+(np.array(range(VELOCITY_CHANNELS))-VELOCITY_CHANNELS/2)*VELOCITY_RESOLUTION
 DENSITY_THRESHOLD = 300
@@ -193,17 +193,6 @@ def getSimulationSpectra(simulation):
 def getIntegratedIntensity(intensity_map):
     intensity_map = np.array(intensity_map)
     return np.sum(intensity_map, axis=2)
-
-def plot3D(data,threshold=15):
-    data = data[::4, ::4, ::4]
-    mask = data > threshold
-
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(111, projection='3d')
-    colors = plt.cm.viridis(data[mask])
-    ax.voxels(mask, edgecolors="k")
-
-    return fig, ax
 
 def script_create_spectrum(simulation, region=[254,256,254,256], name=None, axis=0):
     results = ray_mapping(simulation, compute_COSpectrum, axis=axis, region=[0,-1,0,-1])

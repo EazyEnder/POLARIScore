@@ -112,7 +112,7 @@ class AttentionBlock(nn.Module):
 
 from networks.nn_BaseModule import BaseModule
 class UNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, in_channels=1, out_channels=None,  filter_function='constant', k=2., attention = False, is3D = False):
+    def __init__(self, convBlock=ConvBlock, num_layers=4, base_filters=64, in_channels=1, out_channels=None, convBlock_layer=None, filter_function='constant', k=2., attention = False, is3D = False):
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
@@ -120,6 +120,9 @@ class UNet(BaseModule):
         self.is3D = is3D
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
+        convBlock_layer = num_layers if convBlock_layer is None else convBlock_layer
+        convBlock_layer = num_layers - convBlock_layer
+        self.convBlock_layer = convBlock_layer
 
         if filter_function == 'constant':
             filter_sizes = [int(base_filters * k**i) for i in range(num_layers+1)]
@@ -136,7 +139,10 @@ class UNet(BaseModule):
         in_channels =  self.in_channels
         for i in range(num_layers):
             out_channels = filter_sizes[i]
-            self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
+            if i >= convBlock_layer:
+                self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
+            else:
+                self.encoders.append(DoubleConvBlock(in_channels, out_channels, is3D=is3D))
             in_channels = out_channels
         out_channels = filter_sizes[-1]
 
@@ -158,7 +164,12 @@ class UNet(BaseModule):
                 self.upconvs.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
             if self.attention:
                 self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D))
-            self.decoders.append(convBlock(2*out_channels, out_channels, is3D=is3D))
+            
+            if num_layers-i >= convBlock_layer:
+                self.decoders.append(convBlock(2*out_channels, out_channels, is3D=is3D))
+
+            else:
+                self.decoders.append(DoubleConvBlock(2*out_channels, out_channels, is3D=is3D))
             in_channels = out_channels
 
         # Output layer
@@ -193,6 +204,15 @@ class UNet(BaseModule):
         return self.final_conv(x)
     
 if __name__ == "__main__":
-    model = UNet(is3D=True)
-    x = torch.randn(1, 1, 128, 128, 128)
-    print(model(x).shape)
+    #model = UNet(is3D=True)
+    #x = torch.randn(1, 1, 128, 128, 128)
+    #print(model(x).shape)
+
+    import numpy as np
+    nc = 5e4
+    nd = 3e1
+    Lc = 6e-2
+    nm = 3e2
+
+    L = Lc*(nc**2-nd**2-nm*(nc-nd))/(nd*(nm-nd))
+    print(L)
