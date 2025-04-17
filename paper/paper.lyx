@@ -678,12 +678,12 @@ n_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset
 
 \begin_layout Standard
 This density highlights high density components along the line of sight.
- One can also use the max density along the l.o.s:
+ One can also want to use the max density along the l.o.s:
  
 \begin_inset Formula $n_{\text{max}}=\text{max}(n_{i})$
 \end_inset
 
- .
+ but this is much harder .
 \end_layout
 
 \begin_layout Standard
@@ -775,7 +775,7 @@ literal "false"
 \end_inset
 
 .
- The implementation of KAN in the architecture occurs at the output convolution layer,
+ The implementation of KAN in the architecture can occurs at the output convolution layer,
  where the KAN layer replaces the classic convolution layer (named K-Net if that's the case),
  thanks to the work of X.
  Gao
@@ -797,7 +797,7 @@ literal "false"
 
  on how to implement a convolution layer using KAN.
  The implementation is done in Python using PyTorch.
- It is also possible to only use KAN convolution layers instead of the classic ones.
+ It is also possible to only use KAN convolution layers instead of the classic ones (U-Kan).
 \end_layout
 
 \begin_layout Subsection
@@ -1725,7 +1725,7 @@ name "fig:U-Net-DoubleConv"
 \end_layout
 
 \begin_layout Subsection
-U-Net with KAN parts (TODO)
+U-Net with KAN parts
 \end_layout
 
 \begin_layout Standard
@@ -1914,7 +1914,27 @@ name "fig:UneK_architecture"
 \end_layout
 
 \begin_layout Standard
+The comparison of the residuals between this modified architecture (with neuron layers 
+\begin_inset Formula $1\rightarrow10\rightarrow10\rightarrow10\rightarrow1$
+\end_inset
 
+) and the U-Net,
+ as shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:KAN-symoblic-residuals"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ highlights a slight improvement in performance:
+ the residuals are less scattered and there is reduced underestimation at high densities.
+ This improvement may either be due to the increased complexity of the model,
+ or it suggests that adding a parallel KAN layer to the standard U-Net does indeed provide a small performance boost.
 \end_layout
 
 \begin_layout Standard
@@ -1942,6 +1962,13 @@ status open
 \begin_layout Plain Layout
 KAN as a symbolic use:
  Residuals.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:KAN-symoblic-residuals"
+
+\end_inset
+
  Green is the model using KAN,
  Gray is the model using just UNet.
  
@@ -1959,6 +1986,185 @@ KAN as a symbolic use:
 
 \begin_layout Subsubsection
 KAN Layer as a replacement of convolutionnal layers
+\end_layout
+
+\begin_layout Standard
+It is possible to construct convolutional layers using KANs:
+ instead of relying on traditional ReLU activation functions,
+ a KAN convolutional layer learns its activation function,
+ for example using radial basis functions.
+ KAN convolutional layers have been shown to perform better,
+ although they come with a trade-off of slower prediction throughput and a higher number of model parameters.
+ Therefore,
+ we can replace some of the traditional convolutional layers with KAN convolutional layers.
+ Following the approach used in 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "li_u-kan_2024"
+literal "false"
+
+\end_inset
+
+,
+ we will only replace the deeper layers with KAN.
+ This architecture is named U-Kan.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/ukan_accuracy.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/ukan_residuals.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+U-Kan Accuracy and Residuals,
+ U-Kan(green and U-Net (black) 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:U-Kan_perf"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In our case,
+ for an architecture with five layers,
+ three of which use KAN convolutional layers,
+ we do not observe any improvement in performance,
+ as shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Kan_perf"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Finally,
+ we can conclude that,
+ in the case of estimating the mass-weighted number density using only the column density,
+ KAN provides little to no improvement.
+ However,
+ its symbolic capabilities are interesting and worth considering for potential future use.
 \end_layout
 
 \begin_layout Subsection
@@ -2658,7 +2864,7 @@ saxophone
 \end_inset
 
  and a mean radius near 
-\begin_inset Formula $0.03\text{pc}$
+\begin_inset Formula $r_{c}=0.03\text{pc}$
 \end_inset
 
 .
@@ -2862,9 +3068,90 @@ saxophone
  region.
  This suggests our prediction is an order of magnitude lower for the diffuse region and likely several orders lower for the saxophone region,
  where our basic model don't show any massive cores.
- This could be due to a lack of diversity in the training dataset,
+ 
+\end_layout
+
+\begin_layout Standard
+We can also perform a quick calculation to verify this.
+ Suppose there are two components along the line of sight:
+ a diffuse component with a length 
+\begin_inset Formula $L_{D}$
+\end_inset
+
+ and density 
+\begin_inset Formula $n_{D}$
+\end_inset
+
+,
+ and a massive component (the core) with a length 
+\begin_inset Formula $L_{c}=2r_{c}$
+\end_inset
+
+ and density 
+\begin_inset Formula $n_{c}$
+\end_inset
+
+.
+ Then,
+ the predicted number density 
+\begin_inset Formula $n_{M}$
+\end_inset
+
+ can be written as:
+\begin_inset Formula 
+\[
+n_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}^{2}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}{L_{D}n_{D}+L_{c}n_{c}}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can then estimate the order of magnitude of the cloud length along the line of sight  
+\begin_inset Formula $L=L_{D}+L_{C}$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+L=L_{c}\frac{n_{c}^{2}-n_{D}^{2}-n_{M}(n_{c}-n_{D})}{n_{D}(n_{M}-n_{D})}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Using the bound prestellar cores found in the Saxophone region,
+ we estimate a cloud length 
+\begin_inset Formula $L$
+\end_inset
+
+ of 
+\begin_inset Formula $10^{5}$
+\end_inset
+
+pc,
+ which is much larger than the distance to the Polaris Flare (150 pc,
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "heithausen_iram_1998"
+literal "false"
+
+\end_inset
+
+).
+ This suggests that our predicted density is indeed incorrect.
+\end_layout
+
+\begin_layout Standard
+This bad performance for this cloud could be due to a lack of diversity in the training dataset,
  i.e.,
- the absence of training data featuring a strong magnetic field and/or physical properties similar to those of the Polaris Flare cloud.
+ the absence of training data featuring a strong magnetic field and/or physical properties similar to those of the Polaris Flare cloud like for diffuse clouds.
 \end_layout
 
 \begin_layout Standard
@@ -3121,7 +3408,7 @@ Orion B
 \end_layout
 
 \begin_layout Part
-From the p-p-v space to the p-p-p space
+Multi-inputs to the volume density
 \end_layout
 
 \begin_layout Standard
@@ -3803,7 +4090,7 @@ begin{multicols}{2}
 \end_layout
 
 \begin_layout Section
-Prediction of the density maximum along the line of sight
+Archive of tested Architectures
 \end_layout
 
 \begin_layout Standard
