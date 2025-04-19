@@ -1,10 +1,12 @@
 import os
 import sys
+
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from config import LOGGER, SPECTRA_FOLDER
+from config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER
 import numpy as np
+from utils import *
 from physics_utils import *
 from objects.Raycaster import ray_mapping
 from objects.Spectrum import Spectrum, loadSpectrum
@@ -18,7 +20,7 @@ from matplotlib.widgets import Slider
 
 DEFAULT_OUTPUT_SETTINGS = {
     "velocity_channels": 256,
-    "velocity_resolution": 1e3*0.1,
+    "velocity_resolution": 1e3*0.5,
     "lsr_velocity": 0,
     "v_function": lambda lsr,chan,res: lsr+(np.array(range(chan))-chan/2)*res,
 }
@@ -56,6 +58,24 @@ class SpectrumMap():
         if load:
             self.load()
 
+    def format_map(self, map=None):
+        flag_save = map is None
+        map = self.map if map is None else map
+        formatted_intensity_map = []
+        for x in range(len(map)):
+            formatted_intensity_map.append([])
+            for y in range(len(map[x])):
+                printProgressBar(x*len(map[x])+y,len(map)*len(map[x]),prefix="Format map", length=10)
+                spectrum = map[x,y]
+                if type(spectrum) is Spectrum:
+                    return map
+                s_name = f'x{x}_y{y}'
+                S = Spectrum(name=s_name, spectrum=spectrum)
+                formatted_intensity_map[x].append(S)
+        if flag_save:
+            self.map = formatted_intensity_map
+        return formatted_intensity_map
+
     def load(self, name=None):
         name = self.name if name is None else name
         folder = os.path.join(SPECTRA_FOLDER, name)
@@ -86,8 +106,10 @@ class SpectrumMap():
             for y in range(max_y+1):
                 map[x].append(None)
 
-        for file in glob.glob(file_pattern):
+        search = glob.glob(file_pattern)
+        for i,file in enumerate(search):
             match = regex.search(file)
+            printProgressBar(i,len(search),prefix="Load map", length=10)
             if match:
                 x = int(match.group(1))
                 y = int(match.group(2))
@@ -120,8 +142,8 @@ class SpectrumMap():
         return self
                 
     def save(self, name=None, replace=True):
-        if(not(name is None)):
-            self.name = name
+        name = self.name if name is None else name
+        self.name = name
         if self.map is None:
             LOGGER.error("Can't save a map when there is nothing in it.")
             return None
@@ -140,8 +162,9 @@ class SpectrumMap():
 
         spectra_folder = os.path.join(folder, "spectra")
         os.mkdir(spectra_folder)
-        for x in self.map:
-            for s in x:
+        for i,x in enumerate(self.map):
+            for j,s in enumerate(x):
+                printProgressBar(x*len(map[i])+j,len(map)*len(map[i]),prefix="Save map", length=10)
                 s.save(folder=spectra_folder, log=False)
 
         with open(os.path.join(folder,'global_settings.json'), 'w') as file:
@@ -149,7 +172,11 @@ class SpectrumMap():
         with open(os.path.join(folder,'line_settings.json'), 'w') as file:
             json.dump(self.line_settings, file, indent=4)
         with open(os.path.join(folder,'output_settings.json'), 'w') as file:
+            #TODO serialize lambda function
+            fct = self.output_settings["v_function"]
+            del self.output_settings["v_function"] 
             json.dump(self.output_settings, file, indent=4)
+            self.output_settings["v_funciton"] = fct
 
         LOGGER.log(f"Spectrum map {self.name} saved.")
 
@@ -253,18 +280,8 @@ class SpectrumMap():
         intensity_map = intensity_map-BLACKBODY_EMISSION(((V)/LIGHT_SPEED+1)*self.line_settings["frequency"],CMB_TEMPERATURE)
         intensity_map = np.array(intensity_map)
         intensity_map = CONVERT_INTENSITY_TO_KELVIN(intensity_map,self.line_settings["frequency"])
-        
 
-        formatted_intensity_map = []
-        for x in range(len(intensity_map)):
-            formatted_intensity_map.append([])
-            for y in range(len(intensity_map[x])):
-                spectrum = intensity_map[x,y]
-                s_name = f'x{x}_y{y}'
-                S = Spectrum(name=s_name, spectrum=spectrum)
-                formatted_intensity_map[x].append(S)
-
-        intensity_map = formatted_intensity_map
+        intensity_map = self.format_map(map=intensity_map)
         self.map = intensity_map
 
         self.save()
@@ -274,11 +291,13 @@ class SpectrumMap():
 
         return intensity_map
     
-    def plotChannelMap(self, intensity_map, simulation=None, slice=None, mean_mod=False, ax=None, norm=None, enable_slider=True):
+    def plotChannelMap(self, simulation=None, slice=None, mean_mod=False, ax=None, norm=None, enable_slider=True):
         if ax is None:
             fig, ax = plt.subplots()
         else:
             fig = ax.figure
+
+        intensity_map = self.getFlattenIntensity()
 
         velocity_channels = self.output_settings["velocity_channels"]
         if slice is None:
@@ -306,3 +325,20 @@ class SpectrumMap():
             slider.on_changed(update_slice)
 
         return fig, ax
+    
+def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
+    LOGGER.log("Generating spectrum map using a deprecated npy map.")
+    path = os.path.join(folder,name.split(".npy")[0]+".npy")
+    if not(os.path.exists(path)):
+        LOGGER.error(f"Orphan spectrum map {name} is not found in folder: {folder}.")
+        return 
+    map = np.load(path)
+    spectrum_map = SpectrumMap(name, map=map, load=False)
+    spectrum_map.format_map()
+    spectrum_map.save()
+    return spectrum_map
+
+if __name__ == "__main__":
+    #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
+    map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_1")
+    map.plotChannelMap()
