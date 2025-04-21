@@ -40,7 +40,7 @@ DEFAULT_LINE_SETTINGS = {
 
 DEFAULT_GLOBAL_SETTINGS = {
     "density_threshold": 300,
-    "with_turbulence": True
+    "with_turbulence": True,
 }
 
 #TODO As for training sets, make this memory less by open the spectra just when it is needed
@@ -59,7 +59,6 @@ class SpectrumMap():
             self.load()
 
     def format_map(self, map=None):
-        flag_save = map is None
         map = self.map if map is None else map
         formatted_intensity_map = []
         for x in range(len(map)):
@@ -72,8 +71,6 @@ class SpectrumMap():
                 s_name = f'x{x}_y{y}'
                 S = Spectrum(name=s_name, spectrum=spectrum)
                 formatted_intensity_map[x].append(S)
-        if flag_save:
-            self.map = formatted_intensity_map
         return formatted_intensity_map
 
     def load(self, name=None):
@@ -82,41 +79,7 @@ class SpectrumMap():
         if not(os.path.exists(folder)):
             LOGGER.error(f"Can't load spectrum map {self.name} because there is no folder named this way.")
             return None
-        spectra_folder = os.path.join(folder, "spectra")
-        if not(os.path.exists(spectra_folder)):
-            LOGGER.error(f"Can't load spectrum map {self.name} because there is no spectra.")
-            return None
     
-        file_pattern = 'x*_y*.npy'
-        file_pattern = os.path.join(spectra_folder, file_pattern)
-        regex = re.compile(r'x(\d+)_y(\d+)\.npy')
-
-        max_x = 0
-        max_y = 0
-        for file in glob.glob(file_pattern):
-            match = regex.search(file)
-            if match:
-                x = int(match.group(1))
-                y = int(match.group(2))
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
-        map = []
-        for x in range(max_x+1):
-            map.append([])
-            for y in range(max_y+1):
-                map[x].append(None)
-
-        search = glob.glob(file_pattern)
-        for i,file in enumerate(search):
-            match = regex.search(file)
-            printProgressBar(i,len(search),prefix="Load map", length=10)
-            if match:
-                x = int(match.group(1))
-                y = int(match.group(2))
-                spectra = loadSpectrum("", absolute_path=file)
-                map[x][y] = spectra
-        self.map = map
-
         global_settings = {}
         if os.path.exists(os.path.join(folder,'global_settings.json')):
             with open(os.path.join(folder,'global_settings.json')) as file:
@@ -139,6 +102,13 @@ class SpectrumMap():
             LOGGER.warn("No output settings json found in the spectrum map folder -> Using the default one")
         self.output_settings = self.output_settings | output_settings
 
+
+        spectra_file = os.path.join(folder, "spectrum.npy")
+        if not(os.path.exists(spectra_file)):
+            LOGGER.error(f"Can't load spectrum map {self.name} because there is no spectrum.npy.")
+            return None
+        self.map = np.load(spectra_file, mmap_mode='r')
+
         return self
                 
     def save(self, name=None, replace=True):
@@ -160,12 +130,7 @@ class SpectrumMap():
         if not(os.path.exists(folder)):
             os.mkdir(folder)
 
-        spectra_folder = os.path.join(folder, "spectra")
-        os.mkdir(spectra_folder)
-        for i,x in enumerate(self.map):
-            for j,s in enumerate(x):
-                printProgressBar(x*len(map[i])+j,len(map)*len(map[i]),prefix="Save map", length=10)
-                s.save(folder=spectra_folder, log=False)
+        np.save(os.path.join(folder, 'spectrum.npy'), self.map)
 
         with open(os.path.join(folder,'global_settings.json'), 'w') as file:
             json.dump(self.global_settings, file, indent=4)
@@ -181,18 +146,7 @@ class SpectrumMap():
         LOGGER.log(f"Spectrum map {self.name} saved.")
 
     def getIntegratedIntensity(self):
-        return np.sum(self.getFlattenIntensity(), axis=2)
-
-    def getFlattenIntensity(self):
-        if self.map is None:
-            LOGGER.error("Can't flatten the intensity map if there is no map.")
-            return self.map
-        flatten_intensity = []
-        for x in range(len(self.map)):
-            flatten_intensity.append([])
-            for y in range(len(self.map[x])):
-                flatten_intensity[x].append(self.map[x][y].spectrum)
-        flatten_intensity = np.array(flatten_intensity)
+        return np.sum(self.map, axis=2)
 
     def compute(self, simulation=None, axis=None, force_compute=False):
 
@@ -281,8 +235,8 @@ class SpectrumMap():
         intensity_map = np.array(intensity_map)
         intensity_map = CONVERT_INTENSITY_TO_KELVIN(intensity_map,self.line_settings["frequency"])
 
-        intensity_map = self.format_map(map=intensity_map)
         self.map = intensity_map
+        self.global_settings["shape"] = intensity_map.shape
 
         self.save()
 
@@ -297,7 +251,8 @@ class SpectrumMap():
         else:
             fig = ax.figure
 
-        intensity_map = self.getFlattenIntensity()
+        intensity_map = self.map
+        
 
         velocity_channels = self.output_settings["velocity_channels"]
         if slice is None:
@@ -325,6 +280,32 @@ class SpectrumMap():
             slider.on_changed(update_slice)
 
         return fig, ax
+
+    def plot(self):
+        fig, ax = plt.subplots()
+        intensity_map = self.map
+        image = ax.imshow(self.getIntegratedIntensity())
+
+        fig2, ax2 = plt.subplots()
+        spectrum_used = Spectrum(intensity_map[255,255])
+        spectrum_used.plot(ax=ax2)
+        marker, = ax.plot([255], [255], marker='x', color='red', markersize=6, mew=2)
+
+        def onclick(event):
+            if event.inaxes == ax:
+                y = int(round(event.xdata))
+                x = int(round(event.ydata))
+                ax2.cla()
+                #data, data_fit = fit_gaussians(intensity_map[x,y,:])
+                #plot_fit(data,data_fit, ax=ax2)
+                spectrum_used = Spectrum(intensity_map[x,y])
+                spectrum_used.fit(ax=ax2)
+                #plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
+                ax2.set_title(f"Spectrum at ({x}, {y})")
+                marker.set_data([y], [x])
+                fig.canvas.draw_idle()
+                fig2.canvas.draw_idle()
+        cid = fig.canvas.mpl_connect('button_press_event', onclick)
     
 def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
     LOGGER.log("Generating spectrum map using a deprecated npy map.")
@@ -334,11 +315,12 @@ def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
         return 
     map = np.load(path)
     spectrum_map = SpectrumMap(name, map=map, load=False)
-    spectrum_map.format_map()
+    spectrum_map.global_settings["shape"] = map.shape
     spectrum_map.save()
     return spectrum_map
 
 if __name__ == "__main__":
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
     map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_1")
-    map.plotChannelMap()
+    map.plot()
+    plt.show()
