@@ -23,7 +23,6 @@ class Spectrum():
 
     def save(self,folder=None, replace=False, log=True):
         folder = CACHES_FOLDER if folder is None else folder
-        #TODO maybe bad idea
         if not(os.path.exists(folder)):
             os.mkdir(folder)
         path = os.path.join(folder,self.name+".npy")
@@ -71,24 +70,33 @@ class Spectrum():
         results = []
 
         best_score = np.inf
-        for N in range(1, max_components+1):
-            guess = []
-            for i in range(N):
-                guess.extend([max(Y)/2, X[int(len(X)/2)], np.random.uniform(1,10)])
-            
-            res = minimize(_chi_squared, guess, args=(X, Y, N), method='L-BFGS-B')
-            k = len(res.x)
-            chi2 = _chi_squared(res.x, X, Y, N)
-            score = 2.*k + chi2
-            results.append((N, res, score))
-            if score < best_score:
-                best_score = score
-                best_result = (N, res)
-            if best_score < score_threshold:
-                break
 
-        N_best, res = best_result
-        y_fit = _gaussian_sum(X, res.x, N_best)
+
+        p_res = []
+        if np.sum(Y) > 1e-5:
+            for N in range(1, max_components+1):
+                guess = []
+                for i in range(N):
+                    guess.extend([max(Y)/2, X[int(len(X)/2)], np.random.uniform(1,10)])
+                
+                res = minimize(_chi_squared, guess, args=(X, Y, N), method='L-BFGS-B')
+                k = len(res.x)
+                chi2 = _chi_squared(res.x, X, Y, N)
+                score = 2.*k + chi2
+                results.append((N, res, score))
+                if score < best_score:
+                    best_score = score
+                    best_result = (N, res)
+                if best_score < score_threshold:
+                    break
+
+            N_best, res = best_result
+            y_fit = _gaussian_sum(X, res.x, N_best)
+            p_res = res.x
+        else:
+            y_fit = X*0.
+            N_best = 0.
+            
 
         if not(ax is None):
             ax.plot(X, Y, label='Data')
@@ -96,7 +104,7 @@ class Spectrum():
             ax.legend()
             ax.set_title(f'N = {N_best}')
 
-        return (N_best, res.x)
+        return (N_best, p_res)
 
 def loadSpectrum(name, folder=None, absolute_path=None):
     folder = CACHES_FOLDER if folder is None else folder
@@ -107,3 +115,18 @@ def loadSpectrum(name, folder=None, absolute_path=None):
         LOGGER.error(f"Can't load spectrum because the file is not found: {path}")
         return 
     return Spectrum(spectrum=np.load(path))
+
+def _method_getMoment(args, m=0):
+    data = np.array(args["data"])
+    output_settings = args["output"]
+    X = output_settings["v_function"](output_settings["lsr_velocity"],output_settings["velocity_channels"],output_settings["velocity_resolution"])
+    moment = 0
+    for i,d in enumerate(data):
+        moment += np.power(X[i],m)*d
+    moment /= len(data)
+    return moment
+
+def _method_getComponentsNumber(args):
+    spectrum = Spectrum(args["data"])
+    N, _ = spectrum.fit(max_components=7)
+    return N

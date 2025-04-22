@@ -458,7 +458,7 @@ class Simulation_DC():
 
         return fig, axes
 
-    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1):
+    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1, contour_levels=0):
 
         """
         Plot correlation between the column density and the volumic density
@@ -466,6 +466,7 @@ class Simulation_DC():
         Args:
             method(function): Method to compute volumic density
             axis(int, default:-1): which face of the sim, if -1 all faces are taken
+            contour_levels(int, default:0): If instead of using color map, a contour map is used (for value > 0, levels of the contour map = this var)
         """
         fig, ax = plt.subplots(1,1)
         if axis >= 0:
@@ -475,10 +476,18 @@ class Simulation_DC():
             column_density = np.log(np.array([self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]).flatten())/np.log(10)
             volume_density = np.log(np.array([self._compute_v_density(method=method, axis=0),self._compute_v_density(method=method, axis=1),self._compute_v_density(method=method, axis=2)]).flatten())/np.log(10)
 
-        _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
+        if contour_levels > 1:
+            hist, xedges, yedges = np.histogram2d(column_density, volume_density, bins=(256, 256))
+            xcenters = 0.5 * (xedges[:-1] + xedges[1:])
+            ycenters = 0.5 * (yedges[:-1] + yedges[1:])
+            X, Y = np.meshgrid(xcenters, ycenters)
+            contour = ax.contour(X, Y, hist.T, levels=int(contour_levels), norm=LogNorm(), colors="black")
+            ax.clabel(contour, fmt=lambda x: r"$10^{{{:.0f}}}$".format(np.log10(x)), inline=True, fontsize=8)
+        else:
+            _, _,_,hist = ax.hist2d(column_density, volume_density, bins=(256,256), norm=LogNorm())
+            plt.colorbar(hist, ax=ax, label="counts")
         ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
         ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
-        plt.colorbar(hist, ax=ax, label="counts")
         fig.tight_layout()
         return fig, ax
 
@@ -554,21 +563,13 @@ def openSimulation(name_root, global_size, use_cache=True):
 if __name__ == "__main__":
     sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     sim.init(loadTemp=True,loadVel=True)
-
+    
+    #sim.plot_correlation(contour_levels=15)
     from objects.Dataset import getDataset
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_downsampled")
+    ds = getDataset("batch_highres")
+    ds.plot_correlation(contour_levels=20)
 
-    from scripts.COSpectrum import plotSpectrum
-    pair = ds.get(3)
 
-    intensity_map = pair[2]
-    column_density = pair[0]
-    density = pair[3]
-    c_density = np.sum(density, axis=2)
-
-    plotSpectrum(intensity_map, pos=(55,55),v_channels=128)
-    plt.figure()
-    plt.imshow(np.sum(intensity_map,2), norm=LogNorm())
     #plt.figure()
     #plt.imshow(column_density, norm=LogNorm())
     #plt.figure()

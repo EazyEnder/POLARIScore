@@ -9,16 +9,20 @@ class Logger():
         self.log_file = None
         self.auto_save = auto_save
         self.global_color = "32m"
+        self.print_borders = True
 
         self._init_gc = self.global_color
 
     def reset(self):
         self.global_color = self._init_gc
 
-    def print(self, message, color="0m", type="warn", level=0):
+    def print(self, message, color="0m", type=None, level=0):
         if self.level < level:
             return None
-        string = f"(\033[{color}{type.upper()}\033[0m) {message}"
+        if type is None:
+            string = message
+        else:
+            string = f"(\033[{color}{type.upper()}\033[0m) {message}"
         print(string)
         self.messages.append(string)
         if self.auto_save > 0 and len(self.messages) % self.auto_save == 0:
@@ -26,6 +30,8 @@ class Logger():
         return string
     
     def border(self, message="", color=None, level=2):
+        if not(self.print_borders):
+            return ""
         if color is None:
             color = self.global_color
         WIDTH = 30
@@ -36,6 +42,7 @@ class Logger():
         else:
             border_line = f"{dashes}{message}{dashes}"
         return self.print(f"\033[{color}{border_line}\033[0m", level=level)
+    
     def warn(self, message):
         return self.print(message, type="warn", color="33m", level=1)
     def error(self, message):

@@ -9,20 +9,22 @@ import numpy as np
 from utils import *
 from physics_utils import *
 from objects.Raycaster import ray_mapping
-from objects.Spectrum import Spectrum, loadSpectrum
+from objects.Spectrum import Spectrum
 import json
 import shutil
-import glob
-import re
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.widgets import Slider
+import multiprocessing as mp
+from functools import partial
 
+def _output_v_function(lsr,chan,res):
+    return lsr+(np.array(range(chan))-chan/2)*res
 DEFAULT_OUTPUT_SETTINGS = {
     "velocity_channels": 256,
     "velocity_resolution": 1e3*0.5,
     "lsr_velocity": 0,
-    "v_function": lambda lsr,chan,res: lsr+(np.array(range(chan))-chan/2)*res,
+    "v_function": _output_v_function,
 }
 
 #Line settings example for 12CO J=U-L
@@ -37,14 +39,26 @@ DEFAULT_LINE_SETTINGS = {
     "frequency":CO_FREQUENCY[_U-1],
     "estein_emission":CO_A[_U-1]
 }
+"""Default line settings used for generate emission map, used in basic radiative transfer equations"""
 
 DEFAULT_GLOBAL_SETTINGS = {
     "density_threshold": 300,
     "with_turbulence": True,
 }
+"""Default global settings when emission maps are generated"""
+
+#Don't use it, it is use just for multiprocessing
+def _unpack_and_call(worker_func, job):
+    return worker_func(*job)
+
+def _worker(method, y, row):
+    return (y, [method({"x": x, "y": y, "data": val["data"], "output": val["output"]}) for x, val in enumerate(row)])
 
 #TODO As for training sets, make this memory less by open the spectra just when it is needed
 class SpectrumMap():
+    """
+    Map (matrix NxN) of spectra. Each element of the matrix contains a list of values (which can be passed easily to Spectra object).
+    """
     def __init__(self, name,map=None, load=True):
 
         self.name = name
@@ -110,7 +124,7 @@ class SpectrumMap():
         self.map = np.load(spectra_file, mmap_mode='r')
 
         return self
-                
+    
     def save(self, name=None, replace=True):
         name = self.name if name is None else name
         self.name = name
@@ -146,12 +160,84 @@ class SpectrumMap():
         LOGGER.log(f"Spectrum map {self.name} saved.")
 
     def getIntegratedIntensity(self):
+        """
+        Returns:
+            map: Map with the sum of the spectra
+        """
         return np.sum(self.map, axis=2)
+    
+    #TODO add region args
+    def compute(self, method, save=True, used_cpu=1., stride=1):
+        """
+        Compute "method" over the sprectra map, i.e each spectrum in the map is processed using method.
 
-    def compute(self, simulation=None, axis=None, force_compute=False):
-
+        Args:
+            method(function): Method to compute, need to have only one parameter: a dict with the spectrum used as the key "data".
+            save(bool, default:True): When finished, save the result as cache.
+            used_cpu(float, default:1.): percent (/100) of cpu cores used, 1.=100%, 0.= 1 core/no multiprocessing.
+            stride(int, default:1): compute with a step in the map of stride value, if =1 then all spectrum are processed.
+        Returns:
+            map: shape of self.map//stride containing the result of method
+        """
         LOGGER.global_color = LOGGER._init_gc
         LOGGER.border("Spectrum-Computing", level=1)
+        LOGGER.log(f"Compute method {method.__name__} on map")
+
+        stride = int(stride)
+
+        if used_cpu > 0.:
+            if used_cpu > 1.:
+                used_cpu = 1.
+
+            jobs = [
+            (y,[{"data": data_point, "output": self.output_settings} for data_point in self.map[y][::stride]],)
+            for y in range(0, len(self.map), stride)
+]
+            total_jobs = len(jobs)
+            results = [None] * total_jobs
+            completed = 0
+
+            with mp.Pool(int(np.ceil(mp.cpu_count()*used_cpu))) as pool:
+                worker_func = partial(_worker, method)
+                for y, row_result in pool.imap_unordered(partial(_unpack_and_call, worker_func), jobs):
+                    results[y//stride] = row_result
+                    completed += 1
+                    printProgressBar(completed, total_jobs, prefix="Computing", length=30)
+        else:
+            results = []
+            for i,y in enumerate(range(0,len(self.map),stride)):
+                results.append([])
+                for j,x in enumerate(range(0,len(self.map[y]),stride)):
+                    printProgressBar(len(self.map[y])*y+x, len(self.map[y])*len(self.map), prefix="Computing", length=30)
+                    args = {
+                        "x": x,
+                        "y": y,
+                        "data": self.map[y][x],
+                        "output": self.output_settings
+                    }
+                    r = method(args)
+                    results[i].append(r)
+                    del args
+        LOGGER.reset()
+
+        if save:
+            if not(os.path.exists(CACHES_FOLDER)):
+                os.mkdir(CACHES_FOLDER)
+            try:
+                path = os.path.join(CACHES_FOLDER, self.name+f"_{method.__name__}_cache.npy")
+                if os.path.exists(path):
+                    os.remove(path)
+                    LOGGER.warn("A previous cache for this spectrum map and method was found and removed.")
+                np.save(path,results)
+            except:
+                LOGGER.error("Can't save the result of compute operation in cache.")
+
+        return results
+
+    def generate(self, simulation=None, axis=None, force_compute=False):
+
+        LOGGER.global_color = LOGGER._init_gc
+        LOGGER.border("Spectrum-Generating", level=1)
 
         if not(self.map is None) and not(force_compute):
             LOGGER.log("Intensity is already computed, use force_compute=True to recompute the map")
@@ -308,6 +394,7 @@ class SpectrumMap():
         cid = fig.canvas.mpl_connect('button_press_event', onclick)
     
 def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
+    """Method to generate SpectrumMap object and files using the deprecated version, i.e a npy file of a list of shape N x N x channels"""
     LOGGER.log("Generating spectrum map using a deprecated npy map.")
     path = os.path.join(folder,name.split(".npy")[0]+".npy")
     if not(os.path.exists(path)):
@@ -319,8 +406,17 @@ def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
     spectrum_map.save()
     return spectrum_map
 
+from objects.Spectrum import _method_getMoment
+def _method_getMom(args):
+    return _method_getMoment(args, m=0)
+
 if __name__ == "__main__":
+
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
+    #map = SpectrumMap(name="spectrum_highresspec_0")
     map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_1")
-    map.plot()
+    result = map.compute(_method_getMom, stride=1, used_cpu=1)
+    result = np.array(result)
+    plt.imshow(result)
+    #map.plot()
     plt.show()

@@ -226,28 +226,37 @@ class Dataset():
 
         return True
     
-    def plot_correlation(self, X_i=0, Y_i=1, ax=None, bins_number=256, show_yx = False):
+    def plot_correlation(self, X_i=0, Y_i=1, ax=None, bins_number=256, show_yx = False, method=np.log10, contour_levels=0):
         if ax is None:
             fig, ax = plt.subplots()
         else:
             fig = ax.figure
         batch = self.get()
-        #from scripts.COSpectrum import getIntegratedIntensity
-        c1 = np.array([np.log(b[X_i])/np.log(10) for b in batch]).flatten()
-        c2 = np.array([np.log(b[Y_i])/np.log(10) for b in batch]).flatten()
+        c1 = np.array([method(b[X_i]) for b in batch]).flatten()
+        c2 = np.array([method(b[Y_i]) for b in batch]).flatten()
 
         nan_indices = np.isnan(c1) | np.isnan(c2)
         good_indices = ~nan_indices
         c1= c1[good_indices]
         c2 = c2[good_indices]
 
-        _, _, _,hist = ax.hist2d(c1, c2, bins=(bins_number,bins_number), norm=LogNorm())
+        if contour_levels > 1:
+            hist, xedges, yedges = np.histogram2d(c1, c2, bins=(bins_number, bins_number))
+            xcenters = 0.5 * (xedges[:-1] + xedges[1:])
+            ycenters = 0.5 * (yedges[:-1] + yedges[1:])
+            X, Y = np.meshgrid(xcenters, ycenters)
+            contour = ax.contour(X, Y, hist.T, levels=int(contour_levels), norm=LogNorm(), colors="black")
+            ax.clabel(contour, fmt=lambda x: r"$10^{{{:.0f}}}$".format(np.log10(x)), inline=True, fontsize=8)
+        else:
+            _, _, _,hist = ax.hist2d(c1, c2, bins=(bins_number,bins_number), norm=LogNorm())
+            plt.colorbar(hist, ax=ax, label="counts")
+        
+        
         if show_yx:
             yx = np.linspace(np.min(c1), np.max(c1), 10)
             plt.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
             plt.legend()
 
-        plt.colorbar(hist, ax=ax, label="counts")
         plt.legend()
         fig.tight_layout()
 
