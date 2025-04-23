@@ -127,7 +127,14 @@ target "https://github.com/EazyEnder/KANion"
  (private for now)
 \end_layout
 
-\begin_layout Abstract
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset CommandInset toc
 LatexCommand tableofcontents
 
@@ -136,8 +143,55 @@ LatexCommand tableofcontents
 
 \end_layout
 
-\begin_layout Abstract
+\begin_layout Standard
 \begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Introduction
+\end_layout
+
+\begin_layout Itemize
+Molecular clouds -> Star forming regions,
+ IMF,
+ DCF
+\end_layout
+
+\begin_layout Itemize
+Turbulence -> base,
+ forcing effect
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
 \end_inset
 
 
@@ -410,7 +464,18 @@ literal "false"
 .
  These simulations model MHD turbulence and have a size of 66.1 pc with an initial resolution of 0.01 pc,
  reaching a few hundred AU using an AMR grid.
- (Add details of the simu) However,
+ The simulations were performed using RAMSES 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "teyssier_cosmological_2002"
+literal "false"
+
+\end_inset
+
+,
+ with self-gravity applied,
+ star-formation treated using Lagrangian sink particles and ideal MHD resolved and no chemistry.
+ However,
  to facilitate data manipulation,
  an initial approach consists of using a 
 \begin_inset Formula $512^{3}$
@@ -3411,6 +3476,47 @@ Orion B
 Multi-inputs to the volume density
 \end_layout
 
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Subsection
+Goals
+\end_layout
+
+\begin_layout Section
+Methods
+\end_layout
+
+\begin_layout Subsection
+Emission maps
+\end_layout
+
+\begin_layout Subsection
+Architectures
+\end_layout
+
+\begin_layout Section
+Performance
+\end_layout
+
+\begin_layout Part
+{Name}:
+ New Open tool for creating neural networks for science purposes
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Section
+Showcase
+\end_layout
+
+\begin_layout Section
+Conclusion
+\end_layout
+
 \begin_layout Standard
 \begin_inset Newpage newpage
 \end_inset
@@ -4091,6 +4197,57 @@ begin{multicols}{2}
 
 \begin_layout Section
 Archive of tested Architectures
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Residuals Correction Tool
+\end_layout
+
+\begin_layout Subsection
+Method
+\end_layout
+
+\begin_layout Subsection
+Results
 \end_layout
 
 \begin_layout Standard
