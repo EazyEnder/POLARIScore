@@ -10,9 +10,12 @@ import torch.nn.functional as F
 from networks.nn_UNet import ConvBlock, AttentionBlock
 from networks.nn_BaseModule import BaseModule
 import numpy as np
+from kan import KAN
+from networks.utils.fastkanconv import FastKANConvLayer
+from networks.nn_KNet import JustKAN
 
 class MultiNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2] , num_layers=4, base_filters=64, attention = False, is3D=None):
+    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2] , num_layers=3, base_filters=32, attention = False, is3D=None):
         super(MultiNet, self).__init__()
 
         self.num_channels = len(channel_dimensions) if type(channel_dimensions) is list else 1
@@ -28,26 +31,29 @@ class MultiNet(BaseModule):
         filter_sizes = [int(base_filters * 2**i) for i in range(num_layers+1)]
 
         self.pool2D = nn.MaxPool2d(2, 2)
-        self.pool3D = nn.MaxPool3d(2,2)
+        self.pool3D = nn.MaxPool3d(2, 2)
 
         #Channels Encoder
         self.channels_encoder = nn.ModuleList()
-        self.channels_catconv = nn.ModuleList()
-        for is3D in channel_is3D: 
+        self.channels_merger = nn.ModuleList()
+        #self.channels_merger.append(JustKAN(in_channels=self.num_channels, out_channels=1))
+        self.channels_merger.append(FastKANConvLayer(in_channels=self.num_channels, out_channels=1, kernel_size=1))
+        for j,is3D in enumerate(channel_is3D): 
             encoders = nn.ModuleList()
-            catconvs = nn.ModuleList()
-
             in_channels = 1
-            catconvs.append(convBlock(2, 1, is3D=self.is3D))
             for i in range(num_layers):
                 out_channels = filter_sizes[i]
                 encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
-                catconvs.append(convBlock(2*out_channels, out_channels, is3D=self.is3D))
-
+                
+                if j == 0:
+                    #k = JustKAN(in_channels=(self.num_channels+1)*out_channels, out_channels=out_channels)
+                    k = FastKANConvLayer(in_channels=(self.num_channels+1)*out_channels, out_channels=out_channels, kernel_size=1)
+                    self.channels_merger.append(k)
+                
                 in_channels = out_channels
 
             self.channels_encoder.append(encoders)
-            self.channels_catconv.append(catconvs)
+
 
         #Main Encoder
         self.encoders = nn.ModuleList()
@@ -98,11 +104,12 @@ class MultiNet(BaseModule):
             return len(t.shape) > 4
         def _convertTo3D(t):
             if not self.is3D:
+                if _is3D(t):
+                    return torch.sum(t, dim=-1)
                 return t
             if not _is3D(t):
                 t = t.unsqueeze(-1)
                 t = t.expand(-1,-1,-1, -1, t.shape[-2])
-                t = t.permute(0, 1, 4, 2, 3)
             elif t.shape[-1] != t.shape[-3]:
                 t = torch.nn.functional.pad(t, (0, t.shape[-2] - t.shape[-1]))
             return t
@@ -112,31 +119,27 @@ class MultiNet(BaseModule):
         for i in range(C):
             xc = channels[i]
             channels_features.append([])
+            if _is3D(xc) and self.channel_dimensions[i] == 2:
+                xc = _convertTo3D(xc)
             for j in range(self.num_layers):
                 xc = self.channels_encoder[i][j](xc)
                 channels_features[i].append(xc)
                 xc = self.pool3D(xc) if _is3D(xc) else self.pool2D(xc)
+        channels_features = list(map(list, zip(*channels_features)))
 
         #Multi Encoder
         enc_features = []
 
-        x = channels[0]
-        x = _convertTo3D(x)
-
-        for i in range(1,C):
-            xc = channels[i]
-            xc = _convertTo3D(xc)
-            x = torch.cat([x, xc], dim=1)
-            x = self.channels_catconv[i][0](x)
+        x = torch.cat([_convertTo3D(c) for c in channels], dim=1)
+        x = self.channels_merger[0](x)
 
         for i in range(self.num_layers):
             x = self.encoders[i](x)
             x = _convertTo3D(x)
-            for j in range(0,C):
-                xc = channels_features[j][i]
-                xc = _convertTo3D(xc)
-                x = torch.cat([x, xc], dim=1)
-                x = self.channels_catconv[j][i+1](x)
+            l = [x]
+            l.extend([_convertTo3D(c) for c in channels_features[i]])
+            x = torch.cat(l, dim=1)
+            x = self.channels_merger[i+1](x)
             enc_features.append(x)
             x = self.pool3D(x) if self.is3D else self.pool2D(x)
         
@@ -153,7 +156,7 @@ class MultiNet(BaseModule):
         
         # Output
         f_x = self.final_conv(x)
-        return f_x.permute(0, 1, 3, 4, 2) if self.is3D else f_x
+        return f_x if self.is3D else f_x
     
     def shape_data(self, batch, target_index=3, input_indexes=[0,2]):
         input_tensors = []
@@ -166,8 +169,6 @@ class MultiNet(BaseModule):
             if i == target_index:
                 continue
             xi = self.shape_image(np.array([b[i] for b in batch])).to(self.device)
-            if len(xi.shape) > 4:
-                xi = xi.permute(0, 1, 4, 2, 3)
             input_tensors.append(xi)
 
         target_tensor = self.shape_image(np.array([b[target_index] for b in batch]))
@@ -175,6 +176,7 @@ class MultiNet(BaseModule):
     
 if __name__ == "__main__":
     model = MultiNet(channel_dimensions=[2,3])
-    x = torch.randn(1, 1, 128, 128)
-    y = torch.randn(1, 1, 128, 128, 128)
+    model.cuda()
+    x = torch.randn(1, 1, 128, 128).cuda()
+    y = torch.randn(1, 1, 128, 128, 32).cuda()
     print(model(x,y).shape)

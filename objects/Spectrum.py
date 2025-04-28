@@ -43,6 +43,16 @@ class Spectrum():
         channels = np.arange(len(self.spectrum)) if channels is None else channels
         ax.plot(channels,self.spectrum)
         return fig, ax
+    
+    def getX(self, output_settings):
+        if output_settings is None:
+            LOGGER.error("Can't get x axis of spectrum because there is no output settings")
+            return
+        for key in ["v_function","lsr_velocity","velocity_channels","velocity_resolution"]:
+            if not(key in output_settings):
+                LOGGER.error(f"Can't get x axis of spectrum because there is no key {key} in output settings")
+                return
+        return output_settings["v_function"](output_settings["lsr_velocity"],output_settings["velocity_channels"],output_settings["velocity_resolution"])
 
     def get_derivatives(self, force_compute=False):
         if self.derivatives[0] is None or force_compute:
@@ -99,7 +109,6 @@ class Spectrum():
             
 
         if not(ax is None):
-            ax.plot(X, Y, label='Data')
             ax.plot(X, y_fit, 'r-', label=f'Fit (N={N_best})')
             ax.legend()
             ax.set_title(f'N = {N_best}')

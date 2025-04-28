@@ -22,7 +22,7 @@ def _output_v_function(lsr,chan,res):
     return lsr+(np.array(range(chan))-chan/2)*res
 DEFAULT_OUTPUT_SETTINGS = {
     "velocity_channels": 256,
-    "velocity_resolution": 1e3*0.5,
+    "velocity_resolution": 1e3*0.1,
     "lsr_velocity": 0,
     "v_function": _output_v_function,
 }
@@ -33,7 +33,7 @@ _U = 1
 DEFAULT_LINE_SETTINGS = {
     "l":_L,
     "u":_U,
-    "abundance":CO_ABUNDANCE,
+    "abundance":CO_ABUNDANCE/70,
     "temp_low":ROT_ENERGY(_L,CO_ROT_CST),
     "temperature":ROT_ENERGY(_U,CO_ROT_CST)-ROT_ENERGY(_L,CO_ROT_CST),
     "frequency":CO_FREQUENCY[_U-1],
@@ -155,7 +155,7 @@ class SpectrumMap():
             fct = self.output_settings["v_function"]
             del self.output_settings["v_function"] 
             json.dump(self.output_settings, file, indent=4)
-            self.output_settings["v_funciton"] = fct
+            self.output_settings["v_function"] = fct
 
         LOGGER.log(f"Spectrum map {self.name} saved.")
 
@@ -237,7 +237,7 @@ class SpectrumMap():
     def generate(self, simulation=None, axis=None, force_compute=False):
 
         LOGGER.global_color = LOGGER._init_gc
-        LOGGER.border("Spectrum-Generating", level=1)
+        LOGGER.border("SPECTRUM-GENERATING", level=1)
 
         if not(self.map is None) and not(force_compute):
             LOGGER.log("Intensity is already computed, use force_compute=True to recompute the map")
@@ -367,7 +367,7 @@ class SpectrumMap():
 
         return fig, ax
 
-    def plot(self):
+    def plot(self, fit=False):
         fig, ax = plt.subplots()
         intensity_map = self.map
         image = ax.imshow(self.getIntegratedIntensity())
@@ -385,7 +385,9 @@ class SpectrumMap():
                 #data, data_fit = fit_gaussians(intensity_map[x,y,:])
                 #plot_fit(data,data_fit, ax=ax2)
                 spectrum_used = Spectrum(intensity_map[x,y])
-                spectrum_used.fit(ax=ax2)
+                ax2.plot(spectrum_used.getX(self.output_settings), spectrum_used.spectrum, label='Data')
+                if fit:
+                    spectrum_used.fit(ax=ax2)
                 #plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
                 ax2.set_title(f"Spectrum at ({x}, {y})")
                 marker.set_data([y], [x])
@@ -406,6 +408,18 @@ def generate_spectrummap_using_orphan(name, folder=CACHES_FOLDER):
     spectrum_map.save()
     return spectrum_map
 
+def getSimulationSpectra(simulation, name_used=None):
+
+    name = simulation.name if name_used is None else name_used
+    spectra = [SpectrumMap("spectrum_"+name+"_"+str(int(i+1))) for i in range(3)]
+    for i,s in enumerate(spectra):
+        if s.map is None:
+            LOGGER.log(f"Spectrum for face {i} doesn't exist, generating it: ")
+            s.generate(axis=i, simulation=simulation)
+            s.save()
+        spectra[i] = s.map
+    return spectra
+
 from objects.Spectrum import _method_getMoment
 def _method_getMom(args):
     return _method_getMoment(args, m=0)
@@ -414,9 +428,9 @@ if __name__ == "__main__":
 
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
     #map = SpectrumMap(name="spectrum_highresspec_0")
-    map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_1")
-    result = map.compute(_method_getMom, stride=1, used_cpu=1)
-    result = np.array(result)
-    plt.imshow(result)
-    #map.plot()
+    map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_2")
+    #result = map.compute(_method_getMom, stride=1, used_cpu=1)
+    #result = np.array(result)
+    #plt.imshow(result)
+    map.plotChannelMap()
     plt.show()

@@ -3294,7 +3294,53 @@ Polaris Flare Saxophone Region Predicted mass-weighted density;
 \end_layout
 
 \begin_layout Subsection
+Orion
+\end_layout
+
+\begin_layout Standard
+Orion is one of the most prominent nearby giant molecular clouds (GMCs) actively forming stars,
+ located at a distance of approximately 414 pc 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "menten_distance_2007"
+literal "false"
+
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Subsubsection*
 Orion A
+\end_layout
+
+\begin_layout Standard
+Orion A is a part of the Orion group.
+ It hosts a range of environments from quiescent regions to dense,
+ active star-forming sites such as the Integral Shaped Filament (ISF).
+ Using Herschel observations.
+ The Orion A cloud is notable for its complex interplay of gravity,
+ turbulence,
+ and magnetic fields,
+ driving its ongoing star formation and evolution 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "bally_overview_2008"
+literal "false"
+
+\end_inset
+
+.
+ The column density is obtained from 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "roy_changes_2013"
+literal "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -3334,6 +3380,33 @@ Orion A Column density
 \end_layout
 
 \begin_layout Standard
+Using our model,
+ shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:OrionA-Predicted"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ we found a mass-weighted number density of 
+\begin_inset Formula $n_{H,\text{diffuse}}=50cm^{-3}$
+\end_inset
+
+ for diffuse regions and a maximum of 
+\begin_inset Formula $n_{H,c}=3\times10^{5}cm^{-3}$
+\end_inset
+
+ for dense areas,
+ such as cores.
+ These results are consistent with the cloud properties of Orion A.
+\end_layout
+
+\begin_layout Standard
 \begin_inset Float figure
 placement H
 alignment document
@@ -3356,10 +3429,161 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Orion A Predicted mass-weighted density 
+Orion A Filament Predicted mass-weighted density 
 \begin_inset CommandInset label
 LatexCommand label
-name "fig:OrionA-Predicted-1"
+name "fig:OrionA-Predicted"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+Orion B
+\end_layout
+
+\begin_layout Standard
+Orion B is another nearby giant molecular cloud located situated northeast of Orion A.
+ It presents a mix of quiescent and active star-forming regions.
+ Herschel observations 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "konyves_properties_2020"
+literal "false"
+
+\end_inset
+
+ reveal a fragmented filamentary structure,
+ with star formation primarily concentrated in dense clumps.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_columndensity_NGC2023.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_volumedensity_NGC2023_cores.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion B:
+ NGC2023 & NGC2024 Column density (left) and Predicted mass-weighted density (Right).
+ The dots are the dense cores.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Orion-B:-NGC2023"
 
 \end_inset
 
@@ -3377,14 +3601,90 @@ name "fig:OrionA-Predicted-1"
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
+A mass-weighted number density of 
+\begin_inset Formula $n_{H,\text{diffuse}}=50cm^{-3}$
+\end_inset
+
+ is predicted in the more diffuse areas,
+ while the densest regions reach values up to 
+\begin_inset Formula $2\times10^{5}cm^{-3}$
+\end_inset
+
+."As shown in Figures 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Orion-B:-NGC2023"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ & 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Orion-B:-NGC2071"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ the cores identified by
+\begin_inset CommandInset citation
+LatexCommand citet
+key "konyves_properties_2020"
+literal "false"
+
+\end_inset
+
+ exhibit densities of the same order of magnitude.
+ Thus,
+ our prediction for the mass-weighted density is consistent with both the overall cloud properties and the characteristics of the derived dense cores.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
 status open
 
 \begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_volumedensity_NGC2024_cores.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
 
 
-\backslash
-end{multicols}
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion B:
+ NGC2071 & NGC2068 Predicted mass-weighted density.
+ The dots are the dense cores.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Orion-B:-NGC2071"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -3403,7 +3703,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/obs_oriona_volumedensity_zoom.jpg
+	filename figure/obs_orionb_correlation.jpg
 	width 80col%
 
 \end_inset
@@ -3415,8 +3715,14 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Orion A,
- Zoom on Predicted mass-weighted density
+Orion B Correlation for the Predicted mass-weighted density 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Orion-B-Correlation"
+
+\end_inset
+
+ 
 \end_layout
 
 \end_inset
@@ -3427,22 +3733,48 @@ Orion A,
 \end_inset
 
 
+\end_layout
+
+\begin_layout Section
+Conclusion
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-begin{multicols}{2}
-\end_layout
+In this first part,
+ we successfully reproduced the results of 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "xu_denoising_2023"
+literal "false"
 
 \end_inset
 
+(comparison on Taurus),
+ while also exploring new possibilities for the U-Net architecture,
+ including the use of the recently proposed KAN networks 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "liu_kan_2024"
+literal "false"
 
+\end_inset
+
+.
+ Using only the ORION simulation 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "ntormousi_core_2019"
+literal "false"
+
+\end_inset
+
+,
+ the model performs significantly better in predicting dense clouds,
+ consistent with the simulation’s properties.
+ As a result,
+ we obtained a good prediction of the mass-weighted average density along the line of sight for Orion.
+ However,
+ accurately predicting very locally dense regions within the diffuse areas remains challenging as shown for the Polaris Flare.
 \end_layout
 
 \begin_layout Standard
@@ -3461,10 +3793,6 @@ end{multicols}
 
 \end_layout
 
-\begin_layout Subsection
-Orion B
-\end_layout
-
 \begin_layout Standard
 \begin_inset Newpage newpage
 \end_inset
@@ -3476,12 +3804,24 @@ Orion B
 Multi-inputs to the volume density
 \end_layout
 
-\begin_layout Section
-Introduction
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
 \end_layout
 
-\begin_layout Subsection
-Goals
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
 \end_layout
 
 \begin_layout Section
@@ -3500,9 +3840,60 @@ Architectures
 Performance
 \end_layout
 
+\begin_layout Subsection
+For mass-weighted average density
+\end_layout
+
+\begin_layout Subsection
+For max density
+\end_layout
+
+\begin_layout Subsection
+For structure reconstruction
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
 \begin_layout Part
-{Name}:
+Polaris :
  New Open tool for creating neural networks for science purposes
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -3515,6 +3906,22 @@ Showcase
 
 \begin_layout Section
 Conclusion
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -4197,6 +4604,86 @@ begin{multicols}{2}
 
 \begin_layout Section
 Archive of tested Architectures
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Results for Aquila
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Results for Pipe Nebulae
 \end_layout
 
 \begin_layout Standard

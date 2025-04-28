@@ -10,6 +10,7 @@ from config import LOGGER
 from networks.nn_BaseModule import BaseModule
 from networks.nn_UNet import UNet, AttentionBlock
 import numpy as np
+from networks.nn_KNet import JustKAN
 
 class PPV(BaseModule):
     def __init__(self, **kwargs):
@@ -21,11 +22,10 @@ class PPV(BaseModule):
         self.unet2d_moment_2 = UNet(**kwargs, is3D=False)
 
         self.velocity_projection = nn.Conv2d(128,1, kernel_size=1)
-        #self.velocity_unet = UNet(**kwargs, is3D=False)
 
         #self.unet2d_final = UNet(**kwargs, is3D=False, in_channels=5, out_channels=1)
 
-        self.tile_channels = nn.Conv2d(4, 1, kernel_size=1)
+        self.tile_channels = nn.Conv2d(in_channels=4, out_channels=1, kernel_size=1)
         #with torch.no_grad():
         #    self.tile_channels.weight.fill_(0.25)
          #   self.tile_channels.bias.zero_()
@@ -41,11 +41,10 @@ class PPV(BaseModule):
         B, C, H, W, V = v.shape
         device = v.device
 
-        v_axis = torch.linspace(-32, 32, V, device=device).view(1, 1, 1, 1, V)
+        v_axis = torch.linspace(-12.8, 12.8, V, device=device).view(1, 1, 1, 1, V)
         moments = self.compute_moments(v, v_axis)
 
         col_feat = F.relu(self.unet2d_col(x))
-        #vel_feat = self.velocity_unet(self.velocity_projection(v.view(B, C*V, H, W)))
         moment0_feat = F.relu(self.unet2d_moment_0(moments[0]))
         moment1_feat = F.relu(self.unet2d_moment_1(moments[1]))
         moment2_feat = F.relu(self.unet2d_moment_2(moments[2]))
@@ -61,7 +60,7 @@ class PPV(BaseModule):
         density_input_tensor = torch.from_numpy(np.log(np.array([b[input_indexes[0]] for b in batch]))).float().unsqueeze(1).to(self.device)
         velocity_input_tensor = torch.from_numpy((np.array([b[input_indexes[1]] for b in batch]))).float().unsqueeze(1).to(self.device)
         t_tensor = torch.from_numpy(np.log(np.array([b[target_index] for b in batch]))).float().unsqueeze(1).to(self.device)
-        #target_tensor = (t_tensor > 4.).float().to(self.device)
+        #target_tensor = (t_tensor > 4.0).float().to(self.device)
         return [density_input_tensor,velocity_input_tensor], t_tensor
 
 """

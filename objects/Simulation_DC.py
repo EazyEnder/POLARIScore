@@ -13,7 +13,7 @@ from training_batch import compute_img_score
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
-from scripts.COSpectrum import getSimulationSpectra
+from objects.SpectrumMap import getSimulationSpectra
 from objects.Dataset import Dataset
 from matplotlib.widgets import Slider
 
@@ -170,7 +170,7 @@ class Simulation_DC():
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
+    def generate_batch(self,name=None,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -188,7 +188,12 @@ class Simulation_DC():
             flag: if dataset was correctly generated.
         """
 
+        LOGGER.border("BATCH-GENERATING")
+
         LOGGER.log(f"Generating {number} images using simulation {self.name}.")
+
+
+
         column_density = [self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]
         volume_density = [self._compute_v_density(method, axis=0),self._compute_v_density(method, axis=1),self._compute_v_density(method, axis=2)]
 
@@ -203,8 +208,10 @@ class Simulation_DC():
         if flag_number_density:
             order.append("density")
 
+        name = self.name if name is None else name
+
         ds = Dataset()
-        ds.name = self.name
+        ds.name = name
         ds.settings = {"order": order}
 
         scores = []
@@ -561,14 +568,12 @@ def openSimulation(name_root, global_size, use_cache=True):
     return sim
 
 if __name__ == "__main__":
-    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
-    sim.init(loadTemp=True,loadVel=True)
-    
-    #sim.plot_correlation(contour_levels=15)
-    from objects.Dataset import getDataset
-    ds = getDataset("batch_highres")
-    ds.plot_correlation(contour_levels=20)
+    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    #sim.init(loadTemp=True,loadVel=True)
+    #ds = sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_mass",method=compute_mass_weighted_density,what_to_compute = {"cospectra":True,"density":True}, number = 100, force_size=128)
+    #ds.plot_correlation(contour_levels=20)
 
+    print(get_system_info())
 
     #plt.figure()
     #plt.imshow(column_density, norm=LogNorm())

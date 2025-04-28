@@ -54,7 +54,7 @@ def ray_mapping(simulation,method,axis,region=[0,-1,0,-1]):
     for ir,i in enumerate(irange):
         results.append([])
         for jr,j in enumerate(jrange):
-            printProgressBar(len(jrange)*ir+jr,len(irange)*len(jrange),prefix="Ray Mapping")
+            printProgressBar(len(jrange)*ir+jr,len(irange)*len(jrange),prefix="Ray Mapping", length=20)
 
             if axis == 0: 
                 starting_pos = [simulation.nres-1, i, j]

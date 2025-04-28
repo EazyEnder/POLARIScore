@@ -134,3 +134,60 @@ def plot_function(function, ax=None, res=100, lims=[0,1], **args):
     ax.grid(True)
     
     return fig, ax
+
+
+import platform
+try:
+    import psutil
+    psutil_available = True
+except ImportError:
+    psutil_available = False
+
+try:
+    import GPUtil
+    gputil_available = True
+except ImportError:
+    gputil_available = False
+from config import LOGGER
+def get_system_info():
+    system_info = {}
+    if not(psutil_available) or not(psutil_available):
+        LOGGER.warn("Can't get system config informations because GPUtil or psutil are not installed.")
+        return system_info
+
+    # CPU
+    system_info['CPU'] = {
+        'Processor': platform.processor(),
+        'Physical Cores': psutil.cpu_count(logical=False),
+        'Total Cores': psutil.cpu_count(logical=True),
+        'Max Frequency (MHz)': psutil.cpu_freq().max,
+        'Current Frequency (MHz)': psutil.cpu_freq().current,
+    }
+
+    # RAM
+    svmem = psutil.virtual_memory()
+    system_info['RAM'] = {
+        'Total (GB)': round(svmem.total / (1024 ** 3), 2),
+    }
+
+    # GPU
+    gpus = GPUtil.getGPUs()
+    gpu_info = []
+    for gpu in gpus:
+        gpu_info.append({
+            'Name': gpu.name,
+            'Memory Total (MB)': gpu.memoryTotal,
+            'Driver Version': gpu.driver,
+        })
+    system_info['GPU'] = gpu_info if gpu_info else 'No GPU Found'
+
+    # System
+    system_info['System'] = {
+        'System': platform.system(),
+        'Node Name': platform.node(),
+        'Release': platform.release(),
+        'Version': platform.version(),
+        'Machine': platform.machine(),
+    }
+
+    return system_info

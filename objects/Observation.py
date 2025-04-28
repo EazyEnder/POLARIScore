@@ -219,14 +219,14 @@ class Observation():
         return ax
         
     
-    def plot(self, data=None, norm=None, plotCores=False, crop=None):
-        fig = plt.figure()
+    def plot(self, data=None, norm=None, plotCores=False, crop=None, force_vol=False, force_col=False):
+        fig = plt.figure(figsize=(10,10))
         ax = plt.subplot(projection=self.wcs)
         data = self.data if data is None else data
         flag_vol_density = False
         label = r"$N_H(cm^{-2})$"
         norm = norm if not(norm is None) else LogNorm()
-        if np.nanpercentile(data,50) < 1e10:
+        if not(force_col) and (np.nanpercentile(data,50) < 1e10 or force_vol):
             flag_vol_density = True
             label=r"$n_H(cm^{-3})$"
         im = ax.imshow(data, cmap="rainbow", norm=norm)
@@ -269,22 +269,23 @@ class Observation():
         self.prediction = np.load(path) 
         return self.prediction
     
-def script_data_and_figures(name,crop=None,save_fig=False,normcol=[None,None],normvol=[None,None]):
+def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plotCores=True,normcol=[None,None],normvol=[None,None], show=True):
     obs = Observation(name, "column_density_map")
     name = name.replace("_","")
-    fig, ax = obs.plot(norm=LogNorm(vmin=normcol[0], vmax= normcol[1]),crop=crop)
+    fig, ax = obs.plot(norm=LogNorm(vmin=normcol[0], vmax= normcol[1]),plotCores=plotCores,crop=crop, force_col=True)
+    suff = '_'+suffix if not(suffix is None) else ""
     if save_fig:
-        fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_columndensity.jpg")
+        fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_columndensity{suff}.jpg")
 
     from networks.Trainer import load_trainer
     obs.load()
     if obs.prediction is None:
-        trainer = load_trainer("UneK_HighRes")
+        trainer = load_trainer("NOO")
         obs.predict(trainer,patch_size=(512,512), overlap=0.5)
         obs.save()
-    fig, ax = obs.plot(obs.prediction,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop)
+    fig, ax = obs.plot(obs.prediction,plotCores=plotCores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
     if save_fig:
-        fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity.jpg")
+        fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity{suff}.jpg")
     
     from training_batch import plot_batch_correlation
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
@@ -296,20 +297,27 @@ def script_data_and_figures(name,crop=None,save_fig=False,normcol=[None,None],no
 
     print(f"Max: {np.nanmax(obs.prediction)}, percentiles(10%,50%,90%,95%): {np.nanpercentile(obs.prediction,[10,50,90,95])}")
 
-    plt.show()
+    if show:
+        plt.show()
 
 if __name__ == "__main__":
 
-    #script_data_and_figures()
+    #Orion A cropped_region = [Angle("5h36m20s").deg, Angle("5h33m30s").deg, Angle("-6d03m").deg, Angle("-4d55").deg]
 
-    cropped_region =  None
-    script_data_and_figures("OrionA", normcol=[1e19,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region)
+    cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
+    script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
+    cropped_region = [Angle("5h42m56s").deg, Angle("5h40m28s").deg, Angle("-2d32m").deg, Angle("-1d28m").deg]
+    script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
 
-    #obs = Observation("Polaris","column_density_map")
-    #obs.plot(norm=LogNorm(vmin=11,vmax=16))
-    #obs.load()
+    """
+    obs = Observation("Polaris","column_density_map")
+    obs.plot()
+    from networks.Trainer import load_trainer
+    trainer = load_trainer("MultiNet_13CO")
+    obs.predict(trainer,patch_size=(512,512), overlap=0.5)
+    obs.save()
+    obs.plot(obs.prediction)
+    """
     #pdf = compute_pdf(obs.prediction)
     #plt.plot([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
     #plt.scatter([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
-
-    plt.show()

@@ -1,5 +1,7 @@
 import os
 import sys
+
+from config import LOGGER
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 import torch
@@ -45,15 +47,24 @@ class UneK(BaseModule):
         return self.kan
     
 class JustKAN(BaseModule):
-    def __init__(self, **kwargs):
+    def __init__(self, in_channels=1, out_channels=1):
         super(JustKAN, self).__init__()
-        self.kan = KAN(width=[1,[5,5],[5,5],[5,5],1], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kan = KAN(width=[in_channels,[5,5],[5,5],out_channels], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
     def forward(self, x):
-        B, C, H, W = x.shape
-        x_flat = x.reshape(B*C*H*W, 1)
-        x_kan = self.kan(x_flat)
-        x_kan = x_kan.reshape(B, C, H, W)
-        x = x_kan
-        return x
+        if len(x.shape) < 5:
+            B, C, H, W = x.shape
+            assert C == self.in_channels, LOGGER.error(f"KAN can't work because mismatch in channel number ({C} instead of {self.in_channels})")
+            x_flat = x.reshape(B*H*W, C)
+            x_kan = self.kan(x_flat)
+            x_kan = x_kan.reshape(B, self.out_channels, H, W)
+        else:
+            B, C, H, W, D = x.shape
+            assert C == self.in_channels, LOGGER.error("KAN can't work because mismatch in channel number")
+            x_flat = x.reshape(B*H*W*D, C)
+            x_kan = self.kan(x_flat)
+            x_kan = x_kan.reshape(B, self.out_channels, H, W, D)
+        return x_kan
 
 

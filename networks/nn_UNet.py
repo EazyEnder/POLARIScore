@@ -45,6 +45,7 @@ class DoubleConvBlock(nn.Module):
             c(out_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
             nn.ReLU(inplace=True),
+            d(p=0.05)
         )
     
     def forward(self, x):

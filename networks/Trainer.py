@@ -47,7 +47,7 @@ class Trainer():
         self.network = network
         self.network_settings ={}
 
-        self.target_name = "vdens"
+        self.target_names = "vdens"
         self.input_names = ["cdens"]
 
         self.training_random_transform = False
@@ -147,7 +147,7 @@ class Trainer():
                 used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                 if batch_number == 1:
                     used_batch = [used_batch]
-                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_name), self.training_set.get_element_index(self.input_names))
+                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_names), self.training_set.get_element_index(self.input_names))
                 if not(type(t_input) is list):
                     t_input = [t_input]
 
@@ -172,7 +172,7 @@ class Trainer():
                         used_batch = self.validation_set.get(indexes=list(range(len(self.validation_set.batch)))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                         if batch_number == 1:
                             used_batch = [used_batch]
-                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_name), self.validation_set.get_element_index(self.input_names))
+                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_names), self.validation_set.get_element_index(self.input_names))
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = self.model(*v_input_tensor)
@@ -364,7 +364,7 @@ class Trainer():
             used_batch = dataset.get(indexes=list(range(batch_size))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
             if batch_number == 1:
                 used_batch = [used_batch]
-            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_name), dataset.get_element_index(self.input_names))
+            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_names), dataset.get_element_index(self.input_names))
             if not(type(input_tensor) is list):
                 input_tensor = [input_tensor]
             output = self.model(*input_tensor)
@@ -542,8 +542,11 @@ class Trainer():
             "learning_rate": str(self.learning_rate),
             "scheduler": str(type(self.scheduler)),
             "total_epoch": str(self.last_epoch),
+            "input_names": self.input_names,
+            "target_names": self.target_names,
             "training_set": str(self.training_set.name),
             "validation_set": str(self.validation_set.name),
+            "system": get_system_info(),
             "training_losses": self.training_losses,
             "validation_losses": self.validation_losses,
         }
@@ -589,12 +592,14 @@ def load_trainer(model_name, load_model=True):
         network_settings["convBlock"] = network_convblock_options[network_settings["convBlock"]]
 
     trainer.network_type = settings["network"]
-    trainer.network_settings = settings["network_settings"] if "network_settings" in settings else {}
+    trainer.network_settings = network_settings
     trainer.network = network_options[settings["network"]]
     trainer.learning_rate = float(settings["learning_rate"])
     trainer.last_epoch = int(settings["total_epoch"])
     trainer.training_losses = settings["training_losses"]
     trainer.validation_losses = settings["validation_losses"]
+    trainer.input_names = settings["input_names"] if "input_names" in settings else ["cdens"]
+    trainer.target_names = settings["target_names"] if "target_names" in settings else (settings["target_name"] if "target_name" else"vdens")
 
     trainer.optimizer_name = settings["optimizer"]
 
@@ -843,7 +848,7 @@ def generate_model_training_map(root_name, train_batch, validation_batch, networ
         #trainer.network_settings["convBlock"] = DoubleConvBlock
         trainer.training_random_transform = True
         trainer.network_settings["attention"] = True
-        trainer.target_name = "vdens"
+        trainer.target_names = "vdens"
         trainer.input_names = ["cdens"]
         trainer.optimizer_name = "SGD"
         trainer.init()
@@ -874,37 +879,36 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_highres")
-    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[64,64], methods=["crop","mean"])
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_mass")
+    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
-    #ds1.save()
-    #ds2.save()
 
-    #trainer = Trainer(UNet, ds1, ds2, model_name="UKan")
-    trainer = load_trainer("UKan")
+    """
+    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_massweighted")
+    trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = KanConvBlock
-    trainer.network_settings["convBlock_layer"] = 2
-    trainer.network_settings["num_layers"] = 5
-    #trainer.network_settings["channel_dimensions"] = [2,3]
+    trainer.network_settings["convBlock"] = DoubleConvBlock
+    trainer.network_settings["num_layers"] = 4
+    trainer.network_settings["channel_dimensions"] = [2,2]
     trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
     #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
     #trainer.validation_set = ds2
     trainer.optimizer_name = "Adam"
-    trainer.target_name = "vdens"
-    trainer.input_names = ["cdens"]
-    #trainer.init()
-    #trainer.train(2000,batch_number=16,compute_validation=10)
-    #trainer.save()
-    #trainer.plot()
-    #trainer.plot_validation()
+    trainer.target_names = "vdens"
+    trainer.input_names = ["cdens","cospectra"]
+    trainer.init()
+    trainer.train(2000,batch_number=10,compute_validation=10)
+    trainer.save()
+    trainer.plot()
+    trainer.plot_validation()"""
 
-    trainer_highres = load_trainer("Unet_highres2_t80")
-    trainer_highres.validation_set = ds2
-    trainer_highres.input_names = ["cdens"]
-    trainer_highres.target_name = "vdens"
+    trainer = load_trainer("MultiNet_13CO_massweighted")
+    trainer2 = load_trainer("UNet_At")
+    trainer2.validation_set = ds2
+    plot_models_accuracy([trainer,trainer2], show_errors=True)
+    plot_models_residuals([trainer,trainer2])
 
     """
     trainer.plot()
@@ -919,14 +923,5 @@ if __name__ == "__main__":
     trainer.prediction_batch = reconstructed_batch
     trainer.plot()
     """
-    
-
-    list_t = [trainer, trainer_highres]
-    fig, _ = plot_models_accuracy(list_t, show_errors=True)
-    fig.savefig(FIGURE_FOLDER+"ukan_accuracy")
-    fig, _, _ = plot_models_residuals(list_t)
-    fig.savefig(FIGURE_FOLDER+"ukan_residuals")
-
-    
   
-    #plt.show()
+    plt.show()
