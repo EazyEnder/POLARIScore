@@ -15,14 +15,32 @@ from networks.utils.fastkanconv import FastKANConvLayer
 from networks.nn_KNet import JustKAN
 
 class MultiNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2] , num_layers=3, base_filters=32, attention = False, is3D=None):
+    def __init__(self, convBlock=ConvBlock, channel_dimensions=[2], channel_modes=[None] , num_layers=3, base_filters=32, attention = False, is3D=None):
         super(MultiNet, self).__init__()
 
-        self.num_channels = len(channel_dimensions) if type(channel_dimensions) is list else 1
         self.channel_dimensions = channel_dimensions if type(channel_dimensions) is list else [channel_dimensions]
         channel_is3D = []
-        for dim in self.channel_dimensions:
+        self.channel_modes = channel_modes.copy()
+        self.channel_inchannels = [1 for _ in self.channel_dimensions]
+        num_channels = 0
+        for i,dim in enumerate(self.channel_dimensions):
             channel_is3D.append(True if dim == 3 else False)
+            num_channels += 1
+            if len(self.channel_modes) >= i+1:
+                c_mode = self.channel_modes[i]
+                if c_mode is None:
+                    continue
+                if not(type(c_mode) is list or type(c_mode) is tuple):
+                    continue
+                if type(c_mode) is tuple:
+                    self.channel_modes[i] = list(c_mode)
+                    c_mode = self.channel_modes[i]
+                
+                if "proj" in c_mode[0]:
+                    self.channel_modes[i][1] = nn.Conv2d(in_channels=self.channel_modes[i][1], out_channels=1, kernel_size=1, device=self.device)
+                elif "moments" in c_mode[0]:
+                    self.channel_inchannels[i] = c_mode[1]+1
+        self.num_channels = num_channels
         self.is3D = (True if True in channel_is3D else False) if is3D is None else is3D
 
         self.num_layers = num_layers
@@ -40,7 +58,7 @@ class MultiNet(BaseModule):
         self.channels_merger.append(FastKANConvLayer(in_channels=self.num_channels, out_channels=1, kernel_size=1))
         for j,is3D in enumerate(channel_is3D): 
             encoders = nn.ModuleList()
-            in_channels = 1
+            in_channels = self.channel_inchannels[j]
             for i in range(num_layers):
                 out_channels = filter_sizes[i]
                 encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
@@ -93,6 +111,13 @@ class MultiNet(BaseModule):
         else:
             self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
 
+    def _compute_moments(self, v, v_axis=torch.linspace(-12.8, 12.8, 256, device="cuda").view(1, 1, 1, 1, 256), moments=2):
+        if moments < 0:
+            moments = 0
+        moments_list = []
+        for i in range(moments+1):
+            moments_list.append((v_axis ** i * v).sum(dim=-1) / v.shape[-1])
+        return moments_list
         
     def forward(self, *x):
 
@@ -102,9 +127,20 @@ class MultiNet(BaseModule):
 
         def _is3D(t):
             return len(t.shape) > 4
-        def _convertTo3D(t):
+        def _convertToModelDimension(t,channel_index=None,return_only_one_channel=False):
             if not self.is3D:
                 if _is3D(t):
+                    cB, cC, cH, cW, cV = t.shape
+                    if channel_index is None or len(self.channel_modes) < channel_index+1 or self.channel_modes[channel_index] is None or not(type(self.channel_modes[channel_index]) is list or type(self.channel_modes[channel_index]) is tuple):
+                        return torch.sum(t, dim=-1)
+                    channel_mode = self.channel_modes[channel_index]
+                    if "proj" in channel_mode[0]:
+                        assert cV == channel_mode[1].in_channels, LOGGER.error(f"Model can't work because you defined a channel projection on {channel_mode[1].in_channels} but the input tensor has a {cV} depth")
+                        return channel_mode[1](t.view(cB, cC*cV, cH, cW))
+                    if "moments" in channel_mode[0]:
+                        if not(return_only_one_channel):
+                            channel_momments = self._compute_moments(t,v_axis=torch.linspace(-12.8, 12.8, cV, device=self.device).view(1, 1, 1, 1, cV),moments=channel_mode[1])
+                            return torch.cat(channel_momments, dim=1)
                     return torch.sum(t, dim=-1)
                 return t
             if not _is3D(t):
@@ -120,7 +156,7 @@ class MultiNet(BaseModule):
             xc = channels[i]
             channels_features.append([])
             if _is3D(xc) and self.channel_dimensions[i] == 2:
-                xc = _convertTo3D(xc)
+                xc = _convertToModelDimension(xc, channel_index=i)
             for j in range(self.num_layers):
                 xc = self.channels_encoder[i][j](xc)
                 channels_features[i].append(xc)
@@ -130,14 +166,14 @@ class MultiNet(BaseModule):
         #Multi Encoder
         enc_features = []
 
-        x = torch.cat([_convertTo3D(c) for c in channels], dim=1)
+        x = torch.cat([_convertToModelDimension(c,channel_index=ci,return_only_one_channel=True) for ci,c in enumerate(channels)], dim=1)
         x = self.channels_merger[0](x)
 
         for i in range(self.num_layers):
             x = self.encoders[i](x)
-            x = _convertTo3D(x)
+            x = _convertToModelDimension(x)
             l = [x]
-            l.extend([_convertTo3D(c) for c in channels_features[i]])
+            l.extend([_convertToModelDimension(c) for c in channels_features[i]])
             x = torch.cat(l, dim=1)
             x = self.channels_merger[i+1](x)
             enc_features.append(x)
@@ -175,8 +211,8 @@ class MultiNet(BaseModule):
         return input_tensors, target_tensor
     
 if __name__ == "__main__":
-    model = MultiNet(channel_dimensions=[2,3])
+    model = MultiNet(channel_dimensions=[2,2], channel_modes=[None,("moments",2)])
     model.cuda()
     x = torch.randn(1, 1, 128, 128).cuda()
-    y = torch.randn(1, 1, 128, 128, 32).cuda()
+    y = torch.randn(1, 1, 128, 128, 256).cuda()
     print(model(x,y).shape)

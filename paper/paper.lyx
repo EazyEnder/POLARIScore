@@ -3877,7 +3877,7 @@ end{multicols}
 
 \begin_layout Part
 Polaris :
- New Open tool for creating neural networks for science purposes
+ In-development tool for creating neural networks for science purposes
 \end_layout
 
 \begin_layout Standard
@@ -3900,8 +3900,133 @@ begin{multicols}{2}
 Introduction
 \end_layout
 
+\begin_layout Standard
+This internship and paper first led to the development of a Python module named Polaris-Core,
+ after the cloud where predictions are the most challenging.
+ This module allows,
+ in just a few lines:
+\end_layout
+
+\begin_layout Itemize
+The creation of training datasets with the desired data,
+ including the option to generate emission maps if needed.
+\end_layout
+
+\begin_layout Itemize
+The training of CNN models.
+\end_layout
+
+\begin_layout Itemize
+The visualization of various error metrics.
+\end_layout
+
+\begin_layout Itemize
+The application of trained models to observational data.
+\end_layout
+
+\begin_layout Standard
+To further simplify and accelerate the process of model creation,
+ testing,
+ and application,
+ I initiated the development of a user interface application.
+ This way,
+ users can choose to work directly with the Python module,
+ through the interface,
+ or by combining both approaches.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/POLARIS_architecture_white.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+POLARIS Architecture
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:POLARIS-Architecture"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:POLARIS-Architecture"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,this tool is based on an architecture composed of three parts:
+\end_layout
+
+\begin_layout Itemize
+The core module (Polaris-Core):
+ responsible for training and calculations,
+ built using PyTorch for machine learning.
+\end_layout
+
+\begin_layout Itemize
+The communication code (Polaris-Routers):
+ responsible for communication between the core and the interface,
+ using FastAPI to create the communication routes.
+\end_layout
+
+\begin_layout Itemize
+The interface (Polaris-Frontend):
+ developed in JavaScript using React,
+ with Three.js for 3D rendering.
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+This tool is still under active and heavy development and has been created entirely on my own free time.
+\end_layout
+
 \begin_layout Section
 Showcase
+\end_layout
+
+\begin_layout Subsection
+Models creation
+\end_layout
+
+\begin_layout Subsection
+Clouds Viewer
 \end_layout
 
 \begin_layout Section

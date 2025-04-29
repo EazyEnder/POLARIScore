@@ -181,6 +181,8 @@ class UNet(BaseModule):
     
     def forward(self, x):
 
+        x = super().forward(x)
+
         assert (self.is3D and len(x.shape) > 4) or (not(self.is3D) and len(x.shape) < 5), LOGGER.error(f"U-Net is defined as {'3D' if self.is3D else '2D'} but input has {len(x.shape)-2} dimensions")
 
         # Encoder forward pass

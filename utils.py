@@ -5,12 +5,28 @@ def convert_pc_to_index(pc,nres,size,start=0):
     return(int(np.floor((pc-start)/(size)*nres)))
 def compute_column_density(data_cube,cell_size, axis=0):
     return np.sum(data_cube, axis=axis) * cell_size.value
-def compute_volume_weighted_density(data_cube, axis=0):
+def compute_volume_weighted_density(data_cube, axis=0, divide=False):
+    if divide:
+        data_cube = data_cube.astype(np.float32, copy=False)
+        threshold = 300
+        dense_mask = data_cube >= threshold
+        diffuse_mask = ~dense_mask
+
+        dense_count = np.sum(dense_mask, axis=axis)
+        diffuse_count = np.sum(diffuse_mask, axis=axis)
+
+        dense_mean = np.max(data_cube * dense_mask, axis=axis)
+        diffuse_mean = np.max(data_cube * diffuse_mask, axis=axis)
+
+        #dense_mean = np.divide(dense_sum, dense_count, out=np.zeros_like(dense_sum), where=dense_count != 0)
+        dense_mean += 0.01
+        #diffuse_mean = np.divide(diffuse_sum, diffuse_count, out=np.zeros_like(diffuse_sum), where=diffuse_count != 0)
+        diffuse_mean += 0.01
+
+        return [diffuse_mean, dense_mean]
     return np.sum(data_cube, axis=axis) / data_cube.shape[0]
 def compute_mass_weighted_density(data_cube, axis=0):
     return np.sum(np.power(data_cube,2), axis=axis) / np.sum(data_cube, axis= axis)
-def compute_mean_density(data_cube, axis=0):
-    return np.mean(data_cube, axis=axis)
 def compute_max_density(data_cube, axis=0):
     return np.max(data_cube, axis=axis)
 def rotate_cube(data_cube, angle, axis):

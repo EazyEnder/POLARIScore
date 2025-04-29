@@ -418,9 +418,6 @@ class Trainer():
             axes[1].axis("off")
         else:
             fig = None
-
-        #line = plt.Line2D([0.5, 0.5], [0, 1], transform=fig.transFigure, color="black", linewidth=2)
-        #fig.add_artist(line)
     
     def plot_validation_spatial_error(self,number_per_row=4,log=True):
         batch = self.get_prediction_batch()
@@ -879,22 +876,22 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_mass")
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
 
     """
-    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_massweighted")
+    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_projection")
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
     trainer.network_settings["channel_dimensions"] = [2,2]
-    trainer.training_random_transform = True
+    trainer.network_settings["channel_modes"] = [None, ("moments",2)]
+    trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     #trainer.learning_rate = 0.05
     #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
-    #trainer.validation_set = ds2
     trainer.optimizer_name = "Adam"
     trainer.target_names = "vdens"
     trainer.input_names = ["cdens","cospectra"]
@@ -902,14 +899,15 @@ if __name__ == "__main__":
     trainer.train(2000,batch_number=10,compute_validation=10)
     trainer.save()
     trainer.plot()
-    trainer.plot_validation()"""
+    trainer.plot_validation()
+    """
 
-    trainer = load_trainer("MultiNet_13CO_massweighted")
-    trainer2 = load_trainer("UNet_At")
-    trainer2.validation_set = ds2
-    plot_models_accuracy([trainer,trainer2], show_errors=True)
-    plot_models_residuals([trainer,trainer2])
-
+    trainer = load_trainer("MultiNet_13CO_moments")
+    trainer2 = load_trainer("MultiNet_13CO")
+    trainer3 = load_trainer("MultiNet_wout13CO")
+    plot_models_accuracy([trainer,trainer2,trainer3], show_errors=True)
+    plot_models_residuals([trainer,trainer2,trainer3])
+    
     """
     trainer.plot()
     trainer.fit_baseline()

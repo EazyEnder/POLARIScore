@@ -170,7 +170,7 @@ class Simulation_DC():
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,name=None,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
+    def generate_batch(self,name=None,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False,"divide_vdens":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -201,12 +201,16 @@ class Simulation_DC():
         if flag_cospectra:
             co_spectra = getSimulationSpectra(self)
         flag_number_density = what_to_compute["density"] if "density" in what_to_compute else False
+        flag_divide_vdens = what_to_compute["divide_vdens"] if "divide_vdens" in what_to_compute else False
 
         order = ["cdens","vdens"]
         if flag_cospectra:
             order.append("cospectra")
         if flag_number_density:
             order.append("density")
+        if flag_divide_vdens:
+            order.append("vdensdiffuse")
+            order.append("vdensdense")
 
         name = self.name if name is None else name
 
@@ -297,6 +301,19 @@ class Simulation_DC():
 
                 b.append(densities)
 
+            if flag_divide_vdens:
+                if not(hasattr(self, 'vdens_diff')):
+                    self.vdens_diff = [None,None,None]
+                if not(hasattr(self, 'vdens_dense')):
+                    self.vdens_dense = [None,None,None]
+
+                if self.vdens_diff[face] is None or self.vdens_dense[face] is None:
+                    diff, dense = compute_volume_weighted_density(self.data, axis=face, divide=True)
+                    self.vdens_diff[face] = diff
+                    self.vdens_dense[face] = dense
+
+                b.append(_process_img(self.vdens_diff[face],k))
+                b.append(_process_img(self.vdens_dense[face],k))
 
             score = compute_img_score(b[0],b[1])
             if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
@@ -568,15 +585,20 @@ def openSimulation(name_root, global_size, use_cache=True):
     return sim
 
 if __name__ == "__main__":
-    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
-    #sim.init(loadTemp=True,loadVel=True)
-    #ds = sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_mass",method=compute_mass_weighted_density,what_to_compute = {"cospectra":True,"density":True}, number = 100, force_size=128)
-    #ds.plot_correlation(contour_levels=20)
+    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
+    #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
+    #sim.generate_batch(name="highres_twochannels",method=compute_volume_weighted_density,what_to_compute = {"cospectra":False,"density":False,"divide_vdens":True}, number = 300, force_size=128)
+    from Dataset import getDataset
+    ds = getDataset("batch_highres_twochannels")
+    pair = ds.get(1)
+    indexes = ds.get_element_index(["vdens","vdensdiffuse","vdensdense","cdens"])
+     
+    norm = LogNorm(vmin=np.min(pair[indexes[0]]),vmax=np.max(pair[indexes[0]]))
+    plt.figure()
+    plt.imshow(pair[indexes[0]], norm= LogNorm())
+    plt.figure()
+    plt.imshow(pair[indexes[1]], norm= LogNorm())
+    plt.figure()
+    plt.imshow(pair[indexes[2]], norm= LogNorm())
 
-    print(get_system_info())
-
-    #plt.figure()
-    #plt.imshow(column_density, norm=LogNorm())
-    #plt.figure()
-    #plt.imshow(c_density, norm=LogNorm())
     plt.show()

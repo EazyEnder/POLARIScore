@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import shutil
 
-BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density"]
+BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","vdensdiffuse","vdensdense"]
 AUGMENTS = {
     "sum": lambda x: np.sum(x, dim=-1)
 }
@@ -25,7 +25,7 @@ def _open_batch(batch_name):
     imgs = [[] for _ in range(len(np.unique([int(f.split("_")[0]) for f in files])))]
     order = []
     for bc in BATCH_CAN_CONTAINS:
-        pot_files = [f for f in files if bc in f]
+        pot_files = [f for f in files if bc == f.split(".")[0].split("_")[-1]]
 
         if len(pot_files) <= 0 :
             continue
