@@ -103,12 +103,27 @@ From the column density to the volume density in molecular clouds using machine 
 \end_layout
 
 \begin_layout Author
-Zack Ribeiro
+Intern :
+ Zack Ribeiro
 \begin_inset Foot
 status open
 
 \begin_layout Plain Layout
 zackribeiro@univ-grenoble-alpes.fr
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Under the supervision of Pierre Hily-Blant
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+pierre.hily-blant@univ-grenoble-alpes.fr
 \end_layout
 
 \end_inset
@@ -3946,7 +3961,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/POLARIS_architecture_white.jpg
+	filename figure/POLARIS_architecture_black.jpg
 	width 100col%
 
 \end_inset
