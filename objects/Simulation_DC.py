@@ -482,7 +482,7 @@ class Simulation_DC():
 
         return fig, axes
 
-    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1, contour_levels=0):
+    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1, contour_levels=0, force_compute=False, lines=[0,1,2]):
 
         """
         Plot correlation between the column density and the volumic density
@@ -494,11 +494,11 @@ class Simulation_DC():
         """
         fig, ax = plt.subplots(1,1)
         if axis >= 0:
-            column_density = np.log(self._compute_c_density(axis=axis).flatten())/np.log(10)
-            volume_density = np.log(self._compute_v_density(method=method, axis=axis).flatten())/np.log(10)
+            column_density = np.log(self._compute_c_density(axis=axis,force=force_compute).flatten())/np.log(10)
+            volume_density = np.log(self._compute_v_density(method=method, axis=axis,force=force_compute).flatten())/np.log(10)
         else:
-            column_density = np.log(np.array([self._compute_c_density(axis=0),self._compute_c_density(axis=1),self._compute_c_density(axis=2)]).flatten())/np.log(10)
-            volume_density = np.log(np.array([self._compute_v_density(method=method, axis=0),self._compute_v_density(method=method, axis=1),self._compute_v_density(method=method, axis=2)]).flatten())/np.log(10)
+            column_density = np.log(np.array([self._compute_c_density(axis=0,force=force_compute),self._compute_c_density(axis=1,force=force_compute),self._compute_c_density(axis=2,force=force_compute)]).flatten())/np.log(10)
+            volume_density = np.log(np.array([self._compute_v_density(method=method, axis=0,force=force_compute),self._compute_v_density(method=method, axis=1,force=force_compute),self._compute_v_density(method=method, axis=2,force=force_compute)]).flatten())/np.log(10)
 
         if contour_levels > 1:
             hist, xedges, yedges = np.histogram2d(column_density, volume_density, bins=(256, 256))
@@ -512,6 +512,13 @@ class Simulation_DC():
             plt.colorbar(hist, ax=ax, label="counts")
         ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
         ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
+
+        ax = plt.gca()
+
+        plot_lines(column_density, volume_density, ax, lines=lines)
+
+        ax.grid(True)
+        ax.set_axisbelow(True)
         fig.tight_layout()
         return fig, ax
 
@@ -585,20 +592,24 @@ def openSimulation(name_root, global_size, use_cache=True):
     return sim
 
 if __name__ == "__main__":
-    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
+    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
     #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
+    #sim.plot_correlation(method=compute_squared_weighted_density)
+    #plt.figure()
+    sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
+    
     #sim.generate_batch(name="highres_twochannels",method=compute_volume_weighted_density,what_to_compute = {"cospectra":False,"density":False,"divide_vdens":True}, number = 300, force_size=128)
-    from Dataset import getDataset
-    ds = getDataset("batch_highres_twochannels")
-    pair = ds.get(1)
-    indexes = ds.get_element_index(["vdens","vdensdiffuse","vdensdense","cdens"])
+    #from Dataset import getDataset
+    #ds = getDataset("batch_highres_twochannels")
+    #pair = ds.get(1)
+    #indexes = ds.get_element_index(["vdens","vdensdiffuse","vdensdense","cdens"])
      
-    norm = LogNorm(vmin=np.min(pair[indexes[0]]),vmax=np.max(pair[indexes[0]]))
-    plt.figure()
-    plt.imshow(pair[indexes[0]], norm= LogNorm())
-    plt.figure()
-    plt.imshow(pair[indexes[1]], norm= LogNorm())
-    plt.figure()
-    plt.imshow(pair[indexes[2]], norm= LogNorm())
+    #norm = LogNorm(vmin=np.min(pair[indexes[0]]),vmax=np.max(pair[indexes[0]]))
+    #plt.figure()
+    #plt.imshow(pair[indexes[0]], norm= LogNorm())
+    #plt.figure()
+    #plt.imshow(pair[indexes[1]], norm= LogNorm())
+    #plt.figure()
+    #plt.imshow(pair[indexes[2]], norm= LogNorm())
 
     plt.show()

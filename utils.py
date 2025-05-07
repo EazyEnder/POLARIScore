@@ -27,6 +27,8 @@ def compute_volume_weighted_density(data_cube, axis=0, divide=False):
     return np.sum(data_cube, axis=axis) / data_cube.shape[0]
 def compute_mass_weighted_density(data_cube, axis=0):
     return np.sum(np.power(data_cube,2), axis=axis) / np.sum(data_cube, axis= axis)
+def compute_squared_weighted_density(data_cube, axis=0):
+    return np.sum(np.power(data_cube,2), axis=axis) / data_cube.shape[0]
 def compute_max_density(data_cube, axis=0):
     return np.max(data_cube, axis=axis)
 def rotate_cube(data_cube, angle, axis):
@@ -151,6 +153,21 @@ def plot_function(function, ax=None, res=100, lims=[0,1], **args):
     
     return fig, ax
 
+
+def plot_lines(x,y, ax, lines=[0,1,2]):
+    if not(lines is None):
+        axisx_length = (np.max(x)-np.min(x))
+        axisy_length = (np.max(y)-np.min(y))
+        x_corner = axisx_length*0.7+np.min(x)
+        y_corner = axisy_length*0.1+np.min(y)
+        length = axisx_length*0.2  
+        for l in lines:
+            ax.plot([x_corner, x_corner + length],
+                    [y_corner, y_corner + length*l],
+                    '--', lw=1, color="black")
+            if l != 0:
+                ax.text(x_corner + length + 0.05, y_corner + l*length, f'$x^{l}$', color='black')
+    return ax
 
 import platform
 try:

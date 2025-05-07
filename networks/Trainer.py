@@ -114,15 +114,15 @@ class Trainer():
             k = torch.randint(0, 4, (1,)).item()
             #Maybe need to change this: See if it works ! 
             tensors_input = [torch.rot90(t, k, [2, 3]) for t in tensors_input]
-            tensors_target = torch.rot90(tensors_target, k, [2, 3])
+            tensors_target = [torch.rot90(t, k, [2, 3]) for t in tensors_target]
 
             if torch.rand(1).item() > 0.5:
                 tensors_input = [torch.flip(t, [2]) for t in tensors_input]
-                tensors_target = torch.flip(tensors_target, [2])
+                tensors_target = [torch.flip(t, [2]) for t in tensors_target]
 
             if torch.rand(1).item() > 0.5:
                 tensors_input = [torch.flip(t, [3]) for t in tensors_input]
-                tensors_target = torch.flip(tensors_target, [3])
+                tensors_target = [torch.flip(t, [3]) for t in tensors_target]
 
             return tensors_input, tensors_target
 
@@ -154,7 +154,10 @@ class Trainer():
                 if self.training_random_transform:
                     t_input, t_target = _random_transform(t_input, t_target)
                 output = self.model(*t_input)
-                loss = self.loss_method(output, t_target)
+                try:
+                    loss = self.loss_method(output, t_target)
+                except:
+                    loss = self.loss_method(output, t_target[0])
                 loss.backward()
                 epoch_loss += loss.item()
             self.optimizer.step()
@@ -176,7 +179,10 @@ class Trainer():
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = self.model(*v_input_tensor)
-                        v_loss = self.loss_method(validation_output,v_target_tensor).item()
+                        try:
+                            v_loss = self.loss_method(validation_output,v_target_tensor).item()
+                        except:
+                            v_loss = self.loss_method(validation_output,v_target_tensor[0]).item()
                         val_total_loss += v_loss
                     #self.model.train()
                 val_total_loss /= minbatch_nbr if minbatch_nbr > 0 else 1
@@ -367,10 +373,12 @@ class Trainer():
             input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_names), dataset.get_element_index(self.input_names))
             if not(type(input_tensor) is list):
                 input_tensor = [input_tensor]
+            if not(type(target_tensor) is list):
+                target_tensor = [target_tensor]
             output = self.model(*input_tensor)
-            target_tensor = target_tensor.cpu().detach().numpy()
+            target_tensor = [t.cpu().detach().numpy() for t in target_tensor] 
             output = output.cpu().detach().numpy()
-            result_batch.append((*(np.exp(target_tensor[:,0])), *(np.exp(output[:,0]))))
+            result_batch.append((*(np.exp(target_tensor[0][:,0])), *(np.exp(output[:,0]))))
 
         return result_batch
     
@@ -596,7 +604,7 @@ def load_trainer(model_name, load_model=True):
     trainer.training_losses = settings["training_losses"]
     trainer.validation_losses = settings["validation_losses"]
     trainer.input_names = settings["input_names"] if "input_names" in settings else ["cdens"]
-    trainer.target_names = settings["target_names"] if "target_names" in settings else (settings["target_name"] if "target_name" else"vdens")
+    trainer.target_names = settings["target_names"] if "target_names" in settings else (settings["target_name"] if "target_name" in settings else "vdens")
 
     trainer.optimizer_name = settings["optimizer"]
 
@@ -864,6 +872,30 @@ if __name__ == "__main__":
                 loss += bin_loss
         return loss
     
+    def weighted_loss(output, target, power=1.5, beta=0.5, eps=1e-6):
+        """
+        Loss that balances low- and high-density region importance.
+
+        - power > 1: focuses on high density
+        - beta < 1: limits high-density dominance
+        """
+
+        if type(target) is list:
+            target = target[0]
+
+        # Linear-space densities for weighting
+        target_density = torch.exp(target)
+        raw_weight = (target_density + eps) ** power
+
+        # Blend raw weight with a small constant to preserve low-density learning
+        # beta controls trade-off: 0.5 = 50% attention to density-weighted error
+        weight = beta * raw_weight + (1 - beta)
+
+        # Normalize to keep loss magnitude stable
+        weight = weight / torch.mean(weight)
+
+        return torch.mean(weight * (output - target) ** 2)
+    
     def batch_loss(output, target):
         per_image_loss = torch.mean((output - target) ** 2, dim=[1, 2, 3])
         weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
@@ -876,37 +908,36 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO")
+    ds = getDataset("batch_highres")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
     ds1, ds2 = ds.split(cutoff=0.8)
 
-    """
-    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_projection")
+    trainer = Trainer(UNet, ds1, ds2, model_name="UNet_goodhighmass")
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
-    trainer.network_settings["channel_dimensions"] = [2,2]
-    trainer.network_settings["channel_modes"] = [None, ("moments",2)]
-    trainer.training_random_transform = False
+    trainer.network_settings["deeper_skips"] = True
+    #trainer.network_settings["channel_dimensions"] = [2,2]
+    #trainer.network_settings["channel_modes"] = [None, ("moments",2)]
+    trainer.training_random_transform = True
     trainer.network_settings["attention"] = True
-    #trainer.learning_rate = 0.05
-    #trainer.loss_method = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]).to("cuda"))
+    #trainer.loss_method = weighted_loss
     trainer.optimizer_name = "Adam"
     trainer.target_names = "vdens"
-    trainer.input_names = ["cdens","cospectra"]
+    trainer.input_names = ["cdens"]
     trainer.init()
-    trainer.train(2000,batch_number=10,compute_validation=10)
+    trainer.train(1500,batch_number=16,compute_validation=10)
     trainer.save()
+    trainer.plot()
+    trainer.plot_validation()
+
+    """
+    trainer = load_trainer("UNet_goodhighmass")
     trainer.plot()
     trainer.plot_validation()
     """
 
-    trainer = load_trainer("MultiNet_13CO_moments")
-    trainer2 = load_trainer("MultiNet_13CO")
-    trainer3 = load_trainer("MultiNet_wout13CO")
-    plot_models_accuracy([trainer,trainer2,trainer3], show_errors=True)
-    plot_models_residuals([trainer,trainer2,trainer3])
     
     """
     trainer.plot()

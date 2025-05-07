@@ -53,7 +53,7 @@ class Observation():
         self.wcs = WCS(f.header)
         file.close()
 
-    def predict(self, model_trainer, patch_size=(128, 128), nan_value=-1.0, overlap=0.5, downsample_factor=1, apply_baseline=True):
+    def predict(self, model_trainer, patch_size=(128, 128), nan_value=-1.0, overlap=0.5, downsample_factor=1, apply_baseline=False):
 
         input_matrix = self.data
         input_tensor = torch.tensor(input_matrix.astype(np.float32))
@@ -64,7 +64,7 @@ class Observation():
 
         downsampled_tensor = F.interpolate(input_tensor.unsqueeze(0).unsqueeze(0), 
                                        scale_factor=1.0/downsample_factor, 
-                                       mode='bilinear', align_corners=False).squeeze(0).squeeze(0)
+                                       mode='bicubic', align_corners=False).squeeze(0).squeeze(0)
 
         height, width = downsampled_tensor.shape
         patch_height, patch_width = patch_size
@@ -105,7 +105,11 @@ class Observation():
 
         return output_matrix
 
-    def getCores(self):
+    def getCores(self, force_compute=False):
+
+        if not(self.cores is None) and not(force_compute):
+            return self.cores
+
         observed_cores_path = os.path.join(self.folder, "observed_core_catalog.txt")
         if(not(os.path.exists(observed_cores_path))):
             return
@@ -168,6 +172,7 @@ class Observation():
                 pc = {
                     "name": properties[1],
                     "peak_n": float(properties[14+offset_index])*1e4,
+                    "average_n": float(properties[15+offset_index])*1e4,
                     "radius_pc": float(properties[4+offset_index])
                 }
                 derived_cores.append(pc)
@@ -217,10 +222,40 @@ class Observation():
         ax.scatter(x_pix, y_pix, s=radius/pixel_scale, facecolors=colors, edgecolors="black")
 
         return ax
+    
+    def getPredictedDensityAtCore(self):
+        if self.cores is None:
+            self.getCores()
+        if self.cores is None:
+            LOGGER.error("No cores found")
+            return None
+        if self.prediction is None:
+            LOGGER.error("No predicted density found")
+            return None
+
+        coords = SkyCoord(
+            [core["ra"] for core in self.cores],
+            [core["dec"] for core in self.cores],
+            unit="deg"
+        )
+        x_pix, y_pix = skycoord_to_pixel(coords, self.wcs)
+
+        values = []
+        for x, y in zip(x_pix, y_pix):
+            x_int, y_int = int(round(x)), int(round(y))
+            if (0 <= y_int < self.prediction.shape[0]) and (0 <= x_int < self.prediction.shape[1]):
+                values.append(self.prediction[y_int, x_int])
+            else:
+                values.append(np.nan)
+
+        for core, val in zip(self.cores, values):
+            core["data_value"] = val
+
+        return values
         
     
     def plot(self, data=None, norm=None, plotCores=False, crop=None, force_vol=False, force_col=False):
-        fig = plt.figure(figsize=(10,10))
+        fig = plt.figure()
         ax = plt.subplot(projection=self.wcs)
         data = self.data if data is None else data
         flag_vol_density = False
@@ -244,6 +279,95 @@ class Observation():
             x_min, x_max, y_min, y_max = _crop(self.wcs, crop)
             ax.set_xlim((x_min, x_max))
             ax.set_ylim((y_min, y_max))
+
+        return fig, ax
+    
+    def _get_cores_predicted_values(self, region=None, return_ncol=False):
+        predicted_densities = np.array(self.getPredictedDensityAtCore())
+        derived_densities =  np.array([c["average_n"] for c in self.getCores()])
+        mask = (~np.isnan(predicted_densities)) & (predicted_densities > 0) & (derived_densities > 0)
+        if region is not None:
+            ra_max, ra_min, dec_min, dec_max = region
+            ra = np.array([c["ra"] for c in self.getCores()])
+            dec = np.array([c["dec"] for c in self.getCores()])
+            region_mask = (ra >= ra_min) & (ra <= ra_max) & (dec >= dec_min) & (dec <= dec_max)
+            mask = mask & region_mask
+        predicted_densities = predicted_densities[mask]
+        derived_densities = derived_densities[mask]
+        predicted_densities = np.log10(predicted_densities)
+        derived_densities = np.log10(derived_densities)
+        if return_ncol:
+            column_densities = np.array([c["peak_ncol"] for c in self.getCores()])
+            column_densities = np.log10(column_densities[mask])
+            return (predicted_densities, derived_densities, column_densities)
+        return (predicted_densities, derived_densities)
+    
+    def plot_cores_hist(self, ax=None, region=None):
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        predicted_densities, derived_densities = self._get_cores_predicted_values(region=region)
+
+        ax.hist(predicted_densities, bins=10, alpha=0.5, label="Predicted Densities")
+        ax.hist(derived_densities, bins=10, alpha=0.5, label="Derived Densities")
+        
+        ax.set_xlabel("$\log_{10}(n_H) [cm^{-3}]$")
+
+        ax.legend()
+
+        return fig, ax
+    
+    def plot_cores_hist2d(self, ax=None, region=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        predicted_densities, derived_densities = self._get_cores_predicted_values(region=region)
+
+        _,_,_, hist= ax.hist2d(predicted_densities, derived_densities, bins=(10,10), norm=LogNorm())
+        plt.colorbar(hist, ax=ax, label="counts")
+
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("Derived")
+
+        return fig, ax
+    
+    def plot_cores_space(self, ax=None, region=None):
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        predicted_densities, derived_densities, column_densities = self._get_cores_predicted_values(region=region, return_ncol=True)
+
+        bins_number = 10
+        contour_levels = 10
+
+        def _plot(c1, c2, color="black", label="", linestyles="solid"):
+            hist, xedges, yedges = np.histogram2d(c1, c2, bins=(bins_number, bins_number))
+            hist = np.where(hist == 0, np.nan, hist)
+
+            xcenters = 0.5 * (xedges[:-1] + xedges[1:])
+            ycenters = 0.5 * (yedges[:-1] + yedges[1:])
+            X, Y = np.meshgrid(xcenters, ycenters)
+
+            contour = ax.contour(X, Y, hist.T, levels=contour_levels, colors=color, linestyles=linestyles, label=label)
+            #ax.clabel(contour, fmt=lambda x: r"$10^{{{:.0f}}}$".format(np.log10(x)), inline=True, fontsize=8)
+
+        _plot(column_densities, predicted_densities, linestyles="dashed", label="predicted")
+        _plot(column_densities, derived_densities, label="derived")
+
+        #ax.legend()
+
+        merged_list = [d for d in derived_densities]
+        merged_list.extend([c for c in predicted_densities])
+        plot_lines(column_densities, merged_list, ax)
+
+        #ax.grid()
 
         return fig, ax
     
@@ -280,8 +404,8 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plotCores=
     from networks.Trainer import load_trainer
     obs.load()
     if obs.prediction is None:
-        trainer = load_trainer("NOO")
-        obs.predict(trainer,patch_size=(512,512), overlap=0.5)
+        trainer = load_trainer("UNet_BatchHighRes")
+        obs.predict(trainer,patch_size=(512,512), overlap=0.5, downsample_factor=3)
         obs.save()
     fig, ax = obs.plot(obs.prediction,plotCores=plotCores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
     if save_fig:
@@ -304,20 +428,22 @@ if __name__ == "__main__":
 
     #Orion A cropped_region = [Angle("5h36m20s").deg, Angle("5h33m30s").deg, Angle("-6d03m").deg, Angle("-4d55").deg]
 
+    """ Orion B cropped_regions
     cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
     script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
     cropped_region = [Angle("5h42m56s").deg, Angle("5h40m28s").deg, Angle("-2d32m").deg, Angle("-1d28m").deg]
     script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
+    """
 
     """
-    obs = Observation("Polaris","column_density_map")
-    obs.plot()
-    from networks.Trainer import load_trainer
-    trainer = load_trainer("MultiNet_13CO")
-    obs.predict(trainer,patch_size=(512,512), overlap=0.5)
-    obs.save()
-    obs.plot(obs.prediction)
+    obs = Observation("OrionB","column_density_map")
+    #obs.plot()
+    obs.load()
+    #obs.plot(obs.prediction)
+    cropped_region = None#[Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
+    obs.plot_cores_space(region=cropped_region)
     """
-    #pdf = compute_pdf(obs.prediction)
-    #plt.plot([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
-    #plt.scatter([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
+
+    script_data_and_figures("Taurus_L1495", save_fig=False)
+
+    plt.show()
