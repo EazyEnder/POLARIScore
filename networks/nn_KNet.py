@@ -31,27 +31,37 @@ class KNet(UNet):
         
 from kan import KAN
 class UneK(BaseModule):
-    def __init__(self, **kwargs):
+    def __init__(self, multiply=False, **kwargs):
         super(UneK, self).__init__()
+        self.multiply = multiply
         self.unet = UNet(**kwargs)
-        self.kan = KAN(width=[1,10,10,1], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+        #old one is just two layers of [10] and [10]
+        self.kan = KAN(width=[1,[5,5],[5,5],[5,5],[5,5],1], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
     def forward(self, x):
         B, C, H, W = x.shape
         x_flat = x.reshape(B*C*H*W, 1)
         x_kan = self.kan(x_flat)
         x_kan = x_kan.reshape(B, C, H, W)
         x_unet = self.unet(x)
-        x = x_kan + x_unet
+        if self.multiply:
+            x = x_kan * x_unet
+        else:
+            x = x_kan + x_unet
         return x
     def getKAN(self):
-        return self.kan
+        kan = JustKAN(num_layers=4, op_per_layers=5)
+        kan.kan = self.kan
+        return kan
     
 class JustKAN(BaseModule):
-    def __init__(self, in_channels=1, out_channels=1):
+    def __init__(self, in_channels=1, out_channels=1, num_layers=2, op_per_layers=5):
         super(JustKAN, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.kan = KAN(width=[in_channels,[5,5],[5,5],out_channels], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+        width = [in_channels]
+        width.extend([[op_per_layers, op_per_layers] for n in range(num_layers)])
+        width.extend([out_channels])
+        self.kan = KAN(width=width, grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
     def forward(self, x):
         if len(x.shape) < 5:
             B, C, H, W = x.shape

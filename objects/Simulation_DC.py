@@ -435,7 +435,7 @@ class Simulation_DC():
 
                 slider.on_changed(update_slice)
 
-    def plot(self,method=compute_column_density,axis=[0],plot_pdf=False,color_bar=False):
+    def plot(self,method=compute_column_density,axis=[0],plot_pdf=False,color_bar=True,derivate=0):
         """
         Plot simulations faces with probabiliy density function
 
@@ -449,8 +449,10 @@ class Simulation_DC():
 
         densities = []
         for ax in axis:
-            densities.append(method(self.data, self.cell_size, axis=ax))
-        
+            d = method(self.data, self.cell_size, axis=ax)
+            d = compute_derivative(d, order=derivate)
+            d = np.abs(d)
+            densities.append(d)  
 
         fig, axes = plt.subplots(2 if plot_pdf else 1, len(axis), figsize=(4*len(axis), 6 if plot_pdf else 3.5))
         if len(axis) <= 1:
@@ -459,17 +461,16 @@ class Simulation_DC():
             axes = [axes]
 
         def _plot(column, data):
-            cd = axes[0][column].imshow(data, extent=[self.axis[0][0], self.axis[0][1], self.axis[1][0],self.axis[1][1]], cmap="jet", norm=LogNorm(vmin=np.min(data), vmax=np.max(data)))
-            pdf = compute_pdf(data)
+            cd = axes[0][column].imshow(data, extent=[self.axis[0][0], self.axis[0][1], self.axis[1][0],self.axis[1][1]], cmap="jet", norm=LogNorm())
             if plot_pdf:
+                pdf = compute_pdf(data)
                 axes[1][column].plot([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
                 axes[1][column].scatter([(pdf[1][i+1]+pdf[1][i])/2 for i in range(len(pdf[1])-1)],pdf[0])
                 axes[1][column].set_xlabel("s")
                 axes[1][column].set_ylabel("p")
                 axes[1][column].set_title("PDF")
-            return cd, pdf
+            return cd
 
-        # XY Projection (Top-down)
         for i,_ in enumerate(axis):
             cd = _plot(0,densities[i])
             axes[0][i].set_title("Top-Down View (XY Projection)")
@@ -592,13 +593,13 @@ def openSimulation(name_root, global_size, use_cache=True):
     return sim
 
 if __name__ == "__main__":
-    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
-    #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
-    #sim.plot_correlation(method=compute_squared_weighted_density)
+    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
+    sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
+    sim.plot(derivate=2, axis=0)
     #plt.figure()
-    sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
+    #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
     
-    #sim.generate_batch(name="highres_twochannels",method=compute_volume_weighted_density,what_to_compute = {"cospectra":False,"density":False,"divide_vdens":True}, number = 300, force_size=128)
+    #sim.generate_batch(name="highres_volumedensity_075",method=compute_volume_weighted_density,what_to_compute = {"grad_vdens":True,"std_vdens":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
     #from Dataset import getDataset
     #ds = getDataset("batch_highres_twochannels")
     #pair = ds.get(1)

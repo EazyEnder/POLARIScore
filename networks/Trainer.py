@@ -154,10 +154,15 @@ class Trainer():
                 if self.training_random_transform:
                     t_input, t_target = _random_transform(t_input, t_target)
                 output = self.model(*t_input)
+                loss = 0
                 try:
                     loss = self.loss_method(output, t_target)
                 except:
-                    loss = self.loss_method(output, t_target[0])
+                    for tt in range(len(t_target)):
+                        if type(output) is list:
+                            loss += self.loss_method(output[tt], t_target[tt])
+                        else:
+                            loss += self.loss_method(output, t_target[tt])
                 loss.backward()
                 epoch_loss += loss.item()
             self.optimizer.step()
@@ -179,10 +184,15 @@ class Trainer():
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = self.model(*v_input_tensor)
+                        v_loss = 0
                         try:
                             v_loss = self.loss_method(validation_output,v_target_tensor).item()
                         except:
-                            v_loss = self.loss_method(validation_output,v_target_tensor[0]).item()
+                            for tt in range(len(v_target_tensor)):
+                                if type(validation_output) is list:
+                                    v_loss += self.loss_method(validation_output[tt],v_target_tensor[tt]).item()
+                                else:
+                                    v_loss += self.loss_method(validation_output,v_target_tensor[tt]).item()
                         val_total_loss += v_loss
                     #self.model.train()
                 val_total_loss /= minbatch_nbr if minbatch_nbr > 0 else 1
@@ -292,11 +302,11 @@ class Trainer():
     
         return self.prediction_batch
 
-    def plot_validation(self, inter=(None,None),number_per_row=8):
+    def plot_validation(self, inter=(None,None),number_per_row=8,same_limits=True):
         """
         Show target and model prediction images
         """
-        plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=True, number_per_row=number_per_row)
+        plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=same_limits, number_per_row=number_per_row)
 
     def plot_residuals(self, batch=None, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
         """
@@ -377,8 +387,11 @@ class Trainer():
                 target_tensor = [target_tensor]
             output = self.model(*input_tensor)
             target_tensor = [t.cpu().detach().numpy() for t in target_tensor] 
-            output = output.cpu().detach().numpy()
-            result_batch.append((*(np.exp(target_tensor[0][:,0])), *(np.exp(output[:,0]))))
+            if type(output) is list:
+                output = [o.cpu().detach().numpy() for o in output]
+            else:
+                output = [output.cpu().detach().numpy()]
+            result_batch.append((*(np.exp(target_tensor[0][:,0])), *(np.exp(output[0][:,0]))))
 
         return result_batch
     
@@ -588,6 +601,7 @@ def load_trainer(model_name, load_model=True):
            "UneK": UneK,
            "MultiNet": MultiNet,
            "PPV": PPV,
+           "JustKAN": JustKAN,
            "Test": Test,
            "None": None
     }
@@ -872,30 +886,23 @@ if __name__ == "__main__":
                 loss += bin_loss
         return loss
     
-    def weighted_loss(output, target, power=1.5, beta=0.5, eps=1e-6):
-        """
-        Loss that balances low- and high-density region importance.
+    class WeightedMSELoss(nn.Module):
+        def __init__(self, bin_edges, bin_weights):
+            super(WeightedMSELoss, self).__init__()
+            self.bin_edges = torch.tensor(bin_edges, dtype=torch.float32, device="cuda")
+            self.bin_weights = torch.tensor(bin_weights, dtype=torch.float32, device="cuda")
 
-        - power > 1: focuses on high density
-        - beta < 1: limits high-density dominance
-        """
+        def forward(self, y_pred, y_true):
+            y_true_flat = y_true.reshape(-1)
+            y_pred_flat = y_pred.reshape(-1)
+            
+            bin_indices = torch.bucketize(y_true_flat, self.bin_edges[:-1], right=False)
+            bin_indices = torch.clamp(bin_indices, 0, len(self.bin_weights) - 1)
+            weights = self.bin_weights[bin_indices]
 
-        if type(target) is list:
-            target = target[0]
-
-        # Linear-space densities for weighting
-        target_density = torch.exp(target)
-        raw_weight = (target_density + eps) ** power
-
-        # Blend raw weight with a small constant to preserve low-density learning
-        # beta controls trade-off: 0.5 = 50% attention to density-weighted error
-        weight = beta * raw_weight + (1 - beta)
-
-        # Normalize to keep loss magnitude stable
-        weight = weight / torch.mean(weight)
-
-        return torch.mean(weight * (output - target) ** 2)
-    
+            loss = weights * (y_true_flat - y_pred_flat) ** 2
+            return loss.mean()
+        
     def batch_loss(output, target):
         per_image_loss = torch.mean((output - target) ** 2, dim=[1, 2, 3])
         weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
@@ -908,38 +915,59 @@ if __name__ == "__main__":
 
         return loss
     
-    ds = getDataset("batch_highres")
+    ds = getDataset("batch_highres_2")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
-    ds1, ds2 = ds.split(cutoff=0.8)
+    ds1, ds2 = ds.split(cutoff=0.7)
 
-    trainer = Trainer(UNet, ds1, ds2, model_name="UNet_goodhighmass")
-    trainer.validation_set = ds2
+    trainer = Trainer(UNet, ds1, ds2, model_name="Unet_highres_2outputs")
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
-    trainer.network_settings["deeper_skips"] = True
+    trainer.network_settings["out_channels"] = 2
+    #trainer.network_settings["deeper_skips"] = True
     #trainer.network_settings["channel_dimensions"] = [2,2]
     #trainer.network_settings["channel_modes"] = [None, ("moments",2)]
-    trainer.training_random_transform = True
+    trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
-    #trainer.loss_method = weighted_loss
-    trainer.optimizer_name = "Adam"
-    trainer.target_names = "vdens"
+    trainer.optimizer_name = "SGD"
+    trainer.target_names = ["vdens", "cdens"]
     trainer.input_names = ["cdens"]
     trainer.init()
-    trainer.train(1500,batch_number=16,compute_validation=10)
+    trainer.train(500,batch_number=10,compute_validation=10)
     trainer.save()
     trainer.plot()
     trainer.plot_validation()
 
     """
-    trainer = load_trainer("UNet_goodhighmass")
-    trainer.plot()
-    trainer.plot_validation()
+    import numpy as np
+    y_train = np.array(ds1.get())
+    num_bins = 100 
+    hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
+    bin_weights = np.log1p(1.0 / (hist + 1e-6))
+    bin_weights /= np.max(bin_weights)  # Normalize to [0, 1]
+    bin_weights = 0.2 + 0.8 * bin_weights  # Stretch to [0.2, 1.0] to avoid vanishing gradien
+
+    trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
     """
 
+    """
+    trainer = load_trainer("UneK_highres_fingercrossed")
+    trainer2 = load_trainer("UneK_highres_unek_multiply")
+    trainer3 = load_trainer("UNet_highres_fingercrossed")
+
+    plot_models_residuals([trainer, trainer2, trainer3])
+    """
     
     """
+    trainer.model = trainer.model
+    trainer.validation_set = ds2
+    trainer.plot()
+    trainer.plot_validation(same_limits=False)
+    """
+
+    """
+    trainer = load_trainer("UneK_highres_fingercrossed")  
+    trainer.validation_set = ds2  
     trainer.plot()
     trainer.fit_baseline()
 
@@ -951,6 +979,7 @@ if __name__ == "__main__":
         reconstructed_batch.append((b[0], pred))
     trainer.prediction_batch = reconstructed_batch
     trainer.plot()
+    trainer.plot_validation()
     """
   
     plt.show()

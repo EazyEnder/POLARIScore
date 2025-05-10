@@ -3,6 +3,8 @@ import numpy as np
 from scipy.ndimage import rotate
 def convert_pc_to_index(pc,nres,size,start=0):
     return(int(np.floor((pc-start)/(size)*nres)))
+
+
 def compute_column_density(data_cube,cell_size, axis=0):
     return np.sum(data_cube, axis=axis) * cell_size.value
 def compute_volume_weighted_density(data_cube, axis=0, divide=False):
@@ -31,6 +33,12 @@ def compute_squared_weighted_density(data_cube, axis=0):
     return np.sum(np.power(data_cube,2), axis=axis) / data_cube.shape[0]
 def compute_max_density(data_cube, axis=0):
     return np.max(data_cube, axis=axis)
+def compute_derivative(data_slice, order=1, axis=0):
+    d = data_slice
+    for o in range(order):
+        d = np.gradient(d)[axis]
+    return d
+
 def rotate_cube(data_cube, angle, axis):
     """Rotates the cube around a given axis (0=X, 1=Y, 2=Z) by a given angle in degrees."""
     return rotate(data_cube, angle, axes=axis, reshape=False, mode="nearest")

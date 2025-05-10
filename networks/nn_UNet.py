@@ -20,7 +20,7 @@ class ConvBlock(nn.Module):
             d = nn.Dropout3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             b(out_channels),
             d(p=0.05),
         )
@@ -41,10 +41,10 @@ class DoubleConvBlock(nn.Module):
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             c(out_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             d(p=0.05)
         )
     
@@ -152,29 +152,37 @@ class UNet(BaseModule):
         self.bottleneck = convBlock(in_channels, out_channels, is3D=is3D)
         in_channels = out_channels
 
-        # Decoder
+        # (Multi) Decoder
         self.upconvs = nn.ModuleList()
         self.decoders = nn.ModuleList()
         self.attentions = nn.ModuleList()
         reversed_filters = filter_sizes[::-1]
 
-        for i in range(num_layers):
-            out_channels = reversed_filters[1+i]
-            upconv = nn.ConvTranspose3d if is3D else nn.ConvTranspose2d
-            self.upconvs.append(upconv(in_channels, out_channels, kernel_size=2, stride=2))
-            if self.attention:
-                self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D))
-            concat_ch = out_channels * 2
-            if i+2 <= num_layers and self.deeperskips:
-                concat_ch += reversed_filters[2+i]
-            block = convBlock(concat_ch, out_channels, is3D=is3D) if num_layers-i >= convBlock_layer else DoubleConvBlock(concat_ch, out_channels, is3D=is3D)
-            self.decoders.append(block)
+        for j in range(self.out_channels):
+            self.upconvs.append(nn.ModuleList())
+            self.decoders.append(nn.ModuleList())
+            self.attentions.append(nn.ModuleList())
 
-            in_channels = out_channels
+            in_channels = filter_sizes[-1]
+            for i in range(num_layers):
+                out_channels = reversed_filters[1+i]
+                upconv = nn.ConvTranspose3d if is3D else nn.ConvTranspose2d
+                self.upconvs[j].append(upconv(in_channels, out_channels, kernel_size=2, stride=2))
+                if self.attention:
+                    self.attentions[j].append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D))
+                concat_ch = out_channels * 2
+                if i+2 <= num_layers and self.deeperskips:
+                    concat_ch += reversed_filters[2+i]
+                block = convBlock(concat_ch, out_channels, is3D=is3D) if num_layers-i >= convBlock_layer else DoubleConvBlock(concat_ch, out_channels, is3D=is3D)
+                self.decoders[j].append(block)
+
+                in_channels = out_channels
 
         # Output layer
         final_conv = nn.Conv3d if is3D else nn.Conv2d
-        self.final_conv = final_conv(base_filters, self.out_channels, kernel_size=1)
+        self.final_conv = nn.ModuleList()
+        for o in range(self.out_channels):
+            self.final_conv.append(final_conv(base_filters, 1, kernel_size=1))
     
     def forward(self, x):
 
@@ -193,24 +201,32 @@ class UNet(BaseModule):
         x = self.bottleneck(x)
         
         # Decoder forward pass
-        for i in range(self.num_layers):
-            x = self.upconvs[i](x)
-            enc_feat = enc_features[-(i+1)]
-            if self.attention:
-                enc_feat = self.attentions[i](x, enc_feat)
-                
-            skip_feats = [x, enc_feat]
-            if i+2 <= self.num_layers and self.deeperskips:
-                deeper_skip = enc_features[-(i+2)]
-                if deeper_skip.shape[2:] != x.shape[2:]:
-                    deeper_skip = F.interpolate(deeper_skip, size=x.shape[2:], mode='bilinear' if not self.is3D else 'trilinear', align_corners=False)
-                skip_feats.append(deeper_skip)
+        decoded_x = []
+        interp_mode = 'trilinear' if self.is3D else 'bilinear'
+        for j in range(self.out_channels):
+            xj = x#.clone()
+            for i in range(self.num_layers):
+                xj = self.upconvs[j][i](xj)
+                enc_feat = enc_features[-(i+1)]
+                if self.attention:
+                    enc_feat = self.attentions[j][i](xj, enc_feat)
+                    
+                skip_feats = [xj, enc_feat]
+                if i+2 <= self.num_layers and self.deeperskips:
+                    deeper_skip = enc_features[-(i+2)]
+                    if deeper_skip.shape[2:] != xj.shape[2:]:
+                        deeper_skip = F.interpolate(deeper_skip, size=xj.shape[2:], mode=interp_mode, align_corners=False)
+                    skip_feats.append(deeper_skip)
             
-            x = torch.cat(skip_feats, dim=1)
-            x = self.decoders[i](x)
+                xj = torch.cat(skip_feats, dim=1)
+                xj = self.decoders[j][i](xj)
+            decoded_x.append(xj)
         
         # Output
-        return self.final_conv(x)
+        if self.out_channels > 1:
+            return [self.final_conv[j](decoded_x[j]) for j in range(self.out_channels)]
+        else:
+            return self.final_conv[0](decoded_x[0])
     
 if __name__ == "__main__":
     #model = UNet(is3D=True)

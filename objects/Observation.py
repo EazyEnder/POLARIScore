@@ -64,7 +64,7 @@ class Observation():
 
         downsampled_tensor = F.interpolate(input_tensor.unsqueeze(0).unsqueeze(0), 
                                        scale_factor=1.0/downsample_factor, 
-                                       mode='bicubic', align_corners=False).squeeze(0).squeeze(0)
+                                       mode='bilinear', align_corners=True).squeeze(0).squeeze(0)
 
         height, width = downsampled_tensor.shape
         patch_height, patch_width = patch_size
@@ -191,7 +191,7 @@ class Observation():
 
         return cores
 
-    def plotCores(self,ax,cores=None,norm=None,vol_density=False):
+    def plotCores(self,ax,cores=None,norm=None,vol_density=False,show_text=False):
         if cores is None:
             cores = self.cores
         if cores is None:
@@ -220,16 +220,24 @@ class Observation():
 
 
         ax.scatter(x_pix, y_pix, s=radius/pixel_scale, facecolors=colors, edgecolors="black")
+        if show_text:
+            for i,c in enumerate(cores):
+                ax.text(x_pix[i], y_pix[i], f"${values[i]:.2e}$", color='black')
 
         return ax
     
-    def getPredictedDensityAtCore(self):
+    def getPredictedDensityAtCore(self, column_density=False):
         if self.cores is None:
             self.getCores()
         if self.cores is None:
             LOGGER.error("No cores found")
             return None
-        if self.prediction is None:
+        
+        densities = self.prediction
+        if column_density:
+            densities = self.data
+
+        if densities is None:
             LOGGER.error("No predicted density found")
             return None
 
@@ -243,8 +251,8 @@ class Observation():
         values = []
         for x, y in zip(x_pix, y_pix):
             x_int, y_int = int(round(x)), int(round(y))
-            if (0 <= y_int < self.prediction.shape[0]) and (0 <= x_int < self.prediction.shape[1]):
-                values.append(self.prediction[y_int, x_int])
+            if (0 <= y_int < densities.shape[0]) and (0 <= x_int < densities.shape[1]):
+                values.append(densities[y_int, x_int])
             else:
                 values.append(np.nan)
 
@@ -297,13 +305,13 @@ class Observation():
         predicted_densities = np.log10(predicted_densities)
         derived_densities = np.log10(derived_densities)
         if return_ncol:
-            column_densities = np.array([c["peak_ncol"] for c in self.getCores()])
+            column_densities = np.array(self.getPredictedDensityAtCore(column_density=True))
             column_densities = np.log10(column_densities[mask])
-            return (predicted_densities, derived_densities, column_densities)
+            sorted_indexes = np.argsort(column_densities)
+            return (predicted_densities[sorted_indexes], derived_densities[sorted_indexes], column_densities[sorted_indexes])
         return (predicted_densities, derived_densities)
     
     def plot_cores_hist(self, ax=None, region=None):
-
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -371,6 +379,28 @@ class Observation():
 
         return fig, ax
     
+    def plot_cores_error(self, ax=None, region=None, alpha=1., movAverage=5):
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        predicted_densities, derived_densities, column_densities = self._get_cores_predicted_values(region=region, return_ncol=True)
+
+        residuals = predicted_densities-derived_densities
+        if movAverage > 1:
+            residuals = movingAverage(residuals, n=movAverage)
+            column_densities = movingAverage(column_densities, n=movAverage)
+
+        ax.scatter(column_densities,residuals, marker="+", alpha=alpha, label=self.name)
+        
+        ax.set_xlabel("$\log_{10}(N_{col}) [cm^{-2}]$")
+        ax.set_ylabel("$\log_{10}(n_{pred})-\log_{10}(n_{derived}) [cm^{-3}]$")
+
+        ax.legend()
+
+        return fig, ax
+    
     def save(self,replace=False):
         if self.prediction is None:
             LOGGER.error(f"Can't save cache for prediction on {self.name} because there has no prediction on this observation, use .predict(model)")
@@ -404,8 +434,8 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plotCores=
     from networks.Trainer import load_trainer
     obs.load()
     if obs.prediction is None:
-        trainer = load_trainer("UNet_BatchHighRes")
-        obs.predict(trainer,patch_size=(512,512), overlap=0.5, downsample_factor=3)
+        trainer = load_trainer("UneK_highres_fingercrossed")
+        obs.predict(trainer,patch_size=(512,512), overlap=0.5, downsample_factor=1, apply_baseline=True)
         obs.save()
     fig, ax = obs.plot(obs.prediction,plotCores=plotCores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
     if save_fig:
@@ -428,22 +458,25 @@ if __name__ == "__main__":
 
     #Orion A cropped_region = [Angle("5h36m20s").deg, Angle("5h33m30s").deg, Angle("-6d03m").deg, Angle("-4d55").deg]
 
-    """ Orion B cropped_regions
+    """
+    # Orion B cropped_regions
     cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
-    script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
+    script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region, show=True)
     cropped_region = [Angle("5h42m56s").deg, Angle("5h40m28s").deg, Angle("-2d32m").deg, Angle("-1d28m").deg]
-    script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False)
+    script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region, show=True)
     """
 
-    """
-    obs = Observation("OrionB","column_density_map")
-    #obs.plot()
-    obs.load()
-    #obs.plot(obs.prediction)
-    cropped_region = None#[Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
-    obs.plot_cores_space(region=cropped_region)
-    """
+    script_data_and_figures("Taurus_L1495", normcol=[1e21,2e22], normvol=[0.35e3,2.5e4], save_fig=False, show=True)
 
-    script_data_and_figures("Taurus_L1495", save_fig=False)
+    """
+    fig, ax = plt.subplots()
+
+    names = ["Taurus_L1495","OrionB","Aquila"]
+
+    for n in names:
+        obs = Observation(n,"column_density_map")
+        obs.load()
+        obs.plot_cores_error(ax=ax, alpha=0.75, movAverage=50)
 
     plt.show()
+    """
