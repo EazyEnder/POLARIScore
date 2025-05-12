@@ -139,7 +139,12 @@ target "https://github.com/EazyEnder/KANion"
 
 \end_inset
 
- (private for now)
+ (private for now).
+ Ideas:
+ GNN,
+ Context aware NN,
+ DDPM,
+ CIN
 \end_layout
 
 \begin_layout Standard
@@ -2614,11 +2619,29 @@ name "fig:U-Net-SizeDataset-1"
 
 \begin_layout Section
 Results
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Results"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
 In this section,
- we apply our basic U-Net model to Herschel observations,
+ we apply our U-Net model fuse with KAN as a symbolic role and using residuals fitting (see Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Residuals-Correction"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) to Herschel observations,
  allowing us to compare it with a few recent methods:
 \end_layout
 
@@ -2826,7 +2849,11 @@ nolink "false"
 
 .
  We predict a maximum mass-weighted density of 
-\begin_inset Formula $1.5\times10^{4}cm^{-3}$
+\begin_inset Formula $10^{5}cm^{-3}$
+\end_inset
+
+ and density at the center of the filament of 
+\begin_inset Formula $2\times10^{4}cm^{-3}$
 \end_inset
 
 ,
@@ -3622,7 +3649,7 @@ A mass-weighted number density of
 
  is predicted in the more diffuse areas,
  while the densest regions reach values up to 
-\begin_inset Formula $2\times10^{5}cm^{-3}$
+\begin_inset Formula $2.5\times10^{6}cm^{-3}$
 \end_inset
 
 ."As shown in Figures 
@@ -3656,8 +3683,11 @@ literal "false"
 
 \end_inset
 
- exhibit densities of the same order of magnitude.
- Thus,
+ seem to exhibit densities of the same order of magnitude.
+\end_layout
+
+\begin_layout Standard
+Thus,
  our prediction for the mass-weighted density is consistent with both the overall cloud properties and the characteristics of the derived dense cores.
 \end_layout
 
@@ -3756,7 +3786,7 @@ Conclusion
 
 \begin_layout Standard
 In this first part,
- we successfully reproduced the results of 
+ we tried to reproduce the results of 
 \begin_inset CommandInset citation
 LatexCommand citet
 key "xu_denoising_2023"
@@ -4743,7 +4773,269 @@ begin{multicols}{2}
 \end_layout
 
 \begin_layout Section
-Archive of tested Architectures
+Residuals Correction
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Residuals-Correction"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is possible,
+ and actually common in our case,
+ that the model struggles to predict the mean values within certain density ranges.
+ For example,
+ the model tends to underestimate high densities (see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:RC-Fig1"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
+ This could indicate that the loss function is poorly formulated or that the architecture is not well-suited to the task.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unek_residuals_notfitted.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Residuals for a UNet model fused with KAN 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:RC-Fig1"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+For instance,
+ while the training set is constructed using a score (see Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:How-the-score"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) to avoid including too many diffuse regions,
+ such regions still dominate overall,
+ since they are inherently prevalent in a cloud.
+ As a result,
+ if we use the Mean Squared Error (MSE) as the loss function,
+ accurately predicting diffuse regions becomes more important for the model than predicting high-density regions.
+\end_layout
+
+\begin_layout Standard
+This is why one can introduce weighted loss functions,
+ where the weight depends on the density.
+ For example,
+ the MSE loss (see Formula 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:MSELoss"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) can be modified as follows:
+\begin_inset Formula 
+\begin{equation}
+\text{MSELoss}=\mathbb{E}(w(n_{H,\text{target}})\times(\text{prediction}-\text{target})^{2})
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $w(n_{H,\text{target}})$
+\end_inset
+
+ is the weighting function,
+ which in a simple case could follow a power law,
+ such that 
+\begin_inset Formula $w\propto n^{\alpha}$
+\end_inset
+
+,
+ with 
+\begin_inset Formula $\alpha$
+\end_inset
+
+ being the chosen exponent.
+\end_layout
+
+\begin_layout Standard
+However,
+ implementing this in practice is quite challenging,
+ as the model may quickly develop undesirable behavior,
+ for instance,
+ predicting a dense background everywhere,
+ since errors in low-density regions are given less importance.
+\end_layout
+
+\begin_layout Standard
+Nevertheless,
+ what matters more in model error is the distribution of residuals,
+ not their average.
+ If we know that the model systematically underestimates high densities,
+ we can correct this bias uniformly across all observations using a baseline inferred from the validation set (not the observations themselves,
+ otherwise,
+ there would be no point in applying the model in the first place).
+\end_layout
+
+\begin_layout Standard
+To determine this baseline,
+ we apply a moving average:
+ residuals are first binned (e.g.,
+ averaged every 50 values),
+ and the resulting smoothed curve serves as the correction function.
+ During inference,
+ this baseline is then removed from each prediction via linear interpolation between the two nearest bin values.
+ This allows the model’s outputs to be corrected in a continuous and data-driven way,
+ without altering the model architecture or retraining.
+\end_layout
+
+\begin_layout Subsection
+Results
+\end_layout
+
+\begin_layout Standard
+The result of this operation is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:RC-Fig2"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+ However,
+ both the linear interpolation and the moving average approach present several major issues.
+ For instance,
+ they do not perfectly preserve the distribution of residuals.
+ Moreover,
+ the corrections can be abrupt from one bin to the next,
+ which may introduce visible artifacts in the predictions.
+ This can either make it harder to accurately identify a real structure or,
+ conversely,
+ highlight a feature that is in fact just an artifact caused by the residual correction.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/unek_residuals_fitted.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Residuals after the baseline is removed.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:RC-Fig2"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Moreover,
+ it is clearly preferable that the model learns to accurately estimate all density ranges on its own.
+ If it systematically underestimates high densities,
+ for instance,
+ this also indicates that it has failed to learn the underlying physics and conditions associated with these high-density regions.
+ As a result,
+ the residuals will remain widely distributed,
+ even after applying the correction.
+\end_layout
+
+\begin_layout Standard
+Ultimately,
+ it is important to understand that while such a correction can compensate for part of the avoidable error,
+ it does not fix the underlying model deficiencies.
+ On the contrary,
+ it can obscure them,
+ potentially hiding systematic under- or over-estimations across certain density ranges and making diagnostic evaluation more difficult.
 \end_layout
 
 \begin_layout Standard
@@ -4760,6 +5052,9 @@ end{multicols}
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
 \begin_inset Newpage newpage
 \end_inset
 
@@ -4784,97 +5079,6 @@ begin{multicols}{2}
 
 \begin_layout Section
 Results for Aquila
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-end{multicols}
-\end_layout
-
-\end_inset
-
-
-\begin_inset Newpage newpage
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-begin{multicols}{2}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Section
-Results for Pipe Nebulae
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-end{multicols}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset Newpage newpage
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-begin{multicols}{2}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Section
-Residuals Correction Tool
-\end_layout
-
-\begin_layout Subsection
-Method
-\end_layout
-
-\begin_layout Subsection
-Results
 \end_layout
 
 \begin_layout Standard
