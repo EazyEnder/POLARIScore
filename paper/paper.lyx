@@ -99,7 +99,7 @@
 \begin_body
 
 \begin_layout Title
-From the column density to the volume density in molecular clouds using machine learning
+From the column density to the volume density in molecular clouds using deep learning
 \end_layout
 
 \begin_layout Author
@@ -135,7 +135,8 @@ pierre.hily-blant@univ-grenoble-alpes.fr
 / code to easily train models and plot is available at 
 \begin_inset CommandInset href
 LatexCommand href
-target "https://github.com/EazyEnder/KANion"
+target "https://github.com/EazyEnder/POLARIScore"
+literal "false"
 
 \end_inset
 
@@ -199,6 +200,10 @@ Molecular clouds -> Star forming regions,
 \begin_layout Itemize
 Turbulence -> base,
  forcing effect
+\end_layout
+
+\begin_layout Itemize
+Machine learning base
 \end_layout
 
 \begin_layout Standard
@@ -387,7 +392,8 @@ literal "false"
 
 \end_inset
 
- are a novel class of neural networks inspired by the Kolmogorov–Arnold representation theorem.Unlike traditional deep learning architectures,
+ are a novel class of neural networks inspired by the Kolmogorov–Arnold representation theorem.
+ Unlike traditional deep learning architectures,
  KANs replace fixed activation functions with learnable,
  parameterized univariate functions (see Figure 
 \begin_inset CommandInset ref
@@ -459,7 +465,14 @@ Method
 \end_layout
 
 \begin_layout Subsection
-Datasets
+Datasets 
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Datasets"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -667,7 +680,7 @@ In this part,
  including:
 \begin_inset Formula 
 \begin{equation}
-n_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}\label{eq:volume_average_dens}
+<n>_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}\label{eq:volume_average_dens}
 \end{equation}
 
 \end_inset
@@ -737,7 +750,7 @@ where we assume a uniform grid,
 \begin_layout Standard
 \begin_inset Formula 
 \[
-n_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
+<n>_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
 \]
 
 \end_inset
@@ -753,7 +766,7 @@ This shows that the volume-weighted density computed on the simulation is direct
 Another density which can be used is the mass-weighted average number density:
 \begin_inset Formula 
 \begin{equation}
-n_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
+<n>_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
 \end{equation}
 
 \end_inset
@@ -2967,7 +2980,7 @@ saxophone
 \end_inset
 
  region with a mean density of 
-\begin_inset Formula $n_{H_{2},c}=5\times10^{4}cm^{-3}$
+\begin_inset Formula $n_{H,c}=5\times10^{4}cm^{-3}$
 \end_inset
 
  and a mean radius near 
@@ -3207,7 +3220,7 @@ We can also perform a quick calculation to verify this.
  can be written as:
 \begin_inset Formula 
 \[
-n_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}^{2}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}{L_{D}n_{D}+L_{c}n_{c}}
+<n>_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}{L_{D}n_{D}+L_{c}n_{c}}
 \]
 
 \end_inset
@@ -3216,14 +3229,14 @@ n_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}^{2}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}
 \end_layout
 
 \begin_layout Standard
-We can then estimate the order of magnitude of the cloud length along the line of sight  
+We can then estimate the order of magnitude of the cloud length along the line of sight 
 \begin_inset Formula $L=L_{D}+L_{C}$
 \end_inset
 
 :
 \begin_inset Formula 
 \begin{equation}
-L=L_{c}\frac{n_{c}^{2}-n_{D}^{2}-n_{M}(n_{c}-n_{D})}{n_{D}(n_{M}-n_{D})}
+L=L_{c}\frac{n_{c}^{2}-n_{D}^{2}-<n>_{M}(n_{c}-n_{D})}{n_{D}(<n>_{M}-n_{D})}
 \end{equation}
 
 \end_inset
@@ -3846,7 +3859,7 @@ end{multicols}
 \end_layout
 
 \begin_layout Part
-Multi-inputs to the volume density
+Volume Density from Diverse Observational Inputs
 \end_layout
 
 \begin_layout Standard
@@ -3869,12 +3882,448 @@ begin{multicols}{2}
 Introduction
 \end_layout
 
+\begin_layout Standard
+Up to this point in the document,
+ the prediction of average density has relied solely on column density.
+ However,
+ it may be valuable to incorporate additional information,
+ such as molecular emission data (e.g.,
+ 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+ cubes),
+ which can enrich the input and provide new insights to the model.
+ Beyond simply enhancing the input features,
+ this may also be necessary for more advanced tasks,
+ such as reconstructing the 3D structure of the cloud or predicting the peak density along the line of sight.
+\end_layout
+
+\begin_layout Standard
+Current research on 3D reconstruction from 2D data has focused primarily on dense cores,
+ which are often assumed to be easier to model due to their quasi-spherical shapes.
+ On the side of inverse methods,
+ the AVIATOR algorithm,
+ from 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "hasenberger_aviator_2020"
+literal "false"
+
+\end_inset
+
+,
+ enables 3D morphological reconstruction from 2D maps.
+ In the field of deep learning,
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "ksoll_deep-learning_2024"
+literal "false"
+
+\end_inset
+
+ propose a model based on conditional invertible neural networks (cINNs),
+ trained on multi-wavelength dust emission maps.
+\end_layout
+
+\begin_layout Standard
+Nevertheless,
+ such approaches remain largely limited to dense cores.
+ More recently,
+ the availability of precise stellar distances from Gaia has enabled low-resolution 3D reconstructions of entire molecular cloud complexes 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "dharmawardena_three-dimensional_2022"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+While our immediate objective is not to perform full 3D reconstruction,
+ which remains the most ambitious and technically demanding goal,
+ we focus here on adapting the architecture to handle multiple inputs.
+ This will serve as a foundation for future efforts toward full 3D reconstruction,
+ or alternatively,
+ the still challenging task of disentangling distinct components along the line of sight.
+\end_layout
+
 \begin_layout Section
 Methods
 \end_layout
 
 \begin_layout Subsection
 Emission maps
+\end_layout
+
+\begin_layout Standard
+First,
+ if we aim to incorporate additional inputs,
+ we must begin by identifying which ones to use and how to extract them from simulations in order to construct the training dataset.
+\end_layout
+
+\begin_layout Standard
+Since our goal is to gain insight into the structure along the line of sight,
+ emission maps of various molecular species appear to be a promising addition.
+ For instance,
+ using the emission from a relatively scarce molecule such as 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+,
+ which tends to be optically thin,
+ meaning the observed emission is not limited to outer cloud layers,
+ can provide valuable information.
+ Due to the Doppler effect,
+ the spectral lines shift depending on the velocity of the gas at a given (x,
+ y,
+ z) position.
+ As a result,
+ the observed intensity is spread across a spectral profile,
+ revealing distinct components at different velocities.
+ This leads to the construction of what is known as a position-position-velocity (PPV) cube,
+ offering a crucial piece of information along the third spatial dimension,
+ namely,
+ the line of sight.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_correlation.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Line-of-sight,
+ Optically thin or thick
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Moreover,
+ 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+ and CO isotopologues in general are commonly observed in molecular clouds,
+ meaning that existing observational data,
+ such as that available for the Orion B region 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "roueff_c18_2021"
+literal "false"
+
+\end_inset
+
+,
+ can be used for direct applications.
+\end_layout
+
+\begin_layout Standard
+Additionally,
+ one could consider incorporating emissions from other molecular tracers sensitive to specific density regimes.
+ However,
+ obtaining such emissions from simulations requires advanced radiative transfer calculations,
+ which can be computationally intensive and complex,
+ particularly compared to the relatively easier case of CO isotopologues.
+\end_layout
+
+\begin_layout Standard
+Indeed,
+ simulating molecular emission maps from numerical simulations involves radiative transfer modeling,
+ which must be carried out using dedicated radiative transfer codes or,
+ in some cases,
+ a simple custom ray-tracing approach,
+ particularly for CO molecules.
+\end_layout
+
+\begin_layout Standard
+A major limitation with CO,
+ however,
+ is that its abundance in gas-phase decreases in high-density regions due to freeze-out onto dust grains 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "panessa_evolution_2023"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+That said,
+ since the simulation we are using (ORION,
+ see subsection 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Datasets"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) does not include chemistry and thus does not track molecular abundances,
+ we can assume a uniform CO abundance throughout the cloud.
+ This simplification should be sufficient to evaluate whether the model is capable of processing and learning from this idealized scenario.
+ In future work,
+ more sophisticated simulations that include chemical networks could be used,
+ alongside a neural network trained on emission maps from various molecular lines.
+\end_layout
+
+\begin_layout Subsubsection
+Computing the maps
+\end_layout
+
+\begin_layout Standard
+To illustrate how an emission map can be computed,
+ we consider the example of 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+,
+ though the same approach applies to other CO isotopologues.
+\end_layout
+
+\begin_layout Standard
+The abundance of CO in molecular clouds is typically assumed to be on the order of 
+\begin_inset Formula $\chi_{\text{CO}}=\frac{n_{CO}}{n_{H}}=10^{-4}$
+\end_inset
+
+
+\begin_inset CommandInset citation
+LatexCommand citep
+key "fuente_gas_2019"
+literal "false"
+
+\end_inset
+
+,
+ with abundances expressed with respect to the total hydrogen density.
+ The isotope 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+ is approximately 
+\begin_inset Formula $70$
+\end_inset
+
+ times less abundant than 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+ so 
+\begin_inset Formula $\chi_{13CO}=1.4\times10^{-6}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The computation relies on a ray-tracing algorithm.
+ Since the physical quantities involved (e.g.,
+ temperature,
+ density) are not constant along the line of sight,
+ the radiative transfer equation must be integrated step-by-step through each cell intersected by the ray,
+ rather than over the entire line of sight at once.
+ The ray thus propagates through the cloud toward the observer,
+ accumulating the emerging intensity incrementally.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_correlation.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Ray-tracing
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The governing equation is the standard radiative transfer equation:
+ 
+\begin_inset Formula 
+\begin{equation}
+\frac{dI_{\nu}}{dz}=j_{\nu}-\alpha_{\nu}I_{\nu}\label{eq:master-radiative}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $I_{\nu}$
+\end_inset
+
+ is the specific intensity at frequency 
+\begin_inset Formula $\nu$
+\end_inset
+
+ 
+\begin_inset Formula $j_{\nu}$
+\end_inset
+
+ is the emission coefficient,
+ and 
+\begin_inset Formula $\alpha_{\nu}$
+\end_inset
+
+ is the absorption coefficient.
+\end_layout
+
+\begin_layout Standard
+Because the simulation is discrete,
+ i.e.
+ the line of sight is composed of N cells,
+ and physical parameters are assumed constant within each cell,
+ the change in intensity as the ray passes through a single cell is given by:
+\begin_inset Formula 
+\begin{equation}
+I_{\nu,i+1}=I_{\nu,i}e^{-\tau_{i}}+B_{\nu,i}(1-e^{-\tau_{i}})\label{eq:radiative}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $I_{\nu,i}$
+\end_inset
+
+ is the incoming intensity,
+ i.e the intensity computed on the previous cell,
+ 
+\begin_inset Formula $B_{\nu,i}=\frac{j_{\nu}}{\alpha_{\nu}}$
+\end_inset
+
+ is the source function and we'll take the black-body emission,
+ and 
+\begin_inset Formula $\tau=\alpha dz$
+\end_inset
+
+ is the optical depth across the cell of width 
+\begin_inset Formula $Δz$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:radiative"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ directly comes from the integration of equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:master-radiative"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ by making all the coefficients constants inside the cell.
+\end_layout
+
+\begin_layout Standard
+La diffuclté est donc de calculer tau_i.
+ 
+\end_layout
+
+\begin_layout Standard
+...bla bla démo
+\end_layout
+
+\begin_layout Standard
+CMB
+\end_layout
+
+\begin_layout Standard
+maping nu -> V
+\end_layout
+
+\begin_layout Standard
+Convertion température
+\end_layout
+
+\begin_layout Standard
+Resultats:
+ Integré,
+ Spectres & Channel maps
+\end_layout
+
+\begin_layout Subsubsection
+Preprocessing
 \end_layout
 
 \begin_layout Subsection
@@ -5079,6 +5528,67 @@ begin{multicols}{2}
 
 \begin_layout Section
 Results for Aquila
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Archives of some tested architectures
+\end_layout
+
+\begin_layout Standard
+Although these neural network architectures do not currently lead to significant improvements,
+ and sometimes even degrade performance,
+ they represent initial explorations of promising concepts.
+\end_layout
+
+\begin_layout Subsection
+UNet with multi-outputs
+\end_layout
+
+\begin_layout Subsection
+Using custom loss function
+\end_layout
+
+\begin_layout Subsection
+Pos-Pos-Vel to Pos-Pos-Pos
 \end_layout
 
 \begin_layout Standard
