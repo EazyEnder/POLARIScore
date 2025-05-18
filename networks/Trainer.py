@@ -16,6 +16,7 @@ from networks.nn_UNet import *
 from networks.nn_FCN import FCN
 from networks.nn_MultiNet import MultiNet
 from networks.nn_PPV import PPV, Test
+from networks.nn_RecursiveUNet import Recursive_UNet
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 from utils import movingAverage, applyBaseline
@@ -401,6 +402,8 @@ class Trainer():
         #TODO: generalize this function for image of nparray type and torch image
         input_tensor = torch.log(image).float().to(self.device)
         output = self.model(input_tensor)
+        if type(output) is list:
+            output = output[0]
         output = output.cpu().detach().numpy()
         return np.exp(output)
 
@@ -893,6 +896,13 @@ if __name__ == "__main__":
             self.bin_weights = torch.tensor(bin_weights, dtype=torch.float32, device="cuda")
 
         def forward(self, y_pred, y_true):
+            flag = type(y_pred) is list
+            if flag:
+                column_y_pred = y_pred[1]
+                y_pred  = y_pred[0]
+                column_y_true = y_true[1]
+                y_true  = y_true[0]
+
             y_true_flat = y_true.reshape(-1)
             y_pred_flat = y_pred.reshape(-1)
             
@@ -900,8 +910,10 @@ if __name__ == "__main__":
             bin_indices = torch.clamp(bin_indices, 0, len(self.bin_weights) - 1)
             weights = self.bin_weights[bin_indices]
 
-            loss = weights * (y_true_flat - y_pred_flat) ** 2
-            return loss.mean()
+            loss = torch.mean(weights * (y_true_flat - y_pred_flat) ** 2)
+            if flag:
+                loss += 0.1* torch.mean((column_y_true - column_y_pred)**2)
+            return loss
         
     def batch_loss(output, target):
         per_image_loss = torch.mean((output - target) ** 2, dim=[1, 2, 3])
@@ -915,60 +927,55 @@ if __name__ == "__main__":
 
         return loss
     
+    def MSELoss2outputs(output, target):
+        o1 = output[0]
+        o2 = output[1]
+        t1 = target[0]
+        t2 = target[1]
+        return torch.mean((o1 - t1) ** 2)+0.1*torch.mean((o2 - t2) ** 2)
+    
     ds = getDataset("batch_highres_2")
     #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
     ds1, ds2 = ds.split(cutoff=0.7)
 
-    trainer = Trainer(UNet, ds1, ds2, model_name="Unet_highres_2outputs")
+
+    trainer = Trainer(Recursive_UNet, ds1, ds2, model_name="Recursive_UNet")
+    #trainer = load_trainer("Unet_highres_2outputs_Adam_customloss")
+    trainer.training_set = ds1
+    trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
     trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
-    trainer.network_settings["out_channels"] = 2
+    #trainer.network_settings["out_channels"] = 2
     #trainer.network_settings["deeper_skips"] = True
     #trainer.network_settings["channel_dimensions"] = [2,2]
     #trainer.network_settings["channel_modes"] = [None, ("moments",2)]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     trainer.optimizer_name = "SGD"
-    trainer.target_names = ["vdens", "cdens"]
+    trainer.target_names = ["vdens"]
     trainer.input_names = ["cdens"]
-    trainer.init()
-    trainer.train(500,batch_number=10,compute_validation=10)
+    import numpy as np
+    #y_train = np.array(ds1.get_element_index("vdens"))
+    #num_bins = 100 
+    #hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
+    #bin_weights = 1.0 / (hist + 1)
+    #trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
+    #trainer.init()
+    trainer.train(2000,batch_number=5,compute_validation=10)
     trainer.save()
     trainer.plot()
     trainer.plot_validation()
 
     """
-    import numpy as np
-    y_train = np.array(ds1.get())
-    num_bins = 100 
-    hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
-    bin_weights = np.log1p(1.0 / (hist + 1e-6))
-    bin_weights /= np.max(bin_weights)  # Normalize to [0, 1]
-    bin_weights = 0.2 + 0.8 * bin_weights  # Stretch to [0.2, 1.0] to avoid vanishing gradien
-
-    trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
-    """
-
-    """
     trainer = load_trainer("UneK_highres_fingercrossed")
-    trainer2 = load_trainer("UneK_highres_unek_multiply")
-    trainer3 = load_trainer("UNet_highres_fingercrossed")
+    fig, ax=  trainer.plot_residuals()
+    fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    
 
-    plot_models_residuals([trainer, trainer2, trainer3])
-    """
-    
-    """
-    trainer.model = trainer.model
-    trainer.validation_set = ds2
-    trainer.plot()
-    trainer.plot_validation(same_limits=False)
-    """
 
-    """
-    trainer = load_trainer("UneK_highres_fingercrossed")  
-    trainer.validation_set = ds2  
-    trainer.plot()
+    #trainer = load_trainer("UneK_highres_fingercrossed")  
+    #trainer.validation_set = ds2  
+    #trainer.plot()
     trainer.fit_baseline()
 
     batch = trainer.get_prediction_batch()
@@ -978,8 +985,11 @@ if __name__ == "__main__":
         pred = trainer.apply_baseline(pred)
         reconstructed_batch.append((b[0], pred))
     trainer.prediction_batch = reconstructed_batch
-    trainer.plot()
-    trainer.plot_validation()
+    #trainer.plot()
+    #trainer.plot_validation()
+    fig, ax=  trainer.plot_residuals()
+    fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_fitted.jpg"))
+
     """
-  
+
     plt.show()

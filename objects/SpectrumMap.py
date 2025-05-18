@@ -4,7 +4,7 @@ import sys
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER
+from config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER, FIGURE_FOLDER
 import numpy as np
 from utils import *
 from physics_utils import *
@@ -429,8 +429,11 @@ if __name__ == "__main__":
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
     #map = SpectrumMap(name="spectrum_highresspec_0")
     map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_2")
-    #result = map.compute(_method_getMom, stride=1, used_cpu=1)
+    map.plot()
+    #result = map.compute(, stride=1, used_cpu=1)
     #result = np.array(result)
+    #plt.savefig(os.path.join(FIGURE_FOLDER,"13CO_integratedmap.jpg"))
     #plt.imshow(result)
-    map.plotChannelMap()
+    fig, ax=  map.plotChannelMap(enable_slider=False)
+    #fig.savefig(os.path.join(FIGURE_FOLDER,"13CO_channelmap_0.jpg"))
     plt.show()

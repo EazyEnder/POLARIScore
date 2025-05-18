@@ -95,10 +95,17 @@ def group_matrix(mats):
                col_idx * final_dim: (col_idx + 1) * final_dim] = np.array(mat)
     return result
 
-def movingAverage(l, n=5):
-    cs=np.cumsum(l, dtype=float)
-    cs[n:]=cs[n:]-cs[:-n]
-    return cs[n-1:]/n
+def movingAverage(l, n=5, return_std=False):
+    l = np.asarray(l, dtype=float)
+    cs = np.cumsum(l)
+    cs[n:] = cs[n:] - cs[:-n]
+    moving_avg = cs[n-1:] / n
+    
+    if return_std:
+        stds = np.array([np.std(l[i:i+n], ddof=0) for i in range(len(l) - n + 1)])
+        return moving_avg, stds
+    
+    return moving_avg
 
 def movingMin(l, n=5, exclude_zeros=False):
     result = []
@@ -162,19 +169,23 @@ def plot_function(function, ax=None, res=100, lims=[0,1], **args):
     return fig, ax
 
 
-def plot_lines(x,y, ax, lines=[0,1,2]):
+def plot_lines(x,y, ax, lines=[0,1,2], x_max=None, x_min=None, y_max=None, y_min=None):
+    x_max = np.max(x) if x_max is None else x_max
+    x_min = np.min(x) if x_min is None else x_min
+    y_max = np.max(y) if y_max is None else y_max
+    y_min = np.min(y) if y_min is None else y_min
     if not(lines is None):
-        axisx_length = (np.max(x)-np.min(x))
-        axisy_length = (np.max(y)-np.min(y))
-        x_corner = axisx_length*0.7+np.min(x)
-        y_corner = axisy_length*0.1+np.min(y)
+        axisx_length = (x_max-x_min)
+        axisy_length = (y_max-y_min)
+        x_corner = axisx_length*0.7+x_min
+        y_corner = axisy_length*0.1+y_min
         length = axisx_length*0.2  
         for l in lines:
             ax.plot([x_corner, x_corner + length],
                     [y_corner, y_corner + length*l],
                     '--', lw=1, color="black")
             if l != 0:
-                ax.text(x_corner + length + 0.05, y_corner + l*length, f'$x^{l}$', color='black')
+                ax.text(x_corner + length + length*0.1, y_corner + l*length, f'$x^{l}$', color='black')
     return ax
 
 import platform

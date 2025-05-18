@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config import LOGGER
+from torch.nn import init
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, is3D):
@@ -24,6 +25,12 @@ class ConvBlock(nn.Module):
             b(out_channels),
             d(p=0.05),
         )
+
+        self.initialize()
+
+    def initialize(self):
+        init.xavier_uniform_(self.conv.weight)
+        init.zeros_(self.conv.bias)
     
     def forward(self, x):
         return self.conv(x)
@@ -47,6 +54,12 @@ class DoubleConvBlock(nn.Module):
             nn.ReLU(),
             d(p=0.05)
         )
+
+        self.initialize()
+
+    def initialize(self):
+        init.xavier_uniform_(self.conv.weight)
+        init.zeros_(self.conv.bias)
     
     def forward(self, x):
         return self.conv(x)
@@ -104,6 +117,16 @@ class AttentionBlock(nn.Module):
 
         self.relu = nn.ReLU(inplace=True)
 
+        self.initialize()
+
+    def initialize(self):
+        init.xavier_uniform_(self.W_g.weight)
+        init.zeros_(self.W_g.bias)
+        init.xavier_uniform_(self.W_x.weight)
+        init.zeros_(self.W_x.bias)
+        init.xavier_uniform_(self.psi.weight)
+        init.zeros_(self.psi.bias)
+
     def forward(self, g, x):
         g1 = self.W_g(g)  # Apply 1x1 Conv on upsampled feature
         x1 = self.W_x(x)  # Apply 1x1 Conv on encoder feature
@@ -133,10 +156,7 @@ class UNet(BaseModule):
         
         # Encoder
         self.encoders = nn.ModuleList()
-        if is3D:
-            self.pool = nn.MaxPool3d(2, 2)
-        else:
-            self.pool = nn.MaxPool2d(2, 2)
+        self.pool = nn.MaxPool3d(2, 2) if is3D else nn.MaxPool2d(2,2)
 
         in_channels =  self.in_channels
         for i in range(num_layers):
@@ -183,6 +203,15 @@ class UNet(BaseModule):
         self.final_conv = nn.ModuleList()
         for o in range(self.out_channels):
             self.final_conv.append(final_conv(base_filters, 1, kernel_size=1))
+
+        self.initialize()
+
+    def initialize(self):
+        init.xavier_uniform_(self.bottleneck.weight)
+        init.zeros_(self.bottleneck.bias)
+        for f in self.final_conv:
+            init.xavier_uniform(f.weight)
+            init.zeros_(f.bias)
     
     def forward(self, x):
 
@@ -229,15 +258,6 @@ class UNet(BaseModule):
             return self.final_conv[0](decoded_x[0])
     
 if __name__ == "__main__":
-    #model = UNet(is3D=True)
-    #x = torch.randn(1, 1, 128, 128, 128)
-    #print(model(x).shape)
-
-    import numpy as np
-    nc = 5e4
-    nd = 3e1
-    Lc = 6e-2
-    nm = 3e2
-
-    L = Lc*(nc**2-nd**2-nm*(nc-nd))/(nd*(nm-nd))
-    print(L)
+    model = UNet(is3D=True)
+    x = torch.randn(1, 1, 128, 128, 128)
+    print(model(x).shape)
