@@ -939,8 +939,8 @@ if __name__ == "__main__":
     ds1, ds2 = ds.split(cutoff=0.7)
 
 
-    trainer = Trainer(Recursive_UNet, ds1, ds2, model_name="Recursive_UNet")
-    #trainer = load_trainer("Unet_highres_2outputs_Adam_customloss")
+    #trainer = Trainer(UNet, ds1, ds2, model_name="xavierinit_UNet")
+    trainer = load_trainer("xavierinit_UNet")
     trainer.training_set = ds1
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
@@ -952,7 +952,7 @@ if __name__ == "__main__":
     #trainer.network_settings["channel_modes"] = [None, ("moments",2)]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
-    trainer.optimizer_name = "SGD"
+    trainer.optimizer_name = "Adam"
     trainer.target_names = ["vdens"]
     trainer.input_names = ["cdens"]
     import numpy as np
@@ -960,12 +960,14 @@ if __name__ == "__main__":
     #num_bins = 100 
     #hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
     #bin_weights = 1.0 / (hist + 1)
-    #trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
-    #trainer.init()
-    trainer.train(2000,batch_number=5,compute_validation=10)
+    trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
+    trainer.init()
+    trainer.train(2000,batch_number=100,compute_validation=10)
     trainer.save()
     trainer.plot()
     trainer.plot_validation()
+    #plot_models_accuracy([trainer,trainer2])
+
 
     """
     trainer = load_trainer("UneK_highres_fingercrossed")

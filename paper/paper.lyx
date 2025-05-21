@@ -99,7 +99,7 @@
 \begin_body
 
 \begin_layout Title
-From the column density to the volume density in molecular clouds using deep learning
+Inferring Volume Density in Molecular Clouds Using Deep Learning
 \end_layout
 
 \begin_layout Author
@@ -132,20 +132,118 @@ pierre.hily-blant@univ-grenoble-alpes.fr
 \end_layout
 
 \begin_layout Abstract
-/ code to easily train models and plot is available at 
+
+\series bold
+Context.
+ 
+\series default
+Molecular clouds,
+ seen as dark patches on the sky,
+ are complex 3D structures forming filaments and dense cores where stars are born.
+ Yet,
+ as Earth-bound observers,
+ we only access 2D,
+ quasi-static projections.
+ Reconstructing their 3D structure is crucial for understanding star formation,
+ turbulence,
+ and chemistry,
+ but doing so from a single 2D map is highly non-invertible.
+\end_layout
+
+\begin_layout Abstract
+
+\series bold
+Aims.
+
+\series default
+ This work explores deep learning,
+ particularly neural networks,
+ to infer physical quantities such as the average volume density along the line of sight.
+ It also initiates the use of architectures capable of handling PPV cubes,
+ which offer additional kinematic information.
+\end_layout
+
+\begin_layout Abstract
+
+\series bold
+Methods.
+ 
+\series default
+Neural networks are trained on synthetic data to predict volume density from column density and extended to use molecular emission maps (e.g.,
+ from ¹³CO).
+\end_layout
+
+\begin_layout Abstract
+
+\series bold
+Results.
+ 
+\series default
+We developed models capable of predicting average volume density and explored new multi-input architectures.
+ We also implemented Kolmogorov-Arnold networks and began developing 
 \begin_inset CommandInset href
 LatexCommand href
-target "https://github.com/EazyEnder/POLARIScore"
+name "POLARIS"
+target "https://github.com/EazyEnder/POLARIS"
 literal "false"
 
 \end_inset
 
- (private for now).
- Ideas:
- GNN,
- Context aware NN,
- DDPM,
- CIN
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Software code available here:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/EazyEnder/POLARIS"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Python code available here:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/EazyEnder/POLARIScore"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+,
+ a software tool for future experimentation.
+\end_layout
+
+\begin_layout Abstract
+
+\series bold
+Conclusions.
+
+\series default
+ Though still exploratory,
+ these results mark an early step toward reconstructing the 3D structure of molecular clouds using deep learning.
+\end_layout
+
+\begin_layout Abstract
+
+\emph on
+This document was written as part of a Master 2 internship carried out in 2025 at IPAG (Institut de Planétologie et d’Astrophysique de Grenoble),
+ France.
 \end_layout
 
 \begin_layout Standard
@@ -171,6 +269,10 @@ LatexCommand tableofcontents
 
 \end_layout
 
+\begin_layout Part
+Context
+\end_layout
+
 \begin_layout Standard
 \begin_inset ERT
 status open
@@ -187,23 +289,114 @@ begin{multicols}{2}
 
 \end_layout
 
+\begin_layout Standard
+The subject of this document is the prediction of a physical quantity using a machine learning model.
+ To facilitate its reading,
+ it is therefore essential to have some basic understanding of both the underlying physics of the system and the principles of neural networks.
+ In addition to the global context provided here,
+ relevant concepts and reminders will be given in the opening section of each part,
+ to ensure a smooth and coherent progression alongside the practical application.
+\end_layout
+
 \begin_layout Section*
-Introduction
+Molecular clouds
 \end_layout
 
-\begin_layout Itemize
-Molecular clouds -> Star forming regions,
- IMF,
- DCF
+\begin_layout Standard
+The objects studied in this work are molecular clouds.
+ These clouds are not static,
+ they have both a history and a future.
+ To understand why we study molecular clouds,
+ it is therefore essential to consider their evolution.
 \end_layout
 
-\begin_layout Itemize
-Turbulence -> base,
- forcing effect
+\begin_layout Standard
+As will become clear throughout this document,
+ physics plays a central role in every stage of the model development process,
+ from the design of the architecture,
+ where a link must be established between the operations performed and the underlying physics,
+ to the training,
+ validation (i.e.,
+ error evaluation),
+ and application of the model to real observations.
+ It is therefore not sufficient to build a model blindly and expect it to perform well;
+ physical understanding is required at every step.
+ Moreover,
+ without any underlying physical structure,
+ a model would have nothing meaningful to learn,
+ and such an approach would be fundamentally misguided.
 \end_layout
 
-\begin_layout Itemize
-Machine learning base
+\begin_layout Subsection*
+Interstellar medium
+\end_layout
+
+\begin_layout Standard
+The interstellar medium (ISM) is the matter that exists in the space between the stars within a galaxy.
+ Far from being empty,
+ this medium is composed of gas (both atomic and molecular),
+ dust grains,
+ cosmic rays,
+ and magnetic fields.
+ Though tenuous in comparison to Earth's atmosphere,
+ with typical densities ranging from less than one to several thousand particles per cubic centimeter,
+ the ISM plays a fundamental role in galactic evolution.
+ It is the reservoir of material from which stars are born and into which they return mass and energy at the end of their life cycles,
+ making it both the cradle and the graveyard of stars.
+\end_layout
+
+\begin_layout Standard
+The ISM is not uniform but highly structured,
+ exhibiting variations in temperature,
+ density,
+ ionization state,
+ and chemical composition.
+ These different conditions give rise to a classification into several distinct phases,
+ which coexist in a complex,
+ dynamically interacting balance.
+ The two main neutral atomic phases are the Warm Neutral Medium (WNM) and the Cold Neutral Medium (CNM),
+ while the molecular phase marks the densest regions of the ISM where star formation can occur.
+ These phases are not static.
+ The WNM can cool and condense into the CNM,
+ which under further compression and shielding can transition into a molecular cloud.
+ Within these molecular clouds,
+ regions may collapse gravitationally to form new stars,
+ which in turn inject energy,
+ momentum,
+ and material back into the ISM through radiation,
+ stellar winds,
+ and supernova explosions.
+ This feedback can heat and disperse the surrounding gas,
+ transforming it once again into WNM,
+ thereby completing a cyclical process that drives the continuous evolution of the interstellar medium.
+\end_layout
+
+\begin_layout Subsection*
+Formation
+\end_layout
+
+\begin_layout Subsection*
+Dense cores
+\end_layout
+
+\begin_layout Subsection*
+Initial Mass Function
+\end_layout
+
+\begin_layout Section*
+Machine learning
+\end_layout
+
+\begin_layout Subsection*
+Multi Layer Perceptrons
+\end_layout
+
+\begin_layout Subsection*
+Convolutional Neural Network
+\end_layout
+
+\begin_layout Subsection*
+Denoising Diffusion Probabilistic Models
 \end_layout
 
 \begin_layout Standard
@@ -217,6 +410,13 @@ status open
 end{multicols}
 \end_layout
 
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
 \end_inset
 
 
@@ -3996,12 +4196,12 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/obs_orionb_correlation.jpg
+	filename figure/placeholder.jpg
 	width 80col%
 
 \end_inset
@@ -4166,12 +4366,12 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/obs_orionb_correlation.jpg
+	filename figure/placeholder.jpg
 	width 80col%
 
 \end_inset
@@ -4235,7 +4435,7 @@ Because the simulation is discrete,
  i.e.
  the line of sight is composed of N cells,
  and physical parameters are assumed constant within each cell,
- the change in intensity as the ray passes through a single cell is given by:
+ the change in intensity as the ray passes through a single cell is then given by:
 \begin_inset Formula 
 \begin{equation}
 I_{\nu,i+1}=I_{\nu,i}e^{-\tau_{i}}+B_{\nu,i}(1-e^{-\tau_{i}})\label{eq:radiative}

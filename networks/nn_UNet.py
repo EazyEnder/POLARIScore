@@ -8,9 +8,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from config import LOGGER
 from torch.nn import init
+from networks.utils.nn_utils import xavier_init
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, is3D):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False):
         super(ConvBlock, self).__init__()
         c = nn.Conv2d
         b = nn.BatchNorm2d
@@ -29,14 +30,12 @@ class ConvBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        init.xavier_uniform_(self.conv.weight)
-        init.zeros_(self.conv.bias)
-    
+        xavier_init(self)
     def forward(self, x):
         return self.conv(x)
     
 class DoubleConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, is3D):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False):
         super(DoubleConvBlock, self).__init__()
         c = nn.Conv2d
         b = nn.BatchNorm2d
@@ -58,8 +57,7 @@ class DoubleConvBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        init.xavier_uniform_(self.conv.weight)
-        init.zeros_(self.conv.bias)
+        xavier_init(self)
     
     def forward(self, x):
         return self.conv(x)
@@ -120,12 +118,7 @@ class AttentionBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        init.xavier_uniform_(self.W_g.weight)
-        init.zeros_(self.W_g.bias)
-        init.xavier_uniform_(self.W_x.weight)
-        init.zeros_(self.W_x.bias)
-        init.xavier_uniform_(self.psi.weight)
-        init.zeros_(self.psi.bias)
+        xavier_init(self)
 
     def forward(self, g, x):
         g1 = self.W_g(g)  # Apply 1x1 Conv on upsampled feature
@@ -207,8 +200,6 @@ class UNet(BaseModule):
         self.initialize()
 
     def initialize(self):
-        init.xavier_uniform_(self.bottleneck.weight)
-        init.zeros_(self.bottleneck.bias)
         for f in self.final_conv:
             init.xavier_uniform(f.weight)
             init.zeros_(f.bias)
