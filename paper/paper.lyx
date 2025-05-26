@@ -387,8 +387,201 @@ Initial Mass Function
 Machine learning
 \end_layout
 
+\begin_layout Standard
+Machine learning,
+ a subset of artificial intelligence,
+ focuses on algorithms that enable computers to learn patterns from data and make decisions without being explicitly programmed.
+ The foundational ideas trace back to the 1950s,
+ notably with Alan Turing’s work on machine intelligence and Arthur Samuel’s pioneering research in self learning systems.
+\end_layout
+
+\begin_layout Standard
+Neural networks,
+ inspired by the structure and function of the human brain,
+ were first conceptualized in 1943 by McCulloch and Pitts.
+ The introduction of the perceptron by Rosenblatt in 1958 marked an early attempt at mimicking neural processes.
+ However,
+ due to computational limitations and theoretical criticisms,
+ interest waned during the 1970s.
+ The resurgence came in the 1980s with the development of the backpropagation algorithm,
+ enabling the training of multi-layer networks.
+\end_layout
+
+\begin_layout Standard
+The modern era of machine learning was catalyzed by advances in computing power,
+ the availability of large datasets,
+ and algorithmic innovations,
+ leading to the rise of deep learning in the 2010s.
+ Architectures such as convolutional and recurrent neural networks have since achieved state-of-the-art performance in domains including computer vision,
+ natural language processing,
+ and bioinformatics.
+\end_layout
+
 \begin_layout Subsection*
 Multi Layer Perceptrons
+\end_layout
+
+\begin_layout Standard
+The fundamental building block of neural networks is the perceptron (ref).
+ Analogous to a biological neuron and its synapses,
+ the perceptron receives 
+\begin_inset Formula $N$
+\end_inset
+
+ inputs 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+,
+ each of which is weighted by a corresponding learnable parameter 
+\begin_inset Formula $w_{i}$
+\end_inset
+
+.
+ It computes a weighted sum of the inputs,
+ which is then passed through a nonlinear function known as the activation function.
+ This nonlinearity is what gives the perceptron its expressive power.
+\end_layout
+
+\begin_layout Standard
+
+\end_layout
+
+\begin_layout Standard
+Mathematically,
+ the output 
+\begin_inset Formula $y$
+\end_inset
+
+ of a perceptron is given by:
+\begin_inset Formula 
+\begin{equation}
+y=f(\sum_{i}^{N}w_{i}x_{i}+b)
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $f$
+\end_inset
+
+ is the activation function,
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+ is the bias term,
+ which allows the model to shift the activation threshold.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/placeholder.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Perceptron
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+What gives Multilayer Perceptrons (MLPs) their expressive power are several key elements.
+ First,
+ the activation function,
+ commonly a sigmoid,
+ or more recently,
+ the ReLU,
+ introduces non-linearity into the model,
+ allowing it to approximate complex functions beyond simple linear mappings.
+\end_layout
+
+\begin_layout Standard
+Second,
+ the number of neurons in each layer can be arbitrarily large,
+ and more importantly,
+ the number of trainable parameters,
+ which corresponds to the number of connections (weights),
+ can reach thousands or even millions.
+ This high parameter count gives the model substantial flexibility and representational capacity.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/placeholder.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+MLPs
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However,
+ this very richness in parameters was historically a major obstacle.
+ Training such large networks was computationally expensive and often infeasible.
+ Only in recent years,
+ thanks to the development of more efficient algorithms,
+ optimization techniques,
+ and the rise of powerful hardware (e.g.,
+ GPUs),
+ has it become possible to train deep networks at scale.
+ These advancements have led to the resurgence and widespread application of neural networks in numerous fields.
 \end_layout
 
 \begin_layout Subsection*
@@ -3152,7 +3345,8 @@ nolink "false"
 
 \end_inset
 
-.
+,
+ or in a bigger problem in how we apply the model on observations.
 \end_layout
 
 \begin_layout Subsection
@@ -3994,7 +4188,7 @@ name "fig:Orion-B-Correlation"
 \end_layout
 
 \begin_layout Section
-Conclusion
+Discussion
 \end_layout
 
 \begin_layout Standard
@@ -4030,9 +4224,10 @@ literal "false"
  the model performs significantly better in predicting dense clouds,
  consistent with the simulation’s properties.
  As a result,
- we obtained a good prediction of the mass-weighted average density along the line of sight for Orion.
+ we obtained a good prediction of the mass-weighted average density along the line of sight for dense regions like Orion filament.
  However,
- accurately predicting very locally dense regions within the diffuse areas remains challenging as shown for the Polaris Flare.
+ accurately predicting dense regions within the diffuse areas (or high density for low column density) remains challenging as shown for the Polaris Flare or in the diffuse regions of the previous studied clouds.
+ 
 \end_layout
 
 \begin_layout Standard
