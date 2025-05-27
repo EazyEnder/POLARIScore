@@ -4,7 +4,7 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 from config import *
-from utils import plot_lines
+from utils import plot_lines, listDictToString
 import json
 import glob
 import matplotlib.pyplot as plt
@@ -198,6 +198,38 @@ class Dataset():
         with open(os.path.join(batch_path,'settings.json'), 'w') as file:
             json.dump(self.settings, file, indent=4)
     
+    def save_diagnostic(self):
+        batch = self.get()
+        map_index = self.get_element_index("cdens")
+        result_dicts = []
+        for i,b in enumerate(batch):
+            data = np.array(b[map_index]).flatten()
+        
+            result_dicts.append({
+                "index": i,
+                "mean": np.mean(data),
+                "std_log10": np.std(np.log10(data)),
+                "min": np.min(data),
+                "max": np.max(data),
+                "median": np.median(data)
+            })
+
+        string = listDictToString(result_dicts)
+        if not(os.path.exists(TRAINING_BATCH_FOLDER)):
+            os.mkdir(TRAINING_BATCH_FOLDER)
+        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
+        if not(os.path.exists(batch_path)):
+            os.mkdir(batch_path)
+        path = os.path.join(batch_path, "diagnostic.txt")
+        if os.path.exists(path):
+            LOGGER.warn(f"Previous diagnostic file was removed for dataset {self.name}.")
+            os.remove(path)
+        with open(path, "w") as file:
+            file.write(string)
+        LOGGER.log(f"Diagnostic of {self.name} saved.")
+
+        return result_dicts
+
     def save(self,batch=None, name=None, force=False):
 
         batch = self.get() if batch is None else batch
@@ -334,7 +366,6 @@ class Dataset():
 
         return fig, [ax_histo]
 
-
     def plot_map(self, ax=None, element_index=0, map_index=0, enable_slider=True):        
         if ax is None:
             fig, ax = plt.subplots()
@@ -455,6 +486,7 @@ class Dataset():
 
 if __name__ == "__main__":
     ds = getDataset("batch_highres")
+    ds.save_diagnostic()
     #fig, ax = ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
-    ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
-    plt.show()
+    #ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
+    #plt.show()

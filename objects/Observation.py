@@ -6,7 +6,7 @@ if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
 from config import *
-from utils import compute_pdf
+from utils import listDictToString
 import matplotlib.pyplot as plt 
 import numpy as np
 from utils import *
@@ -17,6 +17,7 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
 import re
+from objects.Dataset import getDataset
 
 def _crop(wcs, lims):
     ra_min, ra_max, dec_min, dec_max = lims
@@ -300,10 +301,62 @@ class Observation():
             ax.set_ylim((y_min, y_max))
 
         return fig, ax
+
+    def plot_validity_with_model(self, dataset_name, ax=None, patch_size=(128, 128), nan_value=-1.0, overlap=0.5):
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+
+        input_matrix = self.data
+        input_tensor = input_matrix.astype(np.float32)
+        nan_mask = np.isnan(input_matrix)
+        if nan_value < 0:
+            nan_value = float(np.nanmin(self.data))
+        input_tensor[nan_mask] = nan_value
+
+        height, width = input_tensor.shape
+        patch_height, patch_width = patch_size
+        stride_height = int(patch_height * (1 - overlap))
+        stride_width = int(patch_width * (1 - overlap))
+
+        i_range = range(0, height - patch_height + 1, stride_height)
+        j_range = range(0, width - patch_width + 1, stride_width)
+
+        means_obs = []
+        stds_obs = []
+
+        for i0,i in enumerate(i_range):
+            for j0,j in enumerate(j_range):
+                patch = input_tensor[i:i+patch_height, j:j+patch_width]                
+                patch_mean = np.mean(patch)
+                log10_patch = np.log10(patch)
+                patch_std = np.std(log10_patch)
     
-    def _get_cores_predicted_values(self, region=None, return_ncol=False):
+                means_obs.append(patch_mean)
+                stds_obs.append(patch_std)
+
+        ds = getDataset("batch_highres")
+        diagnostic = ds.save_diagnostic()
+        means_ds = [d["mean"] for d in diagnostic]
+        stds_ds = [d["std_log10"] for d in diagnostic]
+
+        ax.scatter(stds_obs, np.log10(means_obs), label="Observation")
+        ax.scatter(stds_ds, np.log10(means_ds), label="Dataset")
+
+        ax.set_xlabel(r"$\sigma_{log_{10}(N)}$")
+        ax.set_ylabel(r"$log_{10}(<N_{col}>)$")
+
+        ax.legend()
+
+        return fig, ax
+
+    def _get_cores_predicted_values(self, region=None, return_ncol=False, return_indexes=False):
         predicted_densities = np.array(self.getPredictedDensityAtCore())
         derived_densities =  np.array([c["average_n"] for c in self.getCores()])
+        global_indexes = np.array(range(predicted_densities.shape[0]))
         mask = (~np.isnan(predicted_densities)) & (predicted_densities > 0) & (derived_densities > 0)
         if region is not None:
             ra_max, ra_min, dec_min, dec_max = region
@@ -313,13 +366,19 @@ class Observation():
             mask = mask & region_mask
         predicted_densities = predicted_densities[mask]
         derived_densities = derived_densities[mask]
+        global_indexes = global_indexes[mask]
         predicted_densities = np.log10(predicted_densities)
         derived_densities = np.log10(derived_densities)
         if return_ncol:
             column_densities = np.array(self.getPredictedDensityAtCore(column_density=True))
             column_densities = np.log10(column_densities[mask])
             sorted_indexes = np.argsort(column_densities)
+            global_indexes = global_indexes[sorted_indexes]
+            if return_indexes:
+                return (predicted_densities[sorted_indexes], derived_densities[sorted_indexes], column_densities[sorted_indexes], global_indexes)
             return (predicted_densities[sorted_indexes], derived_densities[sorted_indexes], column_densities[sorted_indexes])
+        if return_indexes:
+            return (predicted_densities, derived_densities, global_indexes)
         return (predicted_densities, derived_densities)
     
     def plot_cores_hist(self, ax=None, region=None):
@@ -408,13 +467,35 @@ class Observation():
         if movAverage > 1 and show_errors:
             ax.fill_between(column_densities,residuals-residuals_std,residuals+residuals_std, color=line.get_color(), alpha=0.2)
         
-        ax.set_xlabel("$\log_{10}(N_{col}) [cm^{-2}]$")
-        ax.set_ylabel("$\log_{10}(n_{pred})-\log_{10}(n_{derived}) [cm^{-3}]$")
+        ax.set_xlabel("$\log_{10}(N_{col})$")
+        ax.set_ylabel("$\log_{10}(n_{pred})-\log_{10}(n_{estimated})$")
 
         ax.legend()
 
         return fig, ax
-    
+
+    def serialize_cores(self, region=None):
+        cores = self.getCores()
+        if cores is None:
+            LOGGER.error("Cant serialize, there is no cores.")
+            return
+        predicted_densities, derived_densities, column_densities, indexes = self._get_cores_predicted_values(region=region, return_ncol=True, return_indexes=True)
+        returned_cores = []
+        for i0,i in enumerate(indexes):
+            returned_cores.append({
+                "name": cores[i]["name"],
+                "ra": cores[i]["ra"],
+                "dec": cores[i]["dec"],
+                "n_estimated": derived_densities[i0],
+                "n_predicted": predicted_densities[i0],
+                "column_density": column_densities[i0],
+            })
+        string = listDictToString(returned_cores)
+        with open(os.path.join(self.folder, "cores.txt"), "w") as file:
+            file.write(string)
+        LOGGER.log(f"Cores serialized for obs {self.name}, see the cores.txt file.")
+        return string
+
     def save(self,replace=False):
         if self.prediction is None:
             LOGGER.error(f"Can't save cache for prediction on {self.name} because there has no prediction on this observation, use .predict(model)")
@@ -481,7 +562,6 @@ if __name__ == "__main__":
     #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plotCores=False, show=True)
 
     fig, ax = plt.subplots()
-
     names = ["OrionB", "Taurus_L1495", "Aquila"]
 
     
@@ -489,9 +569,14 @@ if __name__ == "__main__":
     for n in names:
         obs = Observation(n,"column_density_map")
         obs.load()
+        
+        #fig, ax = obs.plot_validity_with_model("batch_highres_2", patch_size=(512, 512))
+        #fig.savefig(FIGURE_FOLDER+f"obs_{n.lower()}_validity.jpg")
+
+        #obs.serialize_cores()
         #obs.plot_cores_hist(ax=ax)
-        obs.plot_cores_error(ax=ax, alpha=0.75, movAverage=50)
+        obs.plot_cores_error(ax=ax, alpha=0.75, movAverage=10)
 
-    #fig.savefig(FIGURE_FOLDER+"observation_errors.jpg")
+    fig.savefig(FIGURE_FOLDER+"observation_errors.jpg")
 
-    plt.show()
+    #plt.show()

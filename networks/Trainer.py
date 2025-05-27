@@ -960,7 +960,7 @@ if __name__ == "__main__":
     #num_bins = 100 
     #hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
     #bin_weights = 1.0 / (hist + 1)
-    trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
+    #trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
     trainer.init()
     trainer.train(2000,batch_number=100,compute_validation=10)
     trainer.save()

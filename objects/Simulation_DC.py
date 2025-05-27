@@ -595,7 +595,9 @@ def openSimulation(name_root, global_size, use_cache=True):
 if __name__ == "__main__":
     #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
     sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
-    sim.plot(derivate=2, axis=0)
+    fig, ax = sim.plot_correlation()
+    fig.savefig(FIGURE_FOLDER+"orion_sim_correlation.jpg")
+    #sim.plot(derivate=2, axis=0)
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
     

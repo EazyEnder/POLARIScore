@@ -50,9 +50,11 @@
 \use_package stackrel 1
 \use_package stmaryrd 1
 \use_package undertilde 1
-\cite_engine natbib
+\cite_engine biblatex
 \cite_engine_type authoryear
 \biblio_style plainnat
+\biblatex_bibstyle authoryear
+\biblatex_citestyle authoryear
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -232,7 +234,7 @@ target "https://github.com/EazyEnder/POLARIScore"
 \begin_layout Abstract
 
 \series bold
-Conclusions.
+Conclusion.
 
 \series default
  Though still exploratory,
@@ -295,7 +297,7 @@ The subject of this document is the prediction of a physical quantity using a ma
  it is therefore essential to have some basic understanding of both the underlying physics of the system and the principles of neural networks.
  In addition to the global context provided here,
  relevant concepts and reminders will be given in the opening section of each part,
- to ensure a smooth and coherent progression alongside the practical application.
+ to ensure a smooth and coherent progression alongside the application.
 \end_layout
 
 \begin_layout Section*
@@ -325,6 +327,19 @@ As will become clear throughout this document,
  without any underlying physical structure,
  a model would have nothing meaningful to learn,
  and such an approach would be fundamentally misguided.
+\end_layout
+
+\begin_layout Standard
+Here are several papers that provide clear and comprehensive introductions to key topics such as star formation and interstellar turbulence:
+ 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "girichidis_physical_2020,hennebelle_physical_2024,hopkins_general_2013,guszejnov_star_2016"
+literal "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Subsection*
@@ -371,16 +386,291 @@ The ISM is not uniform but highly structured,
  thereby completing a cyclical process that drives the continuous evolution of the interstellar medium.
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float table
+placement H
+alignment center
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Component
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Temperature
+\end_layout
+
+\begin_layout Plain Layout
+(K)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Density
+\end_layout
+
+\begin_layout Plain Layout
+(
+\begin_inset Formula $cm^{-3}$
+\end_inset
+
+)
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Molecular gas
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $10-20$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $>10^{2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Cold neutral medium (CNM)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $50-100$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $20-50$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Warm neutral medium (WNM)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $10^{4}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $10^{-1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Warm ionized medium (WIM)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim8000$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $10^{-1}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Hot ionized medium (HIM)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $\sim10^{6}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Formula $10^{-2}$
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Phases of the ISM
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection*
-Formation
+Physics behind
+\end_layout
+
+\begin_layout Standard
+Turbulence,
+ bases de la formation stellaire:
+ temps caractéristisques,
+ viriel -> jeans...
 \end_layout
 
 \begin_layout Subsection*
 Dense cores
 \end_layout
 
-\begin_layout Subsection*
-Initial Mass Function
+\begin_layout Standard
+Avec CMF -> IMF...
 \end_layout
 
 \begin_layout Section*
@@ -398,12 +688,36 @@ Machine learning,
 \begin_layout Standard
 Neural networks,
  inspired by the structure and function of the human brain,
- were first conceptualized in 1943 by McCulloch and Pitts.
- The introduction of the perceptron by Rosenblatt in 1958 marked an early attempt at mimicking neural processes.
+ were first conceptualized in 1943 by McCulloch and Pitts 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "mcculloch_logical_1943"
+literal "false"
+
+\end_inset
+
+.
+ The introduction of the perceptron by Rosenblatt in 1958 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "rosenblatt_perceptron_1958"
+literal "false"
+
+\end_inset
+
+ marked an early attempt at mimicking neural processes.
  However,
  due to computational limitations and theoretical criticisms,
  interest waned during the 1970s.
- The resurgence came in the 1980s with the development of the backpropagation algorithm,
+ The resurgence came in the 1980s with the development of the backpropagation algorithm 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "rumelhart_learning_1986"
+literal "false"
+
+\end_inset
+
+,
  enabling the training of multi-layer networks.
 \end_layout
 
@@ -422,7 +736,15 @@ Multi Layer Perceptrons
 \end_layout
 
 \begin_layout Standard
-The fundamental building block of neural networks is the perceptron (ref).
+The fundamental building block of neural networks is the perceptron 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "rosenblatt_perceptron_1958"
+literal "false"
+
+\end_inset
+
+.
  Analogous to a biological neuron and its synapses,
  the perceptron receives 
 \begin_inset Formula $N$
@@ -489,7 +811,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/placeholder.jpg
+	filename figure/perceptron.jpg
 	width 80col%
 
 \end_inset
@@ -541,12 +863,12 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/placeholder.jpg
+	filename figure/multilayerperceptrons.jpg
 	width 80col%
 
 \end_inset
@@ -558,7 +880,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-MLPs
+Multi Layer Perceptrons (MLPs)
 \end_layout
 
 \end_inset
@@ -640,11 +962,97 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-/ Hardest part to write...
- Why this is important,
- actual methods/tentatives,
- a bigger introduction on MC will be before Part I,
- at the beginning of the doc.
+The first part of this work focuses on predicting the average density 
+\begin_inset Formula $<n>$
+\end_inset
+
+ along the line of sight (l.o.s.) from the column density 
+\begin_inset Formula $N_{C}=\int_{L}n(x,y,z)dz$
+\end_inset
+
+ where 
+\begin_inset Formula $z$
+\end_inset
+
+ is the line of sight axis.
+ This remains a 2D-to-2D prediction,
+ meaning we are estimating a new 2D map from an existing 2D map.
+ This objective is,
+ in principle,
+ more achievable than recovering the full 3D structure of a molecular cloud,
+ while still offering valuable scientific insights,
+ such as highlighting dense cores.
+\end_layout
+
+\begin_layout Standard
+Recently,
+ several new methods have emerged to estimate this average density 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "xu_denoising_2023,orkisz_volume_2024,gaches_probabilistic_2024"
+literal "false"
+
+\end_inset
+
+,
+ including one that leverages machine learning and a diffusion model 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "xu_denoising_2023"
+literal "false"
+
+\end_inset
+
+.
+ In this work,
+ we aim to reconstruct a neural network model capable of this task,
+ and to explore various potential improvements,
+ while intentionally avoiding diffusion models at this stage.
+\end_layout
+
+\begin_layout Standard
+The goal is to proceed step by step,
+ to build a clean and understandable foundation,
+ to learn and analyze the process,
+ and to prepare for more complex architectures in the future.
+\end_layout
+
+\begin_layout Standard
+There are few examples of why a 3D reconstruction of molecular clouds would be highly valuable:
+\end_layout
+
+\begin_layout Itemize
+Lifting projection degeneracies:
+ For instance,
+ multiple dense cores may overlap along the same line of sight.
+ A 3D view would allow us to disentangle them and more accurately estimate their individual masses,
+ essential for determining the dense core mass function.
+\end_layout
+
+\begin_layout Itemize
+Estimating the star formation rate (SFR).
+\end_layout
+
+\begin_layout Itemize
+Astrochemistry:
+ The UV and cosmic-ray ionization rates depend strongly on the local depth within the cloud,
+ i.e.,
+ the effective column density shielding a given position 
+\begin_inset Formula $(x,y,z)$
+\end_inset
+
+.
+ A 3D reconstruction would provide a more realistic view of the material distribution,
+ directly impacting chemical modeling.
+\end_layout
+
+\begin_layout Itemize
+Studying turbulent processes:
+ Understanding the 3D structure of turbulence,
+ including its anisotropy and scaling,
+ requires volumetric data.
+ A 2D projection washes out key features of the velocity and density fields,
+ limiting insight into the physics of turbulence in the interstellar medium.
 \end_layout
 
 \begin_layout Subsection
@@ -1183,13 +1591,13 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figure/orion_sim_correlation.jpg
-	width 80col%
+	width 90col%
 
 \end_inset
 
@@ -1219,7 +1627,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1239,6 +1647,8 @@ status collapsed
 Two examples from the ORION training dataset.
  Top row is the column density,
  bottom row is the mass-weighted density.
+ Left is a dense region,
+ Right is a diffuse region.
 \end_layout
 
 \end_inset
@@ -3036,7 +3446,7 @@ name "sec:Results"
 
 \begin_layout Standard
 In this section,
- we apply our U-Net model fuse with KAN as a symbolic role and using residuals fitting (see Appendix 
+ we apply our U-Net model fused with KAN as a symbolic role and using residuals fitting (see Appendix 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sec:Residuals-Correction"
@@ -3047,7 +3457,18 @@ nolink "false"
 
 \end_inset
 
-) to Herschel observations,
+) to Herschel observations (see Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:model_on_obs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for method),
  allowing us to compare it with a few recent methods:
 \end_layout
 
@@ -4226,8 +4647,470 @@ literal "false"
  As a result,
  we obtained a good prediction of the mass-weighted average density along the line of sight for dense regions like Orion filament.
  However,
- accurately predicting dense regions within the diffuse areas (or high density for low column density) remains challenging as shown for the Polaris Flare or in the diffuse regions of the previous studied clouds.
+ accurately predicting dense regions within the more diffuse areas (i.e high density for low column density) remains very challenging as shown for the Polaris Flare or in the diffuse regions of the previous studied clouds.
  
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:ModelObsErrors"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ clearly highlights a significant underestimation of the average density in dense cores located in regions of low column density.
+ However,
+ beyond a certain column density threshold,
+ the model performs well.
+\end_layout
+
+\begin_layout Standard
+We currently have several hypotheses to explain this behavior,
+ as well as potential solutions that could be explored in more detail during a future PhD or in subsequent work.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/observation_errors.jpg
+	width 95col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Baseline of model error on observations:
+ difference between density 
+\begin_inset Formula $n_{\text{estimated}}$
+\end_inset
+
+ estimated using the dense cores by previous papers and the density 
+\begin_inset Formula $n_{\text{pred}}$
+\end_inset
+
+ found by our model.
+ The baseline is found by using a moving average of 
+\begin_inset Formula $N=10$
+\end_inset
+
+.
+ The transparent area is the standard deviation from the 
+\begin_inset Formula $N$
+\end_inset
+
+ points used in the moving average.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:ModelObsErrors"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph*
+Possibility 1:
+ A lack of relevant examples in the training simulation
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The simulation used for training may simply not contain regions that exhibit high volume densities combined with low column densities.
+ In that case,
+ the model is unable to predict configurations it has never encountered during training ,
+ a limitation inherent to data-driven methods.
+\end_layout
+
+\begin_layout Standard
+That said,
+ the model does learn spatial relationships,
+ and should in principle be able to infer that regions near filaments or dense structures tend to have elevated densities.
+ This may explain why the model performs well above a certain column density threshold,
+ where it is clearly within the filamentary structures,
+ but struggles just outside those regions.
+\end_layout
+
+\begin_layout Standard
+To quantify the degree of similarity between the simulation and real observed clouds,
+ we could define simple statistical indicators,
+ such as the mean and standard deviation of the column density distribution,
+ and compare these between the training data and target regions.
+ (See Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:model_on_obs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for an overview of the observational regions being predicted.)
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurus_l1495_validity.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_orionb_validity.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Mean and Std of the column density in predicted and training regions.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:obs_Validation"
+
+\end_inset
+
+ Left is for Taurus L1495;
+ Right for Orion B.
+ Orange is for dataset,
+ Blue for observations.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:obs_Validation"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ suggests that the observations and the training set share few similar regions,
+ at least in terms of key statistical properties of the column density distribution.
+ However,
+ this comparison is limited to global quantities,
+ and it remains possible that subregions within the observational regions may still be well represented in the simulation.
+ Nonetheless,
+ the mismatch is concerning.
+\end_layout
+
+\begin_layout Standard
+To address this,
+ one potential solution would be to make new simulations specifically designed to reproduce the physical conditions and statistical properties of the observed cloud,
+ assuming the issue does not lie in the training set construction process itself.
+\end_layout
+
+\begin_layout Paragraph*
+Possibility 2:
+ Lack of context in low column density regions
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As shown in Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:model_on_obs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+,
+ the observational data is processed by dividing it into smaller regions or patches.
+ When predicting such a small sub-region,
+ the model no longer has access to the broader spatial context,
+ for example,
+ it doesn't "know" that the region lies close to a filament.
+\end_layout
+
+\begin_layout Standard
+Take for instance the area shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:tauruspredictedregion"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+:
+ it is clear that the model has no way of inferring from the patch alone that it is located near a filamentary structure.
+ It therefore lacks crucial contextual information.
+\end_layout
+
+\begin_layout Standard
+Initially,
+ our hypothesis was that the model could learn to recognize local structures,
+ and associate them with high-density environments.
+ However,
+ this does not appear to be sufficient in practice.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/obs_taurusl1495_regionpredicted.jpg
+	width 95col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Column density map of Taurus L1495 with an example of the input area passed to the model.
+ Here with 2 predictions per pixel.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:tauruspredictedregion"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A possible solution to this limitation would be to design a new architecture that includes an additional input:
+ for example,
+ a low-resolution version of the full cloud,
+ along with the position of the current high-resolution patch being predicted.
+ This would provide the model with global contextual information while preserving the local detail needed for accurate prediction.
+\end_layout
+
+\begin_layout Standard
+This idea is conceptually related to graph-based learning,
+ where nodes might represent different structures or regions of the cloud.
+ In this context,
+ Graph Neural Networks (GNNs) could be an interesting avenue to explore,
+ as they are designed to capture both local interactions and global structure.
+\end_layout
+
+\begin_layout Paragraph*
+Possibility 3:
+ Architecture problem & Diffusion
+\begin_inset Newline newline
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In their paper,
+ 
+\begin_inset CommandInset citation
+LatexCommand citeauthor
+key "xu_denoising_2023"
+literal "false"
+
+\end_inset
+
+ applied a diffusion model that significantly outperforms ours,
+ especially in diffuse regions.
+ Interestingly,
+ their simulations seem to span a similar parameter space as ours,
+ although they benefit from a larger dataset (~7000 images).
+ Yet,
+ even their base U-Net architecture fails to achieve comparable performance to the diffusion-based model.
+\end_layout
+
+\begin_layout Standard
+They attribute the superior results of the diffusion model to its Markovian nature,
+ which allows the model to reconstruct the signal iteratively,
+ layer by layer.
+ However,
+ this explanation remains somewhat vague,
+ and the true underlying mechanism behind this improvement deserves deeper investigation.
+\end_layout
+
+\begin_layout Standard
+We chose not to implement a diffusion model in this work for several reasons.
+ Primarily,
+ it would have required significantly more development time,
+ and we initially believed the performance gain,
+ while real,
+ would not be dramatic enough to justify the cost,
+ especially given the relatively simple objective at this stage.
+ However,
+ the errors exhibited by our model have revealed something more fundamental,
+ which is important to understand.
+\end_layout
+
+\begin_layout Standard
+Therefore,
+ it is crucial to take the time to explore why diffusion-based models succeed in overcoming these limitations.
+ This deeper understanding will likely be developed in the context of a PhD project or in subsequent work.
 \end_layout
 
 \begin_layout Standard
@@ -4254,7 +5137,7 @@ end{multicols}
 \end_layout
 
 \begin_layout Part
-Volume Density from Diverse Observational Inputs
+Volume density from diverse observational Inputs
 \end_layout
 
 \begin_layout Standard
@@ -4396,7 +5279,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/placeholder.jpg
+	filename figure/lineofsight.jpg
 	width 80col%
 
 \end_inset
@@ -4408,8 +5291,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Line-of-sight,
- Optically thin or thick
+Line-of-sight (Ce graphe est moche...)
 \end_layout
 
 \end_inset
@@ -4497,7 +5379,14 @@ nolink "false"
 \end_layout
 
 \begin_layout Subsubsection
-Computing the maps
+Computing the maps 
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Computing-the-maps"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -4765,6 +5654,20 @@ end{multicols}
 \end_layout
 
 \begin_layout Part
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+raisebox{-0.5em}{
+\backslash
+includegraphics[height=1.5em]{./figure/polaris_logo_circle.png}}
+\end_layout
+
+\end_inset
+
 Polaris :
  In-development tool for creating neural networks for science purposes
 \end_layout
@@ -4830,13 +5733,13 @@ placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figure/POLARIS_architecture_black.jpg
-	width 100col%
+	width 80col%
 
 \end_inset
 
@@ -4914,12 +5817,168 @@ Showcase
 Models creation
 \end_layout
 
+\begin_layout Standard
+First and foremost,
+ the main purpose of the software is to assist in the design and diagnosis of neural network architectures.
+ To achieve this,
+ I opted for a blueprint-style interface model.
+ In this setup,
+ an architecture is built by connecting modular blocks,
+ such as:
+ Input → KAN → Output.
+\end_layout
+
+\begin_layout Standard
+Each block represents a specific operation or layer,
+ and the user can construct complex models by linking these elements together in a visual and intuitive way.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/polaris_blueprint.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Dummy blueprint interface
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The goal is also to enable quick diagnostics,
+ for example by allowing one-click access to the learned weights of each block,
+ or by visualizing intermediate feature maps directly within the interface.
+\end_layout
+
 \begin_layout Subsection
-Clouds Viewer
+3D Viewer
+\end_layout
+
+\begin_layout Standard
+Another goal of the software is to make the analysis process more intuitive and user-friendly.
+ For instance,
+ it allows real-time 3D visualization of a typical molecular emission,
+ using a simple radiative transfer calculation similar to the one used in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Computing-the-maps"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+ Currently,
+ any .npy or .fits file containing a 3D matrix can be loaded and opened with a single click.
+\end_layout
+
+\begin_layout Standard
+The user can then navigate around or through the cloud or structure using the mouse.
+ This 3D view helps to better understand the underlying morphology and is especially useful for quickly assessing the output of models attempting to reconstruct 3D structures,
+ e.g.,
+ checking at a glance whether a predicted filament appears coherent or is unnaturally truncated.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/polaris_cloudviewer.jpg
+	width 70col%
+	rotateAngle 90
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+3D Viewer - ORION Sim cloud,
+ emission map mode
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
 Conclusion
+\end_layout
+
+\begin_layout Standard
+Ultimately,
+ this software is designed to serve three main purposes:
+\end_layout
+
+\begin_layout Itemize
+Assist in the design and analysis of neural network architectures,
+ helping reduce the time spent on development and debugging,
+ so that more time can be dedicated to the underlying physics during my future PhD (if it happens\SpecialChar ldots
+).
+\end_layout
+
+\begin_layout Itemize
+Facilitate reproducibility of results.
+ At present,
+ reproducing results from papers using deep learning often requires not only access to the model architecture and code,
+ but also all the training parameters (known as hyperparameters).
+ Without these,
+ performance can diverge significantly,
+ even when using the same training set and method.
+\end_layout
+
+\begin_layout Itemize
+Make deep learning more accessible to a broader community interested in studying the interstellar medium (ISM),
+ and potentially beyond.
+\end_layout
+
+\begin_layout Standard
+Achieving these goals still requires substantial development,
+ which I hope to continue during the PhD.
 \end_layout
 
 \begin_layout Standard
@@ -4966,7 +6025,7 @@ begin{multicols}{2}
 LatexCommand bibtex
 btprint "btPrintCited"
 bibfiles "biblio"
-options "plainnat"
+options "biblatex"
 encoding "default"
 
 \end_inset
@@ -5922,7 +6981,14 @@ begin{multicols}{2}
 \end_layout
 
 \begin_layout Section
-Results for Aquila
+How the model is applied on observations
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:model_on_obs"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

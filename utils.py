@@ -154,6 +154,26 @@ def applyBaseline(t,y,T,Y):
 
     return Y
 
+def listDictToString(dicts):
+    string = ""
+    keys = []
+    for d in dicts:
+        for k in d.keys():
+            if k not in keys:
+                keys.append(k)
+    for k in keys:
+        string = string + k + " "
+    string = string + "\n"
+    for d in dicts:
+        for k in keys:
+            if k in d:
+                string = string + str(d[k])
+            else:
+                string = string + " "
+            string = string + " "
+        string = string + "\n"
+    return string
+
 import matplotlib.pyplot as plt
 def plot_function(function, ax=None, res=100, lims=[0,1], **args):
     if ax is None:
