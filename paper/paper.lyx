@@ -5580,6 +5580,85 @@ nolink "false"
 \end_layout
 
 \begin_layout Standard
+So the difficulty lies in computing the opacity 
+\begin_inset Formula $\tau_{i}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\tau(x,y,z)=\frac{c^{3}}{8\pi\nu^{3}}A_{ul}\frac{g_{u}}{g_{l}}(1-e^{-\frac{T_{ul}}{T_{ex}(x,y,z)}})\times n_{l}(x,y,z)\times\Phi(x,y,z)
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+With 
+\begin_inset Formula $\nu$
+\end_inset
+
+ the line frequency,
+ 
+\begin_inset Formula $T_{ex}(x,y,z)$
+\end_inset
+
+ the excitation temperature that we'll take equals to the cell temperature 
+\begin_inset Formula $T$
+\end_inset
+
+,
+ 
+\begin_inset Formula $A_{ul}$
+\end_inset
+
+ the einstein emission coefficient,
+ 
+\begin_inset Formula $g_{u}$
+\end_inset
+
+ & 
+\begin_inset Formula $g_{l}$
+\end_inset
+
+ the degeneracy of the lower and upper levels,
+ 
+\begin_inset Formula $\Phi$
+\end_inset
+
+ the line profil that we'll take as gaussian.
+\end_layout
+
+\begin_layout Standard
+The density of molecules at the lower level can be expressed as:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+n_{l}(x,y,z)=n_{H}(x,y,z)\chi_{CO}\times g_{l}e^{-\frac{T_{l}}{T_{ex}}}\times Z^{-1}(x,y,z)
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+With 
+\begin_inset Formula $n_{H}(x,y,z)$
+\end_inset
+
+ the volume density at x,y,z ,
+ 
+\end_layout
+
+\begin_layout Standard
 La diffuclté est donc de calculer tau_i.
  
 \end_layout
