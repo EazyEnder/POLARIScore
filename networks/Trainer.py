@@ -934,13 +934,12 @@ if __name__ == "__main__":
         t2 = target[1]
         return torch.mean((o1 - t1) ** 2)+0.1*torch.mean((o2 - t2) ** 2)
     
-    ds = getDataset("batch_highres_2")
-    #ds = ds.downsample(channel_names=["cospectra","density"], target_depths=[128,128], methods=["mean","mean"])
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_max")
+    #ds = ds.downsample(channel_names=["cospectra"], target_depths=[128], methods=["mean"])
     ds1, ds2 = ds.split(cutoff=0.7)
 
 
-    #trainer = Trainer(UNet, ds1, ds2, model_name="xavierinit_UNet")
-    trainer = load_trainer("xavierinit_UNet")
+    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_max_moments")
     trainer.training_set = ds1
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
@@ -948,13 +947,13 @@ if __name__ == "__main__":
     trainer.network_settings["num_layers"] = 4
     #trainer.network_settings["out_channels"] = 2
     #trainer.network_settings["deeper_skips"] = True
-    #trainer.network_settings["channel_dimensions"] = [2,2]
-    #trainer.network_settings["channel_modes"] = [None, ("moments",2)]
+    trainer.network_settings["channel_dimensions"] = [2,2]
+    trainer.network_settings["channel_modes"] = [None, ("moments",2)]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     trainer.optimizer_name = "Adam"
     trainer.target_names = ["vdens"]
-    trainer.input_names = ["cdens"]
+    trainer.input_names = ["cdens","cospectra"]
     import numpy as np
     #y_train = np.array(ds1.get_element_index("vdens"))
     #num_bins = 100 
@@ -962,19 +961,27 @@ if __name__ == "__main__":
     #bin_weights = 1.0 / (hist + 1)
     #trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
     trainer.init()
-    trainer.train(2000,batch_number=100,compute_validation=10)
+    trainer.train(1500,batch_number=4,compute_validation=10)
     trainer.save()
     trainer.plot()
     trainer.plot_validation()
     #plot_models_accuracy([trainer,trainer2])
 
+    """
+    lis = ["MultiNet_13CO_massweighted","MultiNet_13CO_massweighted_projection","MultiNet_13CO_moments","MultiNet_wout13CO"]
+    ts = [load_trainer(l) for l in lis]
+    for t in ts:
+        t.model_name = t.model_name.replace("_massweighted","")
+    plot_models_accuracy(ts, show_errors=True)
+    plot_models_residuals(ts)
+    """
+        
+    #trainer = load_trainer("UneK_highres_fingercrossed")
+    #fig, ax=  trainer.plot_residuals()
+    #fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    
+
 
     """
-    trainer = load_trainer("UneK_highres_fingercrossed")
-    fig, ax=  trainer.plot_residuals()
-    fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    
-
-
     #trainer = load_trainer("UneK_highres_fingercrossed")  
     #trainer.validation_set = ds2  
     #trainer.plot()

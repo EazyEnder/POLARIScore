@@ -593,15 +593,14 @@ def openSimulation(name_root, global_size, use_cache=True):
     return sim
 
 if __name__ == "__main__":
-    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
-    sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
-    fig, ax = sim.plot_correlation()
-    fig.savefig(FIGURE_FOLDER+"orion_sim_correlation.jpg")
+    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    sim.init(loadTemp=True, loadVel=True)
+    #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
     #sim.plot(derivate=2, axis=0)
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
     
-    #sim.generate_batch(name="highres_volumedensity_075",method=compute_volume_weighted_density,what_to_compute = {"grad_vdens":True,"std_vdens":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
+    sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_max",method=compute_max_density,what_to_compute = {"cospectra":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
     #from Dataset import getDataset
     #ds = getDataset("batch_highres_twochannels")
     #pair = ds.get(1)
