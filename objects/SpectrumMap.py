@@ -350,8 +350,12 @@ class SpectrumMap():
         else:
             im = ax.imshow(intensity_map[:,:,slice],extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]], cmap="viridis")
         plt.colorbar(im, label="Intensity (K)")
-        ax.set_xlabel(r"$x_1$ [pc]")
-        ax.set_ylabel(r"$x_2$ [pc]")
+        if simulation is None:
+            ax.set_xlabel(r"$x_1$ [pixel]")
+            ax.set_ylabel(r"$x_2$ [pixel]")
+        else:
+            ax.set_xlabel(r"$x_1$ [pc]")
+            ax.set_ylabel(r"$x_2$ [pc]")
         ax.legend()
 
         if not(mean_mod) and enable_slider:
@@ -367,30 +371,51 @@ class SpectrumMap():
 
         return fig, ax
 
-    def plot(self, fit=False):
+    def plot(self, fit=False, simulation=None):
         fig, ax = plt.subplots()
         intensity_map = self.map
-        image = ax.imshow(self.getIntegratedIntensity())
+        image = ax.imshow(self.getIntegratedIntensity(),extent=None if simulation is None else [simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0],simulation.axis[1][1]])
+        if simulation is None:
+            ax.set_xlabel(r"$x_1$ [pixel]")
+            ax.set_ylabel(r"$x_2$ [pixel]")
+        else:
+            ax.set_xlabel(r"$x_1$ [pc]")
+            ax.set_ylabel(r"$x_2$ [pc]")
 
+        def _convert_to_phys(x,y, invert=False):
+            if simulation is not None:
+                x0, x1, y0, y1 = simulation.axis[0][0], simulation.axis[0][1], simulation.axis[1][0], simulation.axis[1][1]
+                img = self.getIntegratedIntensity()
+                nx, ny = img.shape[1], img.shape[0]
+                if not invert:
+                    x = int(x/nx * (x1 - x0) + x0)
+                    y = int(y/ny * (y1 - y0) + y0)
+                else:
+                    x = int((x-x0)/(x1-x0) * nx)
+                    y = int((y-y0)/(y1-y0) * ny)
+            return x,y
         fig2, ax2 = plt.subplots()
         spectrum_used = Spectrum(intensity_map[255,255])
-        spectrum_used.plot(ax=ax2)
-        marker, = ax.plot([255], [255], marker='x', color='red', markersize=6, mew=2)
+        spectrum_used.plot(ax=ax2, channels=spectrum_used.getX(self.output_settings))
+        x0, y0 = _convert_to_phys(255,255)
+        marker, = ax.plot([x0], [y0], marker='x', color='red', markersize=6, mew=2)
 
         def onclick(event):
             if event.inaxes == ax:
-                y = int(round(event.xdata))
-                x = int(round(event.ydata))
+                x_click, y_click = event.xdata, event.ydata
                 ax2.cla()
                 #data, data_fit = fit_gaussians(intensity_map[x,y,:])
                 #plot_fit(data,data_fit, ax=ax2)
-                spectrum_used = Spectrum(intensity_map[x,y])
-                ax2.plot(spectrum_used.getX(self.output_settings), spectrum_used.spectrum, label='Data')
+                x0, y0 = _convert_to_phys(x_click,y_click, invert=True)
+                print(x0,y0)
+                spectrum_used = Spectrum(intensity_map[x0,y0])
+                #ax2.plot(spectrum_used.getX(self.output_settings), spectrum_used.spectrum, label='Data')
+                spectrum_used.plot(ax=ax2, channels=spectrum_used.getX(self.output_settings))
                 if fit:
                     spectrum_used.fit(ax=ax2)
                 #plotSpectrum(intensity_map, ax=ax2, pos=(x, y))
-                ax2.set_title(f"Spectrum at ({x}, {y})")
-                marker.set_data([y], [x])
+                ax2.set_title(f"Spectrum at ({round(x_click,2)}pc, {round(y_click,2)}pc)")
+                marker.set_data([x_click], [y_click])
                 fig.canvas.draw_idle()
                 fig2.canvas.draw_idle()
         cid = fig.canvas.mpl_connect('button_press_event', onclick)
@@ -428,12 +453,14 @@ if __name__ == "__main__":
 
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
     #map = SpectrumMap(name="spectrum_highresspec_0")
+    from objects.Simulation_DC import Simulation_DC
+    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
     map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_2")
-    map.plot()
+    #map.plot(simulation=sim)
     #result = map.compute(, stride=1, used_cpu=1)
     #result = np.array(result)
     #plt.savefig(os.path.join(FIGURE_FOLDER,"13CO_integratedmap.jpg"))
     #plt.imshow(result)
-    fig, ax=  map.plotChannelMap(enable_slider=False)
-    #fig.savefig(os.path.join(FIGURE_FOLDER,"13CO_channelmap_0.jpg"))
+    fig, ax=  map.plotChannelMap(simulation=sim, enable_slider=False)
+    fig.savefig(os.path.join(FIGURE_FOLDER,"13CO_channelmap_0.jpg"))
     plt.show()

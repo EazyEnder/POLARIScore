@@ -7,6 +7,7 @@
 \textclass article
 \begin_preamble
 \usepackage{multicol}
+\newcommand{\aver}[1]{\ensuremath{\left\langle #1 \right\rangle}}
 \end_preamble
 \use_default_options true
 \maintain_unincluded_children no
@@ -50,11 +51,9 @@
 \use_package stackrel 1
 \use_package stmaryrd 1
 \use_package undertilde 1
-\cite_engine biblatex
+\cite_engine natbib
 \cite_engine_type authoryear
-\biblio_style plainnat
-\biblatex_bibstyle authoryear
-\biblatex_citestyle authoryear
+\biblio_style aa
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -249,6 +248,13 @@ This document was written as part of a Master 2 internship carried out in 2025 a
 \end_layout
 
 \begin_layout Standard
+\begin_inset Separator plain
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 \begin_inset Newpage newpage
 \end_inset
 
@@ -297,19 +303,7 @@ The subject of this document is the prediction of a physical quantity using a ma
  it is therefore essential to have some basic understanding of both the underlying physics of the system and the principles of neural networks.
  In addition to the global context provided here,
  relevant concepts and reminders will be given in the opening section of each part,
- to ensure a smooth and coherent progression alongside the application.
-\end_layout
-
-\begin_layout Section*
-Molecular clouds
-\end_layout
-
-\begin_layout Standard
-The objects studied in this work are molecular clouds.
- These clouds are not static,
- they have both a history and a future.
- To understand why we study molecular clouds,
- it is therefore essential to consider their evolution.
+ to ensure a smooth and consistent progression alongside the application.
 \end_layout
 
 \begin_layout Standard
@@ -327,6 +321,18 @@ As will become clear throughout this document,
  without any underlying physical structure,
  a model would have nothing meaningful to learn,
  and such an approach would be fundamentally misguided.
+\end_layout
+
+\begin_layout Section*
+Molecular clouds
+\end_layout
+
+\begin_layout Standard
+The objects studied in this work are molecular clouds.
+ These clouds are not static,
+ they have both a history and a future.
+ To understand why we study molecular clouds,
+ it is therefore essential to consider their evolution.
 \end_layout
 
 \begin_layout Standard
@@ -401,7 +407,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Tabular
-<lyxtabular version="3" rows="6" columns="3">
+<lyxtabular version="3" rows="4" columns="3">
 <features tabularvalignment="middle">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
@@ -518,7 +524,7 @@ Cold neutral medium (CNM)
 </cell>
 </row>
 <row>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
@@ -527,7 +533,7 @@ Warm neutral medium (WNM)
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
@@ -539,81 +545,11 @@ Warm neutral medium (WNM)
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" bottomline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Plain Layout
 \begin_inset Formula $10^{-1}$
-\end_inset
-
-
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-Warm ionized medium (WIM)
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-\begin_inset Formula $\sim8000$
-\end_inset
-
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-\begin_inset Formula $10^{-1}$
-\end_inset
-
-
-\end_layout
-
-\end_inset
-</cell>
-</row>
-<row>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-Hot ionized medium (HIM)
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-\begin_inset Formula $\sim10^{6}$
-\end_inset
-
-
-\end_layout
-
-\end_inset
-</cell>
-<cell alignment="center" valignment="top" bottomline="true" usebox="none">
-\begin_inset Text
-
-\begin_layout Plain Layout
-\begin_inset Formula $10^{-2}$
 \end_inset
 
 
@@ -642,10 +578,6 @@ Phases of the ISM
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Plain Layout
 
 \end_layout
 
@@ -778,7 +710,7 @@ Mathematically,
  of a perceptron is given by:
 \begin_inset Formula 
 \begin{equation}
-y=f(\sum_{i}^{N}w_{i}x_{i}+b)
+y=f(\sum_{i}^{N}w_{i}x_{i}+b)\label{eq:MLPs}
 \end{equation}
 
 \end_inset
@@ -842,14 +774,26 @@ What gives Multilayer Perceptrons (MLPs) their expressive power are several key 
  the activation function,
  commonly a sigmoid,
  or more recently,
- the ReLU,
+ the Rectified Linear Unit (ReLU,
+ see 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Rectified-Linear-Unit"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+),
  introduces non-linearity into the model,
  allowing it to approximate complex functions beyond simple linear mappings.
 \end_layout
 
 \begin_layout Standard
 Second,
- the number of neurons in each layer can be arbitrarily large,
+ the number of neurons in each layer (a layer being a set of neurons that are not interconnected with each other) can be arbitrarily large,
  and more importantly,
  the number of trainable parameters,
  which corresponds to the number of connections (weights),
@@ -863,7 +807,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -910,8 +854,365 @@ However,
 Convolutional Neural Network
 \end_layout
 
+\begin_layout Standard
+While Multilayer Perceptrons (MLPs) are powerful universal function approximators,
+ they are not ideally suited for processing high-dimensional structured data such as images.
+ A major limitation of MLPs in this context is their lack of spatial awareness:
+ they treat each input independently and do not exploit the local spatial structure inherent in visual data.
+ This leads to an explosion in the number of parameters and poor scalability.
+\end_layout
+
+\begin_layout Standard
+To address these challenges,
+ Convolutional Neural Networks (CNNs) were introduced 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "fukushima_neocognitron_1980,lecun_backpropagation_1989"
+pretextlist "fukushima_neocognitron_1980"
+posttextlist "fukushima_neocognitron_1980"
+literal "false"
+
+\end_inset
+
+ as a specialized architecture for grid-like data such as images.
+ CNNs are inspired by the organization of the visual cortex and are characterized by local connectivity,
+ weight sharing,
+ and hierarchical feature extraction.
+\end_layout
+
+\begin_layout Standard
+Instead of connecting every input to every neuron (as in MLPs),
+ CNNs restrict connections to local receptive fields.
+ Each neuron in a convolutional layer is connected only to a small region of the input,
+ and the same set of learnable weights (a filter or kernel) is shared across different spatial locations.
+ This enables CNNs to learn spatially invariant features such as edges,
+ textures,
+ and object parts.
+\end_layout
+
+\begin_layout Standard
+Mathematically,
+ for a 2D input 
+\begin_inset Formula $X$
+\end_inset
+
+ (e.g.,
+ an image),
+ the convolution operation with a filter 
+\begin_inset Formula $W$
+\end_inset
+
+ is given by:
+\begin_inset Formula 
+\begin{equation}
+Y_{i,j}=f(\sum_{m=1}^{M}\sum_{n=1}^{N}W_{m,n}\cdot X_{i+m,j+n}+b)\label{eq:CNN}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $W$
+\end_inset
+
+ is the learnable convolutional kernel,
+ 
+\begin_inset Formula $X$
+\end_inset
+
+ is the input image or feature map,
+ 
+\begin_inset Formula $Y$
+\end_inset
+
+ is the output feature map,
+ 
+\begin_inset Formula $f$
+\end_inset
+
+ is a nonlinear activation function like ReLU,
+ b is the learnable bias term.
+ The equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:CNN"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ differs from the MLP formulation (Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:MLPs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) where each 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ is a distinct feature with its own independent weight 
+\begin_inset Formula $w_{i}$
+\end_inset
+
+,
+ and all features are treated equally regardless of spatial location.
+\end_layout
+
+\begin_layout Standard
+Due to weight sharing,
+ a convolutional layer has far fewer parameters than a fully connected MLP layer with the same input size.
+ For example,
+ a 
+\begin_inset Formula $3\times3$
+\end_inset
+
+ filter has only 9 weights,
+ independent of the image size.
+ And by stacking multiple convolutional layers with pooling and non-linearities,
+ CNNs can build increasingly abstract representations.
+ Finally CNNs inherently model translation-invariant features due to shared weights across spatial locations.
+\end_layout
+
+\begin_layout Standard
+A typical CNN consists of alternating layers,
+ including:
+ convolutional layers for feature extraction,
+ nonlinear activation functions such as ReLU,
+ pooling layers (e.g.,
+ max pooling) to reduce spatial dimensions and introduce translation invariance,
+ and sometimes fully connected layers,
+ often positioned at the end of the network.
+ (See Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Operations-used-CNN"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for more details)
+\end_layout
+
 \begin_layout Subsection*
 Denoising Diffusion Probabilistic Models
+\end_layout
+
+\begin_layout Standard
+Denoising Diffusion Probabilistic Models (DDPMs)
+\begin_inset CommandInset citation
+LatexCommand citep
+key "ho_denoising_2020"
+literal "false"
+
+\end_inset
+
+ are a class of generative models that have recently achieved state-of-the-art performance in tasks such as image synthesis and super-resolution.
+ Unlike MLPs and CNNs,
+ which are primarily discriminative models (mapping inputs to labels or values),
+ DDPMs are generative models,
+ designed to learn and sample from complex high-dimensional data distributions 
+\begin_inset Formula $p(x)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+DDPMs are inspired by nonequilibrium thermodynamics and can be interpreted as a Markov chain of diffusion steps that gradually corrupt data into noise,
+ and then a learned reverse process that denoises it back into a sample from the data distribution.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/ddpm.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Forward and reverse process for DDPMs,
+ 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "ho_denoising_2020"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the forward (diffusion) process,
+ also called the noise schedule,
+ a sample 
+\begin_inset Formula $x_{0}\sim p_{\text{data}}(x)$
+\end_inset
+
+ is gradually perturbed by adding Gaussian noise over 
+\begin_inset Formula $T$
+\end_inset
+
+ steps,
+ producing a sequence 
+\begin_inset Formula $\{x_{t}\}_{t=1}^{T}$
+\end_inset
+
+ according to:
+\begin_inset Formula 
+\begin{equation}
+q(x_{t}|x_{t-1})=\mathcal{N}(x_{t};\sqrt{1-\beta_{t}}x_{t-1},\beta_{t}\boldsymbol{I})
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\beta_{t}$
+\end_inset
+
+ is a small positive variance (noise level) scheduled over time and 
+\begin_inset Formula $\boldsymbol{I}$
+\end_inset
+
+ is the identity.
+ This process produces samples 
+\begin_inset Formula $x_{T}$
+\end_inset
+
+ that are nearly standard Gaussian noise.
+\end_layout
+
+\begin_layout Standard
+Using a closed-form expression for the marginal:
+\begin_inset Formula 
+\begin{equation}
+q(x_{t}|x_{0})=\mathcal{N}(x_{t};\sqrt{\bar{\alpha_{t}}}x_{0},(1-\bar{\alpha_{t}})\boldsymbol{I})
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\bar{\alpha_{t}}=\prod_{s=1}^{t}(1-\beta_{s})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The goal of the model is to learn a reverse denoising process:
+\begin_inset Formula 
+\begin{equation}
+p_{\theta}(x_{t-1}|x_{t})=\mathcal{N}(x_{t-1};\mu_{\theta}(x_{t},t),\Sigma_{\theta}(x_{t},t))
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\mu_{\theta}$
+\end_inset
+
+ and 
+\begin_inset Formula $\Sigma_{\theta}$
+\end_inset
+
+ are learned via a neural network.
+\end_layout
+
+\begin_layout Standard
+Rather than modeling the entire distribution
+\begin_inset Formula $𝑝(𝑥)$
+\end_inset
+
+ directly (which is intractable),
+ the model is trained to predict either the original clean image 
+\begin_inset Formula $x_{0}$
+\end_inset
+
+ or the noise 
+\begin_inset Formula $\epsilon$
+\end_inset
+
+ added at time step 
+\begin_inset Formula $t$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The neural network used in DDPMs is often a U-Net,
+ a CNN-based architecture with skip connections and downsampling/upsampling paths.
+ Additionally,
+ timestep embeddings are injected to condition the model on the current noise level 
+\begin_inset Formula $𝑡$
+\end_inset
+
+ making the network time-aware.
+\end_layout
+
+\begin_layout Standard
+This architectural flexibility allows DDPMs to scale to complex,
+ high-dimensional data such as 
+\begin_inset Formula $256\times256$
+\end_inset
+
+ or even 
+\begin_inset Formula $1024\times1024$
+\end_inset
+
+ images,
+ outperforming traditional GANs (Generative Adversarial Networks) and VAEs (Variational Autoencoders) in terms of fidelity and diversity.
 \end_layout
 
 \begin_layout Standard
@@ -962,8 +1263,8 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-The first part of this work focuses on predicting the average density 
-\begin_inset Formula $<n>$
+The first part of this work focuses on predicting an average density 
+\begin_inset Formula $\aver{n}$
 \end_inset
 
  along the line of sight (l.o.s.) from the column density 
@@ -986,7 +1287,7 @@ The first part of this work focuses on predicting the average density
 
 \begin_layout Standard
 Recently,
- several new methods have emerged to estimate this average density 
+ several new methods have emerged to estimate an average density 
 \begin_inset CommandInset citation
 LatexCommand citep
 key "xu_denoising_2023,orkisz_volume_2024,gaches_probabilistic_2024"
@@ -1065,16 +1366,38 @@ Neural networks are machine learning models that process data through layers of 
 \end_layout
 
 \begin_layout Itemize
-MLPs are fully connected networks that apply weighted sums and non-linear activations.
+MLPs are fully connected networks that apply weighted sums and non-linear activations (see Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:MLPs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
  They work well for structured data but struggle with spatial dependencies.
 \end_layout
 
 \begin_layout Itemize
 CNNs are designed for spatial data like images,
- using convolutional layers to extract features and pooling layers to reduce dimensionality (see Appendix 
+ combining convolutional layers to extract features and pooling layers to reduce dimensionality (see Appendix 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sec:Operations-used-CNN"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:CNN"
 plural "false"
 caps "false"
 noprefix "false"
@@ -1149,7 +1472,7 @@ status collapsed
 \begin_layout Plain Layout
 U-net architecture 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "ronneberger_u-net_2015"
 literal "false"
 
@@ -1223,7 +1546,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -1242,6 +1565,14 @@ status collapsed
 \begin_layout Plain Layout
 Multi-Layer Perceptrons (MLPs) vs.
  Kolmogorov-Arnold Networks (KANs) 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "liu_kan_2024"
+literal "false"
+
+\end_inset
+
+ 
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:KAN"
@@ -1282,11 +1613,11 @@ In order to train our future model,
  one for the training phase and the other for testing,
  i.e.,
  the validation phase.
- The preparation of these datasets is a crucial factor in the model's performance.
+ The preparation of these datasets is a crucial factor in the performance of the model.
 \end_layout
 
 \begin_layout Standard
-These datasets are created using MHD simulations of molecular clouds:
+These datasets are created using the Magneto-hydrodynamical (MHD) simulations of a star-forming molecular clouds:
  ORION 
 \begin_inset CommandInset citation
 LatexCommand citep
@@ -1295,7 +1626,18 @@ literal "false"
 
 \end_inset
 
-.
+,
+ publicly available through the GALACTICA
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+http://www.galactica-simulations.eu/
+\end_layout
+
+\end_inset
+
+ database.
  These simulations model MHD turbulence and have a size of 66.1 pc with an initial resolution of 0.01 pc,
  reaching a few hundred AU using an AMR grid.
  The simulations were performed using RAMSES 
@@ -1309,6 +1651,13 @@ literal "false"
 ,
  with self-gravity applied,
  star-formation treated using Lagrangian sink particles and ideal MHD resolved and no chemistry.
+ The simulation is not isothermal:
+ the temperature is computed by taking into account the dominant heating and cooling processes,
+ following the ideal gas equation of state with 
+\begin_inset Formula $\gamma=5/3$
+\end_inset
+
+.
  However,
  to facilitate data manipulation,
  an initial approach consists of using a 
@@ -1481,7 +1830,7 @@ In this part,
  including:
 \begin_inset Formula 
 \begin{equation}
-<n>_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}\label{eq:volume_average_dens}
+\aver{n}_{V}=\frac{\sum_{i}^{N_{cells}}\Delta V_{i}n_{H,i}}{\sum_{i}^{N_{cells}}\Delta V_{i}}\overset{\Delta V=\text{cst}}{=}\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}\label{eq:volume_average_dens}
 \end{equation}
 
 \end_inset
@@ -1551,7 +1900,7 @@ where we assume a uniform grid,
 \begin_layout Standard
 \begin_inset Formula 
 \[
-<n>_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
+\aver{n}_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
 \]
 
 \end_inset
@@ -1567,7 +1916,7 @@ This shows that the volume-weighted density computed on the simulation is direct
 Another density which can be used is the mass-weighted average number density:
 \begin_inset Formula 
 \begin{equation}
-<n>_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
+\aver{n}_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
 \end{equation}
 
 \end_inset
@@ -2173,7 +2522,7 @@ And for the entire validation batch,
  the accuracy is computed as the average accuracy across all images in the batch.
 \begin_inset Formula 
 \begin{equation}
-Acc=<Acc_{i}>_{\text{batch}}=\frac{1}{B}\sum_{i}^{B}Acc_{i}
+Acc=\aver{Acc_{i}}{}_{\text{batch}}=\frac{1}{B}\sum_{i}^{B}Acc_{i}
 \end{equation}
 
 \end_inset
@@ -4035,7 +4384,7 @@ We can also perform a quick calculation to verify this.
  can be written as:
 \begin_inset Formula 
 \[
-<n>_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}{L_{D}n_{D}+L_{c}n_{c}}
+\aver{n}_{M}=\frac{\sum n_{H}^{2}}{\sum n_{H}}=\frac{L_{D}n_{D}^{2}+L_{c}n_{c}^{2}}{L_{D}n_{D}+L_{c}n_{c}}
 \]
 
 \end_inset
@@ -4051,7 +4400,7 @@ We can then estimate the order of magnitude of the cloud length along the line o
 :
 \begin_inset Formula 
 \begin{equation}
-L=L_{c}\frac{n_{c}^{2}-n_{D}^{2}-<n>_{M}(n_{c}-n_{D})}{n_{D}(<n>_{M}-n_{D})}
+L=L_{c}\frac{n_{c}^{2}-n_{D}^{2}-\aver{n}_{M}(n_{c}-n_{D})}{n_{D}(\aver{n}_{M}-n_{D})}
 \end{equation}
 
 \end_inset
@@ -5269,42 +5618,6 @@ Since our goal is to gain insight into the structure along the line of sight,
 \end_layout
 
 \begin_layout Standard
-\begin_inset Float figure
-placement H
-alignment document
-wide false
-sideways false
-status open
-
-\begin_layout Plain Layout
-\align center
-\begin_inset Graphics
-	filename figure/lineofsight.jpg
-	width 80col%
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Plain Layout
-\begin_inset Caption Standard
-
-\begin_layout Plain Layout
-Line-of-sight (Ce graphe est moche...)
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
 Moreover,
  
 \begin_inset Formula $^{13}\text{CO}$
@@ -5378,12 +5691,16 @@ nolink "false"
  alongside a neural network trained on emission maps from various molecular lines.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Paragraph*
 Computing the maps 
 \begin_inset CommandInset label
 LatexCommand label
 name "subsec:Computing-the-maps"
 
+\end_inset
+
+
+\begin_inset Newline newline
 \end_inset
 
 
@@ -5455,7 +5772,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/placeholder.jpg
+	filename figure/raytracing.jpg
 	width 80col%
 
 \end_inset
@@ -5580,11 +5897,12 @@ nolink "false"
 \end_layout
 
 \begin_layout Standard
-So the difficulty lies in computing the opacity 
-\begin_inset Formula $\tau_{i}$
+The difficulty in computing the emission lies primarily in the estimation of the optical depth 
+\begin_inset Formula $\tau(𝑥,𝑦,𝑧)$
 \end_inset
 
-.
+ along the line of sight.
+ We can express it as:
 \end_layout
 
 \begin_layout Standard
@@ -5599,25 +5917,31 @@ So the difficulty lies in computing the opacity
 \end_layout
 
 \begin_layout Standard
-With 
+Where 
 \begin_inset Formula $\nu$
 \end_inset
 
- the line frequency,
+ is the line frequency,
  
 \begin_inset Formula $T_{ex}(x,y,z)$
 \end_inset
 
- the excitation temperature that we'll take equals to the cell temperature 
+ is the excitation temperature,
+ here approximated by the local kinetic temperature
 \begin_inset Formula $T$
 \end_inset
 
 ,
+ even though in general 
+\begin_inset Formula $T_{ex}<T$
+\end_inset
+
+ in molecular clouds,
  
 \begin_inset Formula $A_{ul}$
 \end_inset
 
- the einstein emission coefficient,
+ is the Einstein coefficient for spontaneous emission,
  
 \begin_inset Formula $g_{u}$
 \end_inset
@@ -5626,16 +5950,21 @@ With
 \begin_inset Formula $g_{l}$
 \end_inset
 
- the degeneracy of the lower and upper levels,
+ are the statistical weights (degeneracies) of the upper and lower energy levels,
  
 \begin_inset Formula $\Phi$
 \end_inset
 
- the line profil that we'll take as gaussian.
+ is the line profile,
+ assumed to be Gaussian here.
 \end_layout
 
 \begin_layout Standard
-The density of molecules at the lower level can be expressed as:
+The population density of the molecules in the lower energy level 
+\begin_inset Formula $n_{l}$
+\end_inset
+
+ is given by:
 \end_layout
 
 \begin_layout Standard
@@ -5650,47 +5979,550 @@ n_{l}(x,y,z)=n_{H}(x,y,z)\chi_{CO}\times g_{l}e^{-\frac{T_{l}}{T_{ex}}}\times Z^
 \end_layout
 
 \begin_layout Standard
-With 
+Where 
 \begin_inset Formula $n_{H}(x,y,z)$
 \end_inset
 
- the volume density at x,y,z ,
+ is the volume density of hydrogen and 
+\begin_inset Formula $Z$
+\end_inset
+
+ is the partition function,
+ defined as:
+ 
+\begin_inset Formula $Z(T_{ex})=\sum_{i}g_{i}e^{-E_{i}/(k_{B}T_{ex})}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+To express the spectrum in velocity 
+\begin_inset Formula $v$
+\end_inset
+
+ rather than in frequency 
+\begin_inset Formula $\nu$
+\end_inset
+
+,
+ we place ourselves in the Local Standard of Rest 
+\begin_inset Formula $V$
+\end_inset
+
+ (LSR) frame of the cloud.
+\end_layout
+
+\begin_layout Standard
+The Gaussian line profile arises from two main broadening effects:
+\end_layout
+
+\begin_layout Enumerate
+Thermal Doppler broadening 
+\begin_inset Formula $\sigma_{T}$
+\end_inset
+
+,
+ due to the thermal motion of the molecules,
+ proportional to 
+\begin_inset Formula $\sqrt{T}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Turbulent broadening 
+\begin_inset Formula $\sigma_{\text{turb}}$
+\end_inset
+
+,
+ which adds in quadrature to the thermal component and represents small-scale velocity dispersion.
+ In practice,
+ we estimate this term numerically from the local velocity gradient using central differencing:
+ 
+\begin_inset Formula $\sigma_{\text{turb},i}=\frac{v_{i+1}-v_{i-1}}{2}$
+\end_inset
+
+ where 
+\begin_inset Formula $i$
+\end_inset
+
+ is for the i-th cell along the l.o.s.
+\end_layout
+
+\begin_layout Standard
+The total line profile 
+\begin_inset Formula $\Phi(\nu)$
+\end_inset
+
+ becomes:
+\begin_inset Formula 
+\begin{equation}
+\Phi(\nu)=\frac{1}{\sqrt{2\pi}\sigma}\exp(-\frac{(V-v)^{2}}{2\sigma^{2}})
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ is the total velocity dispersion:
+ 
+\begin_inset Formula $\sigma^{2}=\sigma_{T}^{2}+\sigma_{\text{turb}}^{2}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+At the start of the ray,
+ 
+\begin_inset Formula $I_{0}$
+\end_inset
+
+ is not zero but instead corresponds to the Cosmic Microwave Background (CMB):
+ 
+\begin_inset Formula $I_{0}=B_{2.73K}(\nu)$
+\end_inset
+
+ ,
+ modeled as a blackbody at 2.725 K.
+ Once the ray-tracing integration is complete,
+ the contribution from the CMB is subtracted from the resulting intensity.
+\end_layout
+
+\begin_layout Standard
+Then,
+ the intensity is converted into antenna temperature units using the relation:
+ 
+\begin_inset Formula $T_{I}=I\times\frac{c^{2}}{2k_{B}\nu^{2}}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+This yields a PPV cube,
+ i.e.,
+ a data cube where each pixel contains a spectrum.
+ There are several ways to visualize this cube:
+ for example,
+ by integrated emission (integrated spectrum),
+ see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:SpectrumEmission"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+;
+ by channel maps,
+ i.e.,
+ slices of the cube along the velocity axis,
+ see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Channelmap"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+;
+ or by directly inspecting the spectra themselves,
+ see Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:SpectrumEmission"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The channel maps highlight the turbulent nature of the cloud,
+ while the spectra reveal the complexity we will have to deal with in order to distinguish the components.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/13CO_integratedmap.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/13CO_spectra.jpg
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Example of a spectrum in dense region (right),
+ with integrated emission map (left).
+ The red mark is the l.o.s of the spectrum.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:SpectrumEmission"
+
+\end_inset
+
  
 \end_layout
 
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Standard
-La diffuclté est donc de calculer tau_i.
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/13CO_channelmap_0.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Example of a channel map.
  
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Channelmap"
+
+\end_inset
+
+
 \end_layout
 
-\begin_layout Standard
-...bla bla démo
+\end_inset
+
+
 \end_layout
 
-\begin_layout Standard
-CMB
-\end_layout
+\end_inset
 
-\begin_layout Standard
-maping nu -> V
-\end_layout
 
-\begin_layout Standard
-Convertion température
-\end_layout
-
-\begin_layout Standard
-Resultats:
- Integré,
- Spectres & Channel maps
-\end_layout
-
-\begin_layout Subsubsection
-Preprocessing
 \end_layout
 
 \begin_layout Subsection
-Architectures
+Architecture
+\end_layout
+
+\begin_layout Standard
+A standard U-Net architecture typically has a single encoder branch for one input and a decoder branch for one output.
+ The goal of the encoder is to capture all relevant information from the input,
+ which is then used by the decoder to reconstruct the output.
+ Naturally,
+ if we have N different inputs,
+ we can expect to need N encoder branches.
+\end_layout
+
+\begin_layout Standard
+However,
+ it has been shown in several independent studies 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "jiquan_multimodal_2011"
+literal "false"
+
+\end_inset
+
+ that concatenating information between branches during encoding can be beneficial —
+ a strategy referred to as cross-modal fusion.
+\end_layout
+
+\begin_layout Standard
+In our current architecture,
+ we therefore use one main encoder branch and one additional encoder branch for each specific input feature.
+ At each downsampling or feature extraction stage,
+ the information from the auxiliary branches is merged into the main encoder branch.
+ This allows the main encoder to learn a representation that takes all input modalities into account,
+ while the auxiliary branches focus solely on encoding their respective features independently.
+\end_layout
+
+\begin_layout Standard
+Finally,
+ the decoding is done using a single decoder branch,
+ as we aim to produce a single output.
+\end_layout
+
+\begin_layout Standard
+The information from the different encoding branches is merged at each stage using KANs.
+ It is also possible to use a learnable convolution or a simple summation,
+ but KANs appear to perform slightly better,
+ at the cost of slower training and higher computational demand.
+\end_layout
+
+\begin_layout Standard
+We named this architecture Multi-Net.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/multinet_architecture.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+MultiNet architecture 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:MultiNet-architecture"
+
+\end_inset
+
+:
+ example with KAN merger,
+ and using two inputs.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+However,
+ there is a major challenge:
+ the emission cube is a 3D tensor,
+ while other inputs such as the column density are only 2D.
+ So,
+ how can we combine them meaningfully?
+ Moreover,
+ if our goal is to predict,
+ for example,
+ the density along the line of sight,
+ this implies predicting the full 3D density cube 
+\begin_inset Formula $n(x,y,z)$
+\end_inset
+
+,
+ which is a 3D output.
+ But in other cases,
+ we might still want to predict 2D quantities,
+ as we did before,
+ to see whether adding new input information improves results.
+\end_layout
+
+\begin_layout Standard
+This raises a critical question:
+ how can we include the emission data or any 3D data without losing essential information?
+ We have tested several approaches to address this:
+\end_layout
+
+\begin_layout Itemize
+Using only the integrated intensity map:
+ 
+\begin_inset Formula $W(x,y)=\int I(x,y,v)dv$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Computing the first few statistical moments of the ppv cube and using them as input features;
+\end_layout
+
+\begin_layout Itemize
+Letting the network learn the 3D-to-2D projection using convolutions;
+\end_layout
+
+\begin_layout Itemize
+Providing each velocity channel (slice) as a separate input,
+ which turned out to be far too expensive computationally.
+\end_layout
+
+\begin_layout Standard
+Thus,
+ a significant part of the work lies in the preprocessing of the emission cube and deciding how to feed it into the network effectively.
+ One promising idea,
+ for instance,
+ could be to extract the individual components of each spectrum in the cube and use them instead of the full spectra.
+ However,
+ we did not have sufficient time to explore this possibility thoroughly,
+ nor to test more advanced strategies such as dendrogram-based decomposition 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "rosolowsky_structural_2008"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+We also tested many other architectures,
+ but so far,
+ none of them have led to conclusive results (see Appendix 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Archives-architectures"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Section
@@ -6104,7 +6936,7 @@ begin{multicols}{2}
 LatexCommand bibtex
 btprint "btPrintCited"
 bibfiles "biblio"
-options "biblatex"
+options "aa"
 encoding "default"
 
 \end_inset
@@ -6255,7 +7087,13 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Network Convolution
+Network Convolution with a 
+\begin_inset Formula $3\times3$
+\end_inset
+
+ kernel,
+ stride 1 and no padding,
+ which reduces the image size by 2.
 \end_layout
 
 \end_inset
@@ -6274,8 +7112,7 @@ Max pooling
 
 \begin_layout Standard
 Max pooling is a downsampling operation used to reduce the spatial dimensions of feature maps while preserving the most important information.
- It works by selecting the maximum value from a small region (e.g.,
- 2×2) of the feature map,
+ It works by selecting the maximum value from a small region (usually 2×2) of the feature map,
  improving computational efficiency and making the network more robust to small spatial variations.
  
 \end_layout
@@ -6353,6 +7190,7 @@ Also known as upsampling convolution,
  this operation increases the spatial dimensions of feature maps.
  It is used in the U-Net decoder to reconstruct high-resolution outputs from lower-resolution feature maps,
  helping to recover lost spatial details.
+ It also uses a learnable kernel.
  (see note for image author & details
 \begin_inset Foot
 status open
@@ -6416,13 +7254,25 @@ Concatenate
 \begin_layout Standard
 Concatenation is a key operation in U-Net,
  allowing feature maps from different layers to be combined.
- In the skip connections,
- feature maps from the encoder are concatenated with corresponding decoder layers,
+ In the 
+\emph on
+skip connections
+\emph default
+,
+ feature maps from the encoder are concatenated (i.e.,
+ stacked along the channel dimension) with corresponding decoder layers,
  ensuring that fine spatial information is retained during reconstruction.
 \end_layout
 
 \begin_layout Subsection
-ReLU
+Rectified Linear Unit (ReLU)
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Rectified-Linear-Unit"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -6435,7 +7285,15 @@ ReLU is an activation function applied after convolution to introduce non-linear
 
 \end_inset
 
-Which helps accelerate training and prevent the vanishing gradient problem.
+Which helps accelerate training and prevent the vanishing gradient problem 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "glorot_deep_2010"
+literal "false"
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Standard
@@ -6490,7 +7348,7 @@ name "sec:How-the-score"
 
 \begin_layout Standard
 Creating a training dataset is a crucial step in building an effective model.
- In our case,
+ In the particular case of molecular clouds structures,
  we want to avoid overtraining on the borders of the simulation,
  as these regions contain less valuable information compared to the dense regions with filaments and cores.
 \end_layout
@@ -6608,6 +7466,14 @@ s_{\Delta}(x)=\text{Var}[\Delta(\log(1+x)-\min[\log(1+x)])]\label{eq:score_lapl}
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $x$
+\end_inset
+
+ is the pixel value.
 \end_layout
 
 \begin_layout Standard
@@ -6782,7 +7648,10 @@ nolink "false"
 \end_inset
 
 ).
- This could indicate that the loss function is poorly formulated or that the architecture is not well-suited to the task.
+ This behavior could point to several potential issues:
+ a suboptimal loss function,
+ an inadequate model architecture,
+ or a training dataset that does not sufficiently represent the full range of physical conditions.
 \end_layout
 
 \begin_layout Standard
@@ -6844,7 +7713,7 @@ nolink "false"
 
 ) to avoid including too many diffuse regions,
  such regions still dominate overall,
- since they are inherently prevalent in a cloud.
+ since they are prevalent in the simulation's cloud.
  As a result,
  if we use the Mean Squared Error (MSE) as the loss function,
  accurately predicting diffuse regions becomes more important for the model than predicting high-density regions.
@@ -7110,7 +7979,14 @@ begin{multicols}{2}
 \end_layout
 
 \begin_layout Section
-Archives of some tested architectures
+Archives of some tested architectures 
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Archives-architectures"
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

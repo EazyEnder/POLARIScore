@@ -42,6 +42,9 @@ class Spectrum():
             fig = ax.figure
         channels = np.arange(len(self.spectrum)) if channels is None else channels
         ax.plot(channels,self.spectrum)
+        ax.set_xlabel("Velocity [m/s]")
+        ax.set_ylabel("Intensity [K]")
+        ax.grid()
         return fig, ax
     
     def getX(self, output_settings):
