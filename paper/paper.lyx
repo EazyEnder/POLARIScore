@@ -8,6 +8,35 @@
 \begin_preamble
 \usepackage{multicol}
 \newcommand{\aver}[1]{\ensuremath{\left\langle #1 \right\rangle}}
+
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{etoolbox}
+
+% Set fancy header style
+\pagestyle{fancy}
+\fancyhf{}
+
+\let\oldpart\part
+\newcommand{\ctcustom}[1]{}
+\renewcommand{\part}[1]{%
+  \oldpart{#1}%
+  \renewcommand{\ctcustom}[1]{#1}
+}
+
+
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+
+\fancyhf{}
+\fancyhead[C]{\textbf{\ctcustom}}
+\fancyhead[LE]{\thepage}
+\fancyhead[RO]{\thepage}
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\footrulewidth}{0pt}
 \end_preamble
 \use_default_options true
 \maintain_unincluded_children no
@@ -68,9 +97,9 @@
 \color #008000
 \end_index
 \leftmargin 1cm
-\topmargin 1cm
+\topmargin 2cm
 \rightmargin 1cm
-\bottommargin 2cm
+\bottommargin 1cm
 \headheight 1cm
 \headsep 1cm
 \footskip 1cm
@@ -100,7 +129,7 @@
 \begin_body
 
 \begin_layout Title
-Inferring Volume Density in Molecular Clouds Using Deep Learning
+Inferring Volume Density in Molecular Clouds using Deep Learning
 \end_layout
 
 \begin_layout Author
@@ -245,6 +274,119 @@ Conclusion.
 \emph on
 This document was written as part of a Master 2 internship carried out in 2025 at IPAG (Institut de Planétologie et d’Astrophysique de Grenoble),
  France.
+\begin_inset VSpace 5pheight%
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align right
+\begin_inset Graphics
+	filename figure/logo_ipag.jpg
+	width 30col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Box Frameless
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "foreground"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+\align left
+\begin_inset Graphics
+	filename figure/logo_uga.jpg
+	width 30col%
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
@@ -346,6 +488,42 @@ literal "false"
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/placeholder.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Molecular cloud
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection*
@@ -587,14 +765,153 @@ Phases of the ISM
 \end_layout
 
 \begin_layout Subsection*
-Physics behind
+Gravitation
 \end_layout
 
 \begin_layout Standard
-Turbulence,
- bases de la formation stellaire:
- temps caractéristisques,
- viriel -> jeans...
+Gravitational instability is the fundamental driver of star formation in molecular clouds.
+ When the gravitational potential energy of a gas structure exceeds its internal support (thermal,
+ turbulent,
+ or magnetic),
+ the system becomes unstable and begins to collapse.
+ A key timescale associated with gravitational collapse is the free-fall time:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+t_{ff}=\sqrt{\frac{3\pi}{32G\rho}}\simeq170\,000\,(\frac{\rho_{0}}{4\times10^{4}\text{cm}^{-3}})^{-1/2}\text{yrs}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\rho$
+\end_inset
+
+ is the density.
+ This timescale sets a lower limit for the duration of star formation in a given region.
+ 
+\end_layout
+
+\begin_layout Standard
+Another useful quantity is the Jeans mass,
+ the critical mass above which a region collapses:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+M_{J}=\frac{\pi}{6}(\frac{\pi}{G})^{3/2}\rho_{0}^{-1/2}c_{s}^{3}\simeq40\,(\frac{\rho_{0}}{4\times10^{4}\text{cm}^{-3}})^{-1/2}(\frac{T}{20\text{K}})^{3/2}M_{\odot}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+with 
+\begin_inset Formula $c_{s}$
+\end_inset
+
+ the sound speed.
+ If a region exceeds this mass,
+ self-gravity dominates and collapse ensues.
+\end_layout
+
+\begin_layout Standard
+The virial parameter,
+ which measures the ratio of kinetic to gravitational energy,
+ is often used to quantify the balance between support and collapse:
+\begin_inset Formula 
+\begin{equation}
+\alpha_{vir}=\frac{2E_{kin}}{|E_{grav}|}\approx\frac{5\sigma_{v}^{2}R}{GM}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\sigma_{v}$
+\end_inset
+
+is the velocity dispersion,
+ 
+\begin_inset Formula $R$
+\end_inset
+
+ is the cloud radius,
+ and 
+\begin_inset Formula $M$
+\end_inset
+
+ its mass.
+ A value 
+\begin_inset Formula $\alpha_{vir}\apprle2$
+\end_inset
+
+ typically indicates a gravitationally bound or marginally bound system.
+\end_layout
+
+\begin_layout Subsection*
+Turbulence
+\end_layout
+
+\begin_layout Standard
+Turbulence plays a dual role in the evolution of molecular clouds.
+ It creates strong local over-densities that can seed gravitational collapse,
+ while simultaneously providing turbulent pressure that supports the cloud globally.
+ The interplay between these effects is essential for understanding cloud fragmentation and the regulation of star formation.
+\end_layout
+
+\begin_layout Standard
+Supersonic turbulence is observed throughout molecular clouds,
+ with sonic Mach numbers 
+\begin_inset Formula $M=\frac{v}{c_{s}}\gg1$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Turbulence is injected by large-scale processes (e.g.,
+ supernovae,
+ galactic shear) and cascades down to small scales,
+ shaping the filamentary and clumpy structure of the interstellar medium.
+ The turbulent dissipation time is on the order of the crossing time,
+ 
+\begin_inset Formula 
+\begin{equation}
+t_{cross}\sim\frac{R}{\sigma_{v}}
+\end{equation}
+
+\end_inset
+
+,
+ and sets a timescale for energy decay unless replenished by feedback.
+\end_layout
+
+\begin_layout Subsection*
+Magnetic field
+\end_layout
+
+\begin_layout Standard
+Magnetic fields also contribute significantly to the structure and evolution of molecular clouds at large scale.
+ They can provide support against gravitational collapse,
+ particularly in regions where thermal pressure is insufficient.
+ Observations show that magnetic fields are often aligned with filaments,
+ suggesting they help guide mass flows and influence the orientation and fragmentation of collapsing regions.
+ While their exact impact is still debated,
+ magnetic fields likely act in tandem with turbulence and gravity to regulate core formation.
 \end_layout
 
 \begin_layout Subsection*
@@ -602,7 +919,127 @@ Dense cores
 \end_layout
 
 \begin_layout Standard
-Avec CMF -> IMF...
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/placeholder.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Dense cores
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As clumps fragment under the influence of gravity,
+ they give rise to dense cores,
+ the smallest bound structures within molecular clouds that are directly associated with star formation.
+ These cores typically span 
+\begin_inset Formula $\sim0.01–0.1$
+\end_inset
+
+ pc and have masses from a fraction of a solar mass up to a few tens of 
+\begin_inset Formula $M_{\odot}$
+\end_inset
+
+.
+ In contrast to clumps,
+ dense cores are often thermally supported and closer to hydrostatic equilibrium,
+ although non-thermal motions and magnetic fields can still play a role in their evolution.
+ Observations of prestellar cores,
+ cold,
+ dense,
+ and starless,
+ suggest that they represent the initial conditions of star formation.
+ The core mass function (CMF),
+ derived from surveys of such regions,
+ exhibits a shape similar to the stellar initial mass function (IMF) but shifted to higher masses by a factor of 
+\begin_inset Formula $\sim2–3$
+\end_inset
+
+,
+ suggesting a relatively constant core-to-star efficiency.
+ This apparent similarity points to the CMF as a possible progenitor of the IMF,
+ although subsequent processes like accretion,
+ fragmentation,
+ and feedback can further shape the final stellar mass distribution.
+ The stellar initial mass function can be described by a lognormal distribution around a peak at 
+\begin_inset Formula $\sim2M_{\odot}$
+\end_inset
+
+and a high-mass power law with a slope of 
+\begin_inset Formula $\frac{dN}{dM}\propto M^{-2.3}$
+\end_inset
+
+.
+ While the high-mass slope is relatively well understood as a result of scale-free gravitational processes,
+ one of the major open questions in star formation theory is the origin of the characteristic peak at sub-solar masses.
+ This peak likely reflects a preferred fragmentation scale in collapsing gas,
+ shaped by a combination of thermal physics,
+ turbulence,
+ and possibly magnetic fields.
+ Understanding the physical mechanisms that set this characteristic mass remains a central challenge.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/placeholder.jpg
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+CMF
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section*
@@ -5927,7 +6364,7 @@ Where
 \end_inset
 
  is the excitation temperature,
- here approximated by the local kinetic temperature
+ here approximated by the local kinetic temperature 
 \begin_inset Formula $T$
 \end_inset
 
@@ -6099,7 +6536,7 @@ At the start of the ray,
 
 \begin_layout Standard
 Then,
- the intensity is converted into antenna temperature units using the relation:
+ the intensity is converted into antenna temperature using the relation:
  
 \begin_inset Formula $T_{I}=I\times\frac{c^{2}}{2k_{B}\nu^{2}}$
 \end_inset
@@ -6361,8 +6798,12 @@ literal "false"
 
 \end_inset
 
- that concatenating information between branches during encoding can be beneficial —
- a strategy referred to as cross-modal fusion.
+ that concatenating information between branches during encoding can be beneficial,
+ a strategy referred to as
+\emph on
+ cross-modal fusion
+\emph default
+.
 \end_layout
 
 \begin_layout Standard
@@ -6719,8 +7160,194 @@ name "fig:Residuals-for-MultiNet-massweighted"
 For max density
 \end_layout
 
+\begin_layout Standard
+It is also possible to predict the maximum density along the line of sight,
+ which could be considered more challenging as it requires a better understanding of the underlying structures.
+\end_layout
+
+\begin_layout Standard
+As with the mass-weighted mean density prediction,
+ the model that includes the 13CO performs slightly better (see Figures 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Accuracy-for-MultiNet-max"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Residuals-for-MultiNet-max"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+),
+ but this time the improvement is more modest.
+ As previously mentioned,
+ the task is inherently more complex,
+ and therefore the 3D information becomes much more important.
+ A proper way to feed this complete information to the model and to process it effectively is necessary for accurate predictions.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/multinet_accuracy_max.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Accuracy for MultiNet,
+ predicting maximum density using 
+\begin_inset Formula $^{13}\text{CO}$
+\end_inset
+
+ ppv cube and column density 
+\begin_inset Formula $N_{C}$
+\end_inset
+
+;
+ green is using the integrated emission,
+ purple is using a learnable projection of 
+\begin_inset Formula $3D\rightarrow2D$
+\end_inset
+
+,
+ yellow is using the first 3 computed moments,
+ black is using only the column density.
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Accuracy-for-MultiNet-max"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The prediction of the maximum density thus serves as a good first test to evaluate whether the model can correctly process and extract useful features from the PPV cube.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/multinet_residuals_max.jpg
+	lyxscale 50
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Residuals for MultiNet,
+ same models & colors as Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Accuracy-for-MultiNet-max"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ 
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Residuals-for-MultiNet-max"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsection
 For structure reconstruction
+\end_layout
+
+\begin_layout Standard
+The ultimate goal would be to recover the 3D structure of the molecular cloud,
+ meaning either the discretized density in x,
+ y,
+ z,
+ a complex regression problem,
+ or the segmentation of the cloud (1 if above a certain density threshold,
+ 0 otherwise),
+ which is a classification task that is less complex than the former,
+ though still challenging.
+ Mixed approaches combining both are also possible.
+\end_layout
+
+\begin_layout Standard
+Unfortunately,
+ after numerous experiments with MultiNet and other architectures,
+ none have proven successful.
+ While the models do manage to capture some correlation,
+ they fail to go further.
+ As mentioned several times before,
+ this may be due to the fact that,
+ in order to feed the model with information from the PPV cube,
+ we currently attempt to reduce it.
+ However,
+ this reduction is likely too simplistic at the moment and likely discards a substantial amount of useful information.
 \end_layout
 
 \begin_layout Section
@@ -6757,8 +7384,8 @@ https://oms.iram.fr/oms/?dms=viewobject/_=-O-277954&pageId=3
 ),
  as this would require some code adjustments for reading the observational data and,
  more importantly,
- training models on higher-resolution datasets as done in the previous section—
-something that also demands more computational effort,
+ training models on higher-resolution datasets as done in the previous section,
+ something that also demands more computational effort,
  particularly for the spectral calculations.
 \end_layout
 
@@ -7122,6 +7749,24 @@ status open
 
 \backslash
 end{multicols}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+ctcustom}[1]{}
 \end_layout
 
 \end_inset
@@ -8133,22 +8778,6 @@ end{multicols}
 
 \end_layout
 
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
-
-\backslash
-begin{multicols}{2}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
 \begin_layout Section
 How the model is applied on observations
 \begin_inset CommandInset label
@@ -8161,19 +8790,80 @@ name "sec:model_on_obs"
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
+The model is trained on images with a specific physical size,
+ for example 2 parsecs.
+ To ensure optimal performance,
+ the observation to be predicted should therefore be approximately of the same scale.
+ Moreover,
+ since observational data typically have high resolution,
+ they are often too memory-intensive (i.e.,
+ computationally expensive) to be predicted all at once by the model.
+\end_layout
+
+\begin_layout Standard
+As a result,
+ the observation must be divided into smaller sub-regions that the model can process individually.
+ In some cases,
+ downsampling the observation is necessary to match the expected input size.
+ Additionally,
+ convolutional architectures tend to perform worse near the edges of an image.
+ The region cropping itself can also impact the prediction,
+ for example,
+ if a filament was nearby but got cut out.
+\end_layout
+
+\begin_layout Standard
+To mitigate these issues,
+ each pixel (or resolution element) of the observation may be predicted multiple times using a stride lower than the patch length by the model from overlapping patches.
+ The final prediction for each pixel is then averaged across all predictions.
+ The full observation is finally reconstructed from these patches.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
 status open
 
 \begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/apply_to_obs.jpg
+	lyxscale 50
+	width 60col%
+
+\end_inset
 
 
-\backslash
-end{multicols}
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+How the model is applied on observations,
+ e.g with each pixel being predicted two times
 \end_layout
 
 \end_inset
 
 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If a patch contains undefined pixels,
+ they are set to zero (zero-padding) during preprocessing to avoid issues during convolution operations.
+ After the prediction,
+ these pixels are reset to null.
+ This approach prevents computational errors during forward passes,
+ but it may influence the convolutional layers and thus the final prediction.
 \end_layout
 
 \begin_layout Standard

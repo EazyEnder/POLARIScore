@@ -939,7 +939,8 @@ if __name__ == "__main__":
     ds1, ds2 = ds.split(cutoff=0.7)
 
 
-    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_max_moments")
+    """
+    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_max_wout")
     trainer.training_set = ds1
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
@@ -947,13 +948,13 @@ if __name__ == "__main__":
     trainer.network_settings["num_layers"] = 4
     #trainer.network_settings["out_channels"] = 2
     #trainer.network_settings["deeper_skips"] = True
-    trainer.network_settings["channel_dimensions"] = [2,2]
-    trainer.network_settings["channel_modes"] = [None, ("moments",2)]
+    trainer.network_settings["channel_dimensions"] = [2]
+    trainer.network_settings["channel_modes"] = [None]
     trainer.training_random_transform = False
     trainer.network_settings["attention"] = True
     trainer.optimizer_name = "Adam"
     trainer.target_names = ["vdens"]
-    trainer.input_names = ["cdens","cospectra"]
+    trainer.input_names = ["cdens"]
     import numpy as np
     #y_train = np.array(ds1.get_element_index("vdens"))
     #num_bins = 100 
@@ -963,19 +964,21 @@ if __name__ == "__main__":
     trainer.init()
     trainer.train(1500,batch_number=4,compute_validation=10)
     trainer.save()
-    trainer.plot()
-    trainer.plot_validation()
+    #trainer.plot()
+    #trainer.plot_validation()
     #plot_models_accuracy([trainer,trainer2])
-
     """
-    lis = ["MultiNet_13CO_massweighted","MultiNet_13CO_massweighted_projection","MultiNet_13CO_moments","MultiNet_wout13CO"]
+
+    lis = ["MultiNet_13CO_max","MultiNet_13CO_max_proj","MultiNet_13CO_max_moments","MultiNet_13CO_max_wout"]
     ts = [load_trainer(l) for l in lis]
     for t in ts:
-        t.model_name = t.model_name.replace("_massweighted","")
-    plot_models_accuracy(ts, show_errors=True)
-    plot_models_residuals(ts)
-    """
+        t.model_name = t.model_name.replace("_max","")
+    fig, ax = plot_models_accuracy(ts, show_errors=True)
+    fig2, ax2, _ = plot_models_residuals(ts)
         
+    #fig.savefig(os.path.join(FIGURE_FOLDER,"multinet_accuracy_max.jpg"))
+    #fig2.savefig(os.path.join(FIGURE_FOLDER,"multinet_residuals_max.jpg"))
+
     #trainer = load_trainer("UneK_highres_fingercrossed")
     #fig, ax=  trainer.plot_residuals()
     #fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    

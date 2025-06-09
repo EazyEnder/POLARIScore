@@ -93,6 +93,15 @@ class Dataset():
         self.batch.extend(batch)
         self.settings["order"] = order
 
+        settings = {}
+        with open(os.path.join( os.path.join(TRAINING_BATCH_FOLDER,name),'settings.json')) as file:
+            settings = json.load(file)
+
+        if "areas_explored" in settings:
+            self.settings["areas_explored"] = eval(settings["areas_explored"].replace('array', 'np.array'))
+        if "img_size" in settings:
+            self.settings["img_size"] = settings["img_size"]
+
     def add(self,imgs_path):
         self.batch.append(imgs_path)
     
@@ -366,7 +375,7 @@ class Dataset():
 
         return fig, [ax_histo]
 
-    def plot_map(self, ax=None, element_index=0, map_index=0, enable_slider=True):        
+    def plot_map(self, ax=None, element_index=0, map_index=0, enable_slider=True, show_title=True):        
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -384,18 +393,29 @@ class Dataset():
         ax_map = fig.add_axes([left, bottom+0.1, width, height-0.1])
 
         batch = self.get(indexes=element_index if element_index > -1 else None)
-        im = ax_map.imshow(batch[map_index] if len(batch[map_index].shape) <= 2 else np.sum(batch[map_index], axis=-1), norm=LogNorm(), cmap="jet")
-        ax_map.set_title(self.settings['order'][map_index])
+        im = ax_map.imshow(batch[map_index] if len(batch[map_index].shape) <= 2 else np.sum(batch[map_index], axis=-1), norm=LogNorm(), cmap="jet",
+                           extent=[val for ae in self.settings["areas_explored"][0][map_index] for val in (ae - self.settings["img_size"], ae + self.settings["img_size"])] if "areas_explored" in self.settings else None)
+
+        if show_title:
+            ax_map.set_title(self.settings['order'][map_index])
+
+        if("areas_explored" in self.settings):
+            ax_map.set_xlabel("[pc]")
+            ax_map.set_ylabel("[pc]")
+        plt.colorbar(im, label=self.settings['order'][map_index])
 
         if enable_slider:
-            ax_slider = fig.add_axes([left, bottom, width, 0.03])
+            ax_slider = fig.add_axes([left, bottom-0.03, width, 0.03])
             slider = Slider(ax_slider, 'i', 0, len(self.settings['order']) - 1, valinit=map_index, valfmt='%0i')
 
             def update_map_index(val):
                 map_index = int(val)
                 im.set_data(batch[map_index] if len(batch[map_index].shape) <= 2 else np.sum(batch[map_index], axis=-1))
                 im.set_norm(LogNorm())
-                ax_map.set_title(self.settings['order'][map_index])
+                im.set_extent([val for ae in self.settings["areas_explored"][0][map_index] for val in (ae - self.settings["img_size"], ae + self.settings["img_size"])] if "areas_explored" in self.settings else None)
+                if show_title:
+                    ax_map.set_title(self.settings['order'][map_index])
+                plt.colorbar(im, label=self.settings['order'][map_index])
                 fig.canvas.draw_idle()
 
             slider.on_changed(update_map_index)    
@@ -485,8 +505,14 @@ class Dataset():
         return fig, ax
 
 if __name__ == "__main__":
-    ds = getDataset("batch_highres")
-    ds.save_diagnostic()
+
+    #from objects.Simulation_DC import Simulation_DC
+    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
+    #sim.init(loadTemp=True, loadVel=True)
+    #sim.plot(axis=1)
+
+    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_mass")
+    ds.plot_map(map_index=0, element_index=4, enable_slider=0, show_title=False)
     #fig, ax = ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
     #ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
-    #plt.show()
+    plt.show()
