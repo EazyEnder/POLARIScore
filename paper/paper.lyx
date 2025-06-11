@@ -129,6 +129,8 @@
 \begin_body
 
 \begin_layout Title
+
+\series bold
 Inferring Volume Density in Molecular Clouds using Deep Learning
 \end_layout
 
@@ -161,132 +163,36 @@ pierre.hily-blant@univ-grenoble-alpes.fr
 
 \end_layout
 
-\begin_layout Abstract
-
-\series bold
-Context.
- 
-\series default
-Molecular clouds,
- seen as dark patches on the sky,
- are complex 3D structures forming filaments and dense cores where stars are born.
- Yet,
- as Earth-bound observers,
- we only access 2D,
- quasi-static projections.
- Reconstructing their 3D structure is crucial for understanding star formation,
- turbulence,
- and chemistry,
- but doing so from a single 2D map is highly non-invertible.
-\end_layout
-
-\begin_layout Abstract
-
-\series bold
-Aims.
-
-\series default
- This work explores deep learning,
- particularly neural networks,
- to infer physical quantities such as the average volume density along the line of sight.
- It also initiates the use of architectures capable of handling PPV cubes,
- which offer additional kinematic information.
-\end_layout
-
-\begin_layout Abstract
-
-\series bold
-Methods.
- 
-\series default
-Neural networks are trained on synthetic data to predict volume density from column density and extended to use molecular emission maps (e.g.,
- from ¹³CO).
-\end_layout
-
-\begin_layout Abstract
-
-\series bold
-Results.
- 
-\series default
-We developed models capable of predicting average volume density and explored new multi-input architectures.
- We also implemented Kolmogorov-Arnold networks and began developing 
-\begin_inset CommandInset href
-LatexCommand href
-name "POLARIS"
-target "https://github.com/EazyEnder/POLARIS"
-literal "false"
-
-\end_inset
-
-
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Software code available here:
- 
-\begin_inset CommandInset href
-LatexCommand href
-target "https://github.com/EazyEnder/POLARIS"
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-
-\begin_inset Foot
-status open
-
-\begin_layout Plain Layout
-Python code available here:
- 
-\begin_inset CommandInset href
-LatexCommand href
-target "https://github.com/EazyEnder/POLARIScore"
-
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
-,
- a software tool for future experimentation.
-\end_layout
-
-\begin_layout Abstract
-
-\series bold
-Conclusion.
-
-\series default
- Though still exploratory,
- these results mark an early step toward reconstructing the 3D structure of molecular clouds using deep learning.
-\end_layout
-
-\begin_layout Abstract
+\begin_layout Standard
 
 \emph on
-This document was written as part of a Master 2 internship carried out in 2025 at IPAG (Institut de Planétologie et d’Astrophysique de Grenoble),
+This document was written as part of a Master 2 internship carried out in 2025 at IPAG (Institut de Planétologie et
+\end_layout
+
+\begin_layout Standard
+\align center
+
+\emph on
+d’Astrophysique de Grenoble),
  France.
+\end_layout
+
+\begin_layout Standard
+
+\emph on
 \begin_inset VSpace 5pheight%
 \end_inset
 
 
 \end_layout
 
-\begin_layout Abstract
+\begin_layout Standard
 \begin_inset Float figure
 placement H
 alignment document
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -391,6 +297,317 @@ status open
 
 \begin_layout Standard
 \begin_inset Separator plain
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{multicols}{2}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+Abstract
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Context.
+\begin_inset Newline newline
+\end_inset
+
+ 
+\series default
+Molecular clouds,
+ seen as dark patches on the sky,
+ are complex 3D structures forming filaments and dense cores where stars are born.
+ Yet,
+ as Earth-bound observers,
+ we only access 2D,
+ quasi-static projections.
+ Reconstructing their 3D structure is crucial for understanding star formation,
+ turbulence,
+ and chemistry,
+ but doing so from a single 2D map is highly non-invertible.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Aim.
+\begin_inset Newline newline
+\end_inset
+
+
+\series default
+ This work explores deep learning,
+ particularly neural networks,
+ to infer physical quantities such as the average volume density along the line of sight.
+ It also initiates the use of architectures capable of handling hyperspectral cubes,
+ which offer information about the third axis.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Motivation.
+\begin_inset Newline newline
+\end_inset
+
+
+\series default
+Grasping the 3D structure of molecular clouds is essential for investigating star formation,
+ turbulence,
+ and astrochemistry.
+ Current methods for estimating properties like the mass of dense cores,
+ precursors of stars,
+ often rely on image-based techniques such as contour analysis,
+ which incorporate minimal physical modeling.
+ In contrast,
+ neural networks can be trained on simulations grounded in physics,
+ enabling them to learn and apply underlying physical principles.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Methods.
+\series default
+
+\begin_inset Newline newline
+\end_inset
+
+The study utilized synthetic datasets generated from magnetohydrodynamical (MHD) simulation (specifically ORION
+\begin_inset CommandInset citation
+LatexCommand citep
+key "ntormousi_core_2019"
+literal "false"
+
+\end_inset
+
+),
+ from which both column density maps and molecular emission maps (such as those from ¹³CO) were derived.
+ Column density maps were obtained by projecting 3D density cubes along the line of sight,
+ while emission maps were computed through radiative transfer techniques applied to the same simulation.
+ These datasets were used to train neural networks to predict volume densities.
+ The primary architecture was a U-Net
+\begin_inset CommandInset citation
+LatexCommand citep
+key "ronneberger_u-net_2015"
+literal "false"
+
+\end_inset
+
+,
+ a convolutional neural network with encoder-decoder pathways and skip connections,
+ designed to handle spatial data efficiently.
+ To extend the model’s capabilities,
+ Kolmogorov-Arnold Networks (KANs)
+\begin_inset CommandInset citation
+LatexCommand citep
+key "liu_kan_2024"
+literal "false"
+
+\end_inset
+
+ were integrated in various roles:
+ as output layers,
+ parallel symbolic components,
+ and complete replacements for standard convolutional layers.
+ Training was conducted using mean squared error (MSE) loss,
+ with data augmentation strategies to improve generalization.
+ Model performance was assessed using residual analysis and accuracy metrics across validation datasets.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Results
+\series default
+.
+\begin_inset Newline newline
+\end_inset
+
+The U-Net model demonstrated the ability to reliably predict mass-weighted average density maps using column density inputs,
+ and its performance was further enhanced by incorporating molecular emission maps,
+ such as those from ¹³CO,
+ which provided additional kinematic and structural information along the line of sight.
+ The integration of Kolmogorov-Arnold Network (KAN) as a symbolic use leads to significant performance gains.
+ The accuracy of the predictions was strongly influenced by both the spatial resolution of the training data and the size of the training set.
+ However,
+ the model faced clear limitations in diffuse regions or in cases where the physical properties of real observations diverged significantly from those represented in the simulation-based training data.
+\end_layout
+
+\begin_layout Standard
+We also began developing 
+\begin_inset CommandInset href
+LatexCommand href
+name "POLARIS"
+target "https://github.com/EazyEnder/POLARIS"
+literal "false"
+
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Software code available here:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/EazyEnder/POLARIS"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Python code available here:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+target "https://github.com/EazyEnder/POLARIScore"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+,
+ a software tool for future experimentation on neural networks.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Applications.
+\series default
+
+\begin_inset Newline newline
+\end_inset
+
+The trained models were applied to real Herschel observations of the Taurus L1495,
+ Polaris Flare,
+ and Orion A/B molecular clouds.
+ Predictions in dense regions,
+ such as filamentary structures and star-forming cores,
+ generally aligned well with values reported in the literature,
+ demonstrating the model’s effectiveness in capturing high-density features.
+ However,
+ performance declined in more diffuse regions,
+ where the model often underestimated volume densities.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Discussion.
+\begin_inset Newline newline
+\end_inset
+
+
+\series default
+The observed prediction errors are likely due to several contributing factors,
+ which remain the subject of ongoing investigation.
+ One hypothesis is that the training data lacked sufficient diversity,
+ particularly in representing the range of physical conditions found in real molecular clouds,
+ especially in diffuse environments.
+ Another possibility is that the patch-based prediction approach deprived the model of broader spatial context,
+ limiting its ability to infer structures influenced by surrounding regions.
+ Additionally,
+ architectural limitations may have played a role,
+ as diffusion models (such as those employed by 
+\begin_inset CommandInset citation
+LatexCommand citet
+key "xu_denoising_2023"
+literal "false"
+
+\end_inset
+
+) have shown superior performance,
+ possibly due to their iterative refinement mechanisms.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Perspectives.
+\begin_inset Newline newline
+\end_inset
+
+
+\series default
+Future directions aim to overcome current limitations and expand the model’s capabilities.
+ A primary focus is on using more diverse simulations to ensure the training data captures a broader range of physical conditions found in observed molecular clouds.
+ Another key objective is to better incorporate 3D molecular emission data,
+ such as ¹³CO position-position-velocity (PPV) cubes,
+ which provide valuable kinematic and structural information along the line of sight.
+ On the architectural side,
+ efforts will be directed toward developing hybrid models or adopting diffusion-based approaches,
+ which have shown promise in similar tasks.
+ In parallel,
+ the development of POLARIS,
+ a dedicated software tool for scientific neural network experimentation,
+ will be able to support flexible model design,
+ training,
+ and visualization.
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+Conclusion.
+\begin_inset Newline newline
+\end_inset
+
+
+\series default
+Though still exploratory,
+ these results mark an early step toward reconstructing the 3D structure of molecular clouds using deep learning.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{multicols}{2}
+\end_layout
+
 \end_inset
 
 
