@@ -344,7 +344,7 @@ Molecular clouds,
  Yet,
  as Earth-bound observers,
  we only access 2D,
- quasi-static projections.
+ static projections.
  Reconstructing their 3D structure is crucial for understanding star formation,
  turbulence,
  and chemistry,
@@ -397,7 +397,7 @@ Methods.
 \begin_inset Newline newline
 \end_inset
 
-The study utilized synthetic datasets generated from magnetohydrodynamical (MHD) simulation (specifically ORION
+The study used synthetic datasets generated from magnetohydrodynamical (MHD) simulation (specifically ORION
 \begin_inset CommandInset citation
 LatexCommand citep
 key "ntormousi_core_2019"
@@ -771,7 +771,7 @@ The ISM is not uniform but highly structured,
  which coexist in a complex,
  dynamically interacting balance.
  The two main neutral atomic phases are the Warm Neutral Medium (WNM) and the Cold Neutral Medium (CNM),
- while the molecular phase marks the densest regions of the ISM where star formation can occur.
+ while the molecular phase marks the densest regions of the CNM where star formation can occur.
  These phases are not static.
  The WNM can cool and condense into the CNM,
  which under further compression and shielding can transition into a molecular cloud.
@@ -997,7 +997,7 @@ Gravitational instability is the fundamental driver of star formation in molecul
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-t_{ff}=\sqrt{\frac{3\pi}{32G\rho}}\simeq170\,000\,(\frac{\rho_{0}}{4\times10^{4}\text{cm}^{-3}})^{-1/2}\text{yrs}
+t_{ff}=\sqrt{\frac{3\pi}{32G\rho}}\simeq170\,000\,\left(\frac{n_{H}}{4\times10^{4}\text{cm}^{-3}}\right){}^{-1/2}\text{yrs}
 \end{equation}
 
 \end_inset
@@ -1023,7 +1023,7 @@ Another useful quantity is the Jeans mass,
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-M_{J}=\frac{\pi}{6}(\frac{\pi}{G})^{3/2}\rho_{0}^{-1/2}c_{s}^{3}\simeq40\,(\frac{\rho_{0}}{4\times10^{4}\text{cm}^{-3}})^{-1/2}(\frac{T}{20\text{K}})^{3/2}M_{\odot}
+M_{J}=\frac{\pi}{6}(\frac{\pi}{G})^{3/2}\rho_{0}^{-1/2}c_{s}^{3}\simeq5.5\,\left(\frac{n_{H}}{10^{4}\text{cm}^{-3}}\right))^{-1/2}\left(\frac{T}{10\text{K}}\right){}^{3/2}M_{\odot}
 \end{equation}
 
 \end_inset
@@ -1047,7 +1047,7 @@ The virial parameter,
  is often used to quantify the balance between support and collapse:
 \begin_inset Formula 
 \begin{equation}
-\alpha_{vir}=\frac{2E_{kin}}{|E_{grav}|}\approx\frac{5\sigma_{v}^{2}R}{GM}
+\alpha_{vir}=\frac{2E_{kin}}{|E_{grav}|}\approx\frac{5\sigma_{v}^{2}L}{GM}
 \end{equation}
 
 \end_inset
@@ -1060,12 +1060,12 @@ where
 \begin_inset Formula $\sigma_{v}$
 \end_inset
 
-is the velocity dispersion,
+ is the velocity dispersion,
  
-\begin_inset Formula $R$
+\begin_inset Formula $L$
 \end_inset
 
- is the cloud radius,
+ is the typical size,
  and 
 \begin_inset Formula $M$
 \end_inset
@@ -1091,8 +1091,8 @@ Turbulence plays a dual role in the evolution of molecular clouds.
 
 \begin_layout Standard
 Supersonic turbulence is observed throughout molecular clouds,
- with sonic Mach numbers 
-\begin_inset Formula $M=\frac{v}{c_{s}}\gg1$
+ with sonic rms Mach numbers 
+\begin_inset Formula $M_{s}=\frac{\sigma_{v}}{c_{s}}\gg1$
 \end_inset
 
 .
@@ -1108,12 +1108,11 @@ Turbulence is injected by large-scale processes (e.g.,
  
 \begin_inset Formula 
 \begin{equation}
-t_{cross}\sim\frac{R}{\sigma_{v}}
+t_{cross}\sim\frac{L}{\sigma_{v}}\text{,}
 \end{equation}
 
 \end_inset
 
-,
  and sets a timescale for energy decay unless replenished by feedback.
 \end_layout
 
@@ -1125,14 +1124,10 @@ Magnetic field
 Magnetic fields also contribute significantly to the structure and evolution of molecular clouds at large scale.
  They can provide support against gravitational collapse,
  particularly in regions where thermal pressure is insufficient.
- Observations show that magnetic fields are often aligned with filaments,
+ Observations show that magnetic fields are often perpendicular to filaments,
  suggesting they help guide mass flows and influence the orientation and fragmentation of collapsing regions.
  While their exact impact is still debated,
- magnetic fields likely act in tandem with turbulence and gravity to regulate core formation.
-\end_layout
-
-\begin_layout Subsection*
-Dense cores
+ magnetic fields likely act in tandem with turbulence and gravity to regulate core formation (gravo-turbulence).
 \end_layout
 
 \begin_layout Standard
@@ -1169,6 +1164,10 @@ Dense cores
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection*
+From filaments to dense cores
 \end_layout
 
 \begin_layout Standard
@@ -1208,7 +1207,7 @@ As clumps fragment under the influence of gravity,
 \begin_inset Formula $\sim2M_{\odot}$
 \end_inset
 
-and a high-mass power law with a slope of 
+ and a high-mass power law with a slope of 
 \begin_inset Formula $\frac{dN}{dM}\propto M^{-2.3}$
 \end_inset
 
@@ -1845,7 +1844,7 @@ Rather than modeling the entire distribution
 \end_layout
 
 \begin_layout Standard
-The neural network used in DDPMs is often a U-Net,
+The architecture used in DDPMs is often a U-Net,
  a CNN-based architecture with skip connections and downsampling/upsampling paths.
  Additionally,
  timestep embeddings are injected to condition the model on the current noise level 
@@ -1977,7 +1976,7 @@ There are few examples of why a 3D reconstruction of molecular clouds would be h
 \end_layout
 
 \begin_layout Itemize
-Lifting projection degeneracies:
+Remove projection degeneracies:
  For instance,
  multiple dense cores may overlap along the same line of sight.
  A 3D view would allow us to disentangle them and more accurately estimate their individual masses,
@@ -2003,9 +2002,9 @@ Astrochemistry:
 
 \begin_layout Itemize
 Studying turbulent processes:
- Understanding the 3D structure of turbulence,
- including its anisotropy and scaling,
- requires volumetric data.
+ Constraining the properties of turbulence (forcing,
+ statistics,
+ power spectrum) requires volumetric data.
  A 2D projection washes out key features of the velocity and density fields,
  limiting insight into the physics of turbulence in the interstellar medium.
 \end_layout
@@ -2079,7 +2078,11 @@ literal "false"
  It features a symmetric encoder-decoder structure,
  where the encoder captures high-level features through convolution and max pooling operations,
  while the decoder gradually reconstructs the image using upsampling layers.
- A key feature of U-Net is its skip connections,
+ A key feature of U-Net is its 
+\emph on
+skip connections
+\emph default
+,
  which allow direct information flow between corresponding encoder and decoder layers,
  preserving spatial details lost during downsampling.
  (See Figure 
@@ -2192,6 +2195,10 @@ nolink "false"
  However,
  they are more computationally expensive,
  and their interpretability is lost when incorporated into networks such as U-Net.
+ However,
+ KANs are still a relatively new development and require further experimentation and validation;
+ for instance,
+ current evidence suggests that a standard MLP is equivalent to a KAN model.
 \end_layout
 
 \begin_layout Standard
@@ -2352,7 +2359,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -2369,16 +2376,17 @@ status collapsed
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-Column density for 3 axes of the same molecular cloud from ORION
+Column density for 3 axes of the same molecular cloud from ORION simulation,
+ with low magnetic fields.
+ 
 \begin_inset CommandInset citation
-LatexCommand cite
+LatexCommand citep
 key "ntormousi_core_2019"
 literal "false"
 
 \end_inset
 
- simulation,
- with low magnetic field 
+ 
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:Column-density-for"
@@ -2451,7 +2459,29 @@ nolink "false"
  we obtain a total of 37 covered regions,
  each represented by a pair of images:
  (column density,
- volume density).
+ volume density) (Correlation and examples in figures 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Density-correlation-of"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Two-examples-from-Orion"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+) .
  These are distributed as 29 training (pair of) images (78%) and 8 validation (pair of) images (22%).
  In subsection 
 \begin_inset CommandInset ref
@@ -2479,7 +2509,7 @@ nolink "false"
 \begin_layout Standard
 In this part,
  our goal is not to reconstruct the full density distribution along the line of sight,
- but rather to determine a single representative value for each region.
+ but rather to determine a single representative value for each line of sight.
  There are several ways to compute such an average density,
  including:
 \begin_inset Formula 
@@ -2500,7 +2530,11 @@ In this part,
 \begin_inset Formula $n_{i}$
 \end_inset
 
- are respectively the differential volume element and the number density of the ith cell.
+ are respectively the differential volume element and the number density of the 
+\begin_inset Formula $i$
+\end_inset
+
+th cell.
  For an uniform grid,
  as in our initial approch,
  
@@ -2523,7 +2557,8 @@ nolink "false"
 \end_inset
 
  is the volume-weighted density and has the problem that to get this,
- one need the cloud length.For our simulation,
+ one need the cloud length.
+ For our simulation,
  if we compute the volume-weighted density,
  we find that it simplifies to the column density 
 \begin_inset Formula $N_{C}$
@@ -2535,9 +2570,9 @@ nolink "false"
 
 :
 \begin_inset Formula 
-\[
-N_{C}=\sum_{i}n_{H,i}(\Delta V_{i})^{\frac{1}{3}}=N_{cells}(\Delta V)^{\frac{1}{3}}\sum_{i}n_{H,i}=L\sum_{i}n_{H,i}
-\]
+\begin{equation}
+N_{\text{Col}}=\sum_{i}n_{H,i}(\Delta V_{i})^{\frac{1}{3}}=N_{cells}(\Delta V)^{\frac{1}{3}}\sum_{i}n_{H,i}=L\sum_{i}n_{H,i}
+\end{equation}
 
 \end_inset
 
@@ -2553,9 +2588,9 @@ where we assume a uniform grid,
 
 \begin_layout Standard
 \begin_inset Formula 
-\[
+\begin{equation}
 \aver{n}_{V}=\frac{1}{N_{cells}}\sum_{i}^{N_{cells}}n_{H,i}=\frac{N_{C}}{L}
-\]
+\end{equation}
 
 \end_inset
 
@@ -2567,7 +2602,8 @@ This shows that the volume-weighted density computed on the simulation is direct
 \end_layout
 
 \begin_layout Standard
-Another density which can be used is the mass-weighted average number density:
+In view of determining the CMF,
+ a better suited quantity is the mass-weighted average density:
 \begin_inset Formula 
 \begin{equation}
 \aver{n}_{M}=\frac{\sum_{i}^{N_{cells}}m_{i}n_{H,i}}{\sum_{i}^{N_{cells}}m_{i}}\overset{\Delta V=\text{cst}}{=}\frac{\sum_{i}^{N_{cells}}n_{H,i}^{2}}{\sum_{i}^{N_{cells}}n_{H,i}}
@@ -2579,13 +2615,16 @@ Another density which can be used is the mass-weighted average number density:
 \end_layout
 
 \begin_layout Standard
-This density highlights high density components along the line of sight.
- One can also want to use the max density along the l.o.s:
+Because this density highlights high density components along the line of sight.
+ Alternatively,
+ one can also want to use the max density along the l.o.s:
  
 \begin_inset Formula $n_{\text{max}}=\text{max}(n_{i})$
 \end_inset
 
- but this is much harder .
+ However,
+ we can suppose it to be more challenging,
+ as it requires the model to infer the underlying structure along the line of sight.
 \end_layout
 
 \begin_layout Standard
@@ -2612,6 +2651,13 @@ status open
 
 \begin_layout Plain Layout
 Density correlation of ORION
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Density-correlation-of"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -2652,6 +2698,13 @@ Two examples from the ORION training dataset.
  bottom row is the mass-weighted density.
  Left is a dense region,
  Right is a diffuse region.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Two-examples-from-Orion"
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -2679,7 +2732,7 @@ literal "false"
 \end_inset
 
 .
- The implementation of KAN in the architecture can occurs at the output convolution layer,
+ The implementation of KAN in the architecture can occur at the output convolution layer,
  where the KAN layer replaces the classic convolution layer (named K-Net if that's the case),
  thanks to the work of X.
  Gao
@@ -2701,7 +2754,8 @@ literal "false"
 
  on how to implement a convolution layer using KAN.
  The implementation is done in Python using PyTorch.
- It is also possible to only use KAN convolution layers instead of the classic ones (U-Kan).
+ It is also possible to only use KAN convolution layers (U-Kan) instead of the classic ones (U-Net).
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -2829,7 +2883,7 @@ placement H
 alignment document
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -2893,8 +2947,13 @@ nolink "false"
 \end_inset
 
 ,
- the validation loss converges to ~0.25 and doesn't go lower.
- This could mean that the model cannot generalize more the training data due to a network that is too shallow or insufficient images in the training set.
+ the validation loss converges to 
+\begin_inset Formula $\sim0.25$
+\end_inset
+
+ and does not go lower.
+ This could mean that the model cannot generalize more the training data,
+ either due to a network that is too shallow or insufficient images in the training set.
 \end_layout
 
 \begin_layout Standard
@@ -2943,7 +3002,7 @@ name "fig:U-Net-training-losses"
 \begin_layout Standard
 However,
  MSELoss is an average of all the batch errors.
- To analyze how the error varies as a function of density,
+ To analyze how the error varies with density,
  we plot the correlation between the target and the predictions made by the trained model on the validation set (Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -3007,10 +3066,8 @@ name "fig:U-Net-Prediction-correlation"
 \end_layout
 
 \begin_layout Standard
-Or,
- instead,
- we can directly analyze the residuals.
- This allows us to determine whether the model overestimates or underestimates lower or higher densities.
+We may also focus on the residuals.
+ This allows us to determine how the model behaves for regions of different density.
  Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -3048,7 +3105,7 @@ status open
 \begin_inset Caption Standard
 
 \begin_layout Plain Layout
-U-Net residuals 
+U-Net residuals
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:U-Net-residuals"
@@ -3096,7 +3153,7 @@ nolink "false"
  for example) or if the model struggles to predict certain features,
  such as densities within a filament.
  If this is the case,
- an alternative loss function that emphasizes spatial structures could improve the model's performance.
+ an alternative loss function that emphasizes spatial structures could improve the model performance.
 \end_layout
 
 \begin_layout Standard
@@ -3152,7 +3209,7 @@ Finally,
 \end_inset
 
 ).
- A predicted pixel is considered correct if
+ A predicted pixel is considered correct if 
 \begin_inset Formula $|\text{target}-\text{prediction}|<\sigma$
 \end_inset
 
@@ -3163,7 +3220,7 @@ Finally,
  represents the allowed error in the prediction in log10.
 \begin_inset Formula 
 \begin{equation}
-Acc_{i}=\frac{\sum_{i}^{N_{pixels}}N(|\text{target}-\text{prediction}|<\sigma)}{N_{pixels}}\label{eq:Accuracy}
+Acc_{i}=\frac{N(|\text{target}-\text{prediction}|<\sigma)}{N_{pixels}}\label{eq:Accuracy}
 \end{equation}
 
 \end_inset
@@ -3664,7 +3721,7 @@ literal "false"
 \end_layout
 
 \begin_layout Subsubsection
-KAN Layer as an network convolutionnal output
+KAN Layer as an network convolutionnal output (KNet)
 \end_layout
 
 \begin_layout Standard
@@ -3697,7 +3754,7 @@ The results show that K-Net's accuracy is slightly lower than U-Net's,
  and the same trend persists:
  accuracy decreases as the number of layers increases.
  Thus,
- this small modification does not provide significant benefits over the standard U-Net architecture.
+ this small modification does not provide benefits over the standard U-Net architecture.
 \end_layout
 
 \begin_layout Standard
@@ -3731,8 +3788,19 @@ name "fig:K-Net-complexity-map"
 \end_inset
 
 .
- Each point is a trained U-Net with KAN conv output with attention blocks and with X Base Filters and Y Layers.
- Yellow means higher accuracy and purple lower accuracy.
+ Same as Fig 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:U-Net-complexity-map"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+ for K-Net architecture.
+ 
 \end_layout
 
 \end_inset
@@ -3746,7 +3814,7 @@ name "fig:K-Net-complexity-map"
 \end_layout
 
 \begin_layout Subsubsection
-KAN Layer as a symbolic use 
+KAN Layer as a symbolic use (UNeK)
 \end_layout
 
 \begin_layout Standard
@@ -3754,8 +3822,8 @@ Another approach is to fit the function
 \begin_inset Formula $N_{col}(n_{H})$
 \end_inset
 
- using a KAN layer that operates on the flattened image matrix—
-that is,
+ using a KAN layer that operates on the flattened image matrix,
+ that is,
  with one number input (the column density) and one number output (the number density).
  In parallel,
  a U-Net network can be used to incorporate spatial information as shown in Figure 
@@ -3797,7 +3865,7 @@ status open
 
 \begin_layout Plain Layout
 KAN as a symbolic use:
- Architecture 
+ Architecture UNeK 
 \begin_inset CommandInset label
 LatexCommand label
 name "fig:UneK_architecture"
@@ -3889,7 +3957,7 @@ name "fig:KAN-symoblic-residuals"
 \end_layout
 
 \begin_layout Subsubsection
-KAN Layer as a replacement of convolutionnal layers
+KAN Layer as a replacement of convolutionnal layers (UKan)
 \end_layout
 
 \begin_layout Standard
