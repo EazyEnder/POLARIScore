@@ -561,11 +561,28 @@ if __name__ == "__main__":
 
     #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plotCores=False, show=True)
 
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
     names = ["OrionB", "Taurus_L1495", "Aquila"]
 
-    
+    from training_batch import plot_batch_correlation
+    obs = Observation(names[0],"column_density_map")
+    obs.load()
+    fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
+    ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
+    ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
 
+    X = np.linspace(20, 24, 50)
+    ox,oy = 21.6, 2.12
+    gamma = 3
+    Y = X * gamma + (oy-gamma*ox)
+    ax.plot(X,Y, color="black")
+
+    fig.tight_layout()
+    #fig.savefig(FIGURE_FOLDER+f"obs_{names[1].lower()}_correlation.jpg")
+
+    plt.show()
+    
+    """
     for n in names:
         obs = Observation(n,"column_density_map")
         obs.load()
@@ -578,5 +595,4 @@ if __name__ == "__main__":
         obs.plot_cores_error(ax=ax, alpha=0.75, movAverage=10)
 
     fig.savefig(FIGURE_FOLDER+"observation_errors.jpg")
-
-    #plt.show()
+    """

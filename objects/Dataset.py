@@ -511,8 +511,8 @@ if __name__ == "__main__":
     #sim.init(loadTemp=True, loadVel=True)
     #sim.plot(axis=1)
 
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_mass")
-    ds.plot_map(map_index=0, element_index=4, enable_slider=0, show_title=False)
+    ds = getDataset("batch_highres")
+    #ds.plot_map(map_index=0, element_index=4, enable_slider=0, show_title=False)
     #fig, ax = ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
     #ds.plot_correlation(PDF=True, contour_levels=[0.38,0.69,0.95])
     plt.show()

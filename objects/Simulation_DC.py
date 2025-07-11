@@ -600,7 +600,7 @@ if __name__ == "__main__":
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
     
-    sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_max",method=compute_max_density,what_to_compute = {"cospectra":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
+    #sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_max",method=compute_max_density,what_to_compute = {"cospectra":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
     #from Dataset import getDataset
     #ds = getDataset("batch_highres_twochannels")
     #pair = ds.get(1)

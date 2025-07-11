@@ -1144,7 +1144,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/taurus_cores.jpg
-	width 100col%
+	width 80col%
 
 \end_inset
 
@@ -1159,6 +1159,50 @@ Dense cores in a filament of Taurus Molecular Cloud - Credit :
  ESO/APEX A.
  Hacar et al.
  
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/pipenebulae_cores.jpg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Dense cores in the Pipe Molecular Cloud 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "alves_mass_2007"
+literal "false"
+
+\end_inset
+
+.
 \end_layout
 
 \end_inset
@@ -1239,7 +1283,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/IMF.jpg
-	width 100col%
+	width 80col%
 
 \end_inset
 
@@ -2159,7 +2203,7 @@ name "fig:U-net-architecture"
 .
  Each bluebox corresponds to a convolutionnal block.
  The number of channels is denoted on top of the box.
- The x-y-size is provided at the right edge of the box.
+ The x-y-size is provided at the right or left edge of the box.
 \end_layout
 
 \end_inset
@@ -3046,7 +3090,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/unet_prediction_correlation.jpg
-	width 100col%
+	width 110col%
 
 \end_inset
 
@@ -3584,9 +3628,8 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Tabular
-<lyxtabular version="3" rows="1" columns="2">
+<lyxtabular version="3" rows="2" columns="1">
 <features tabularvalignment="middle">
-<column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <row>
 <cell alignment="center" valignment="top" usebox="none">
@@ -3600,7 +3643,7 @@ has_inner_box 1
 inner_pos "t"
 use_parbox 0
 use_makebox 0
-width "50col%"
+width "100col%"
 special "none"
 height "1in"
 height_special "totalheight"
@@ -3615,7 +3658,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/unet_double_accuracy.jpg
-	width 100col%
+	width 75col%
 
 \end_inset
 
@@ -3629,6 +3672,8 @@ status open
 
 \end_inset
 </cell>
+</row>
+<row>
 <cell alignment="center" valignment="top" usebox="none">
 \begin_inset Text
 
@@ -3640,7 +3685,7 @@ has_inner_box 1
 inner_pos "t"
 use_parbox 0
 use_makebox 0
-width "50col%"
+width "100col%"
 special "none"
 height "1in"
 height_special "totalheight"
@@ -3655,7 +3700,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/unet_double_residuals.jpg
-	width 100col%
+	width 75col%
 
 \end_inset
 
@@ -3869,7 +3914,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figure/unek_architecture.jpg
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -4182,7 +4227,7 @@ name "subsec:U-Net-with-larger"
 \end_layout
 
 \begin_layout Standard
-Real observations and derived column density maps span a large range of sizes,
+Real observations and derived column density maps span a wide range of resolutions and spatial scales,
  such as the Herschel column density map of Taurus B213,
  which will be seen in the next section and is a few parsecs long.
  However,
@@ -4849,7 +4894,7 @@ status open
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
-	filename figure/obs_taurusl1495_correlation.jpg
+	filename figure/obs_taurus_l1495_correlation.jpg
 	width 80col%
 
 \end_inset
@@ -5233,6 +5278,43 @@ literal "false"
  
 \end_layout
 
+\begin_layout Standard
+\begin_inset Float figure
+placement H
+alignment document
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figure/Orion_molecular_cloud_ver2_1.jpg
+	width 50col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+Orion Giant Molecular cloud (Dame et al.
+ 2001).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Subsubsection*
 Orion A
 \end_layout
@@ -5601,7 +5683,15 @@ literal "false"
 
 \begin_layout Standard
 Thus,
- our prediction for the mass-weighted density is consistent with both the overall cloud properties and the characteristics of the derived dense cores.
+ our prediction for the mass-weighted density is consistent with both the overall cloud properties 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "schneider_what_2013"
+literal "false"
+
+\end_inset
+
+ and the characteristics of the derived dense cores.
 \end_layout
 
 \begin_layout Standard
@@ -6024,7 +6114,8 @@ nolink "false"
  at least in terms of key statistical properties of the column density distribution.
  However,
  this comparison is limited to global quantities,
- and it remains possible that subregions within the observational regions may still be well represented in the simulation.
+ and it is quite possible that subregions within the observational regions are still well represented in the simulation,
+ this could explain why the error remains low above a certain threshold.
  Nonetheless,
  the mismatch is concerning.
 \end_layout
@@ -6602,7 +6693,7 @@ where
 
  is the source function and we'll take the black-body emission,
  and 
-\begin_inset Formula $\tau=\alpha dz$
+\begin_inset Formula $\tau=\alpha\Delta z$
 \end_inset
 
  is the optical depth across the cell of width 
@@ -6650,7 +6741,7 @@ The difficulty in computing the emission lies primarily in the estimation of the
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-\tau(x,y,z)=\frac{c^{3}}{8\pi\nu^{3}}A_{ul}\frac{g_{u}}{g_{l}}(1-e^{-\frac{T_{ul}}{T_{ex}(x,y,z)}})\times n_{l}(x,y,z)dz\times\Phi(x,y,z)\text{,}
+\tau(x,y,z)=\frac{c^{3}}{8\pi\nu^{3}}A_{ul}\frac{g_{u}}{g_{l}}(1-e^{-\frac{T_{ul}}{T_{ex}(x,y,z)}})\times n_{l}(x,y,z)\Delta z\times\Phi(x,y,z)\text{,}
 \end{equation}
 
 \end_inset

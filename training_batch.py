@@ -67,7 +67,7 @@ def plot_batch(batch, b_name="",same_limits=True, number_per_row = 8):
 
     return fig, axes
 
-def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
+def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True, lines = [0,1,2]):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -83,11 +83,17 @@ def plot_batch_correlation(batch, ax=None, bins_number=256, show_yx = True):
     _, _, _,hist = ax.hist2d(column_density, volume_density, bins=(bins_number,bins_number), norm=LogNorm())
     if show_yx:
         yx = np.linspace(np.min(column_density), np.max(column_density), 10)
-        plt.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
-        plt.legend()
+        p = ax.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
+        plt.legend(p)
 
     plt.colorbar(hist, ax=ax, label="counts")
-    plt.legend()
+    ax = plt.gca()
+
+    plot_lines(column_density, volume_density, ax, lines=lines)
+
+    ax.grid(True)
+    ax.set_axisbelow(True)
+
     fig.tight_layout()
 
     return fig, ax
