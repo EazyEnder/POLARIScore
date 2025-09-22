@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import json
 import inspect
-from training_batch import compute_img_score
+from batch_utils import compute_img_score
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
 from objects.SpectrumMap import getSimulationSpectra
 from objects.Dataset import Dataset
+from typing import Dict,List,Tuple,Callable,Union
 from matplotlib.widgets import Slider
 
 
@@ -23,7 +24,7 @@ class Simulation_DC():
     DataCube Simulation is a sim where all the cells have the same size. 
     Easier to manipulate than AMR simulation, i.e the sim tree.
     """
-    def __init__(self, name, global_size, init=True):
+    def __init__(self, name:str, global_size:float, init:bool=True):
         """
         DataCube Simulation is a sim where all the cells have the same size. 
         Easier to manipulate than AMR simulation, i.e the sim tree.
@@ -33,47 +34,51 @@ class Simulation_DC():
             global_size (float): size of the not cropped simulation in parsec
             init (bool, default:True): open files and load data, else need to call init() after. (For example after modifying the self.folder) 
         """
-        self.name = name
-        """Simulatio name, name of the folder where the sim is in"""
-        self.global_size = global_size
+        self.name:str = name
+        """Simulation name, name of the folder where the sim is in"""
+        self.global_size:float = global_size
         """Real spatial size of the global simulation in parsec"""
-        self.folder = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../data/sims/"+name+"/")
+        self.folder:str = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../data/sims/"+name+"/")
         """Path to the folder where the simulation is stored"""
-        self.file = os.path.join(self.folder,SIM_DATA_NAME)
+        self.file:str = os.path.join(self.folder,SIM_DATA_NAME)
         """Path to the simulation data"""
-        self.data = None
+        self.data:np.ndarray = None
         """Raw simulation density data"""
-        self.data_temp = None
+        self.data_temp:np.ndarray = None
         """Raw simulation temperature data"""
-        self.data_vel = [None,None,None]
+        self.data_vel:Tuple[np.ndarray,np.ndarray,np.ndarray] = [None,None,None]
         """Raw simulation velocity data (tuple of 3 datacube for xvel, yvel, zvel)"""
 
-        self.header = None
+        self.header:Dict = None
         """Dict of sim settings"""
-        self.nres = None
+        self.nres:int = None
         """Resolution of the simulation (pixels*pixels), i.e shape of the matrix"""
-        self.relative_size =None
+        self.relative_size:float =None
         """Relative size of the simulation to the global simulation"""
-        self.center = None
+        self.center:Tuple[float,float,float] = None
         """Center of the simulation to the global simulation"""
-        self.cell_size = None
+        self.cell_size:float = None
         """Simulation cell size in cm"""
-        self.size = None
+        self.size:float = None
         """Real spatial size of the simulation in parsec"""
-        self.axis = None
-        """Simulation area in parsec"""
+        self.axis:Tuple[Tuple[float,float],Tuple[float,float],Tuple[float,float]] = None
+        """Simulation faces surface in parsec"""
 
-        self.column_density = [None,None,None]
-        self.column_density_method = [None,None,None]
-        self.volumic_density = [None,None,None]
-        self.volumic_density_method = [None,None,None]
+        """Cache for computed densities, ndarray are 2D tensors"""
+        self.column_density:Tuple[np.ndarray,np.ndarray,np.ndarray] = [None,None,None]
+        self.column_density_method:Tuple[np.ndarray,np.ndarray,np.ndarray] = [None,None,None]
+        self.volumic_density:Tuple[np.ndarray,np.ndarray,np.ndarray] = [None,None,None]
+        self.volumic_density_method:Tuple[np.ndarray,np.ndarray,np.ndarray] = [None,None,None]
 
         if init:
             self.init()
 
-    def loadTemperature(self):
+    def loadTemperature(self)->bool:
         """
         Load Temperature data from files
+
+        Returns:
+            isLoaded:bool
         """
         path = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_temp.fits")
         if not(os.path.exists(path)):
@@ -87,9 +92,12 @@ class Simulation_DC():
             return False
         return True
     
-    def loadVelocity(self):
+    def loadVelocity(self)->bool:
         """
         Load velocity data from files
+
+        Returns:
+            isLoaded:bool
         """
         path_x = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_velx.fits")
         path_y = os.path.join(self.folder,SIM_DATA_NAME.split(".fits")[0]+"_vely.fits")
@@ -117,9 +125,13 @@ class Simulation_DC():
 
         return True
 
-    def init(self, loadTemp=False, loadVel=False):
+    def init(self, loadTemp:bool=False, loadVel:bool=False):
         """
         Load files and data in self variables
+
+        Args:
+            loadTemp (bool): try to load temperature ?
+            loadVel (bool): try to load velocity ?
         """
 
         LOGGER.log(f"Loading simulation {self.name}")
@@ -147,39 +159,57 @@ class Simulation_DC():
             self.relative_size = self.header["run_parameters"]["size"]
             self.center = np.array([self.header["run_parameters"]["xcenter"],self.header["run_parameters"]["ycenter"],self.header["run_parameters"]["zcenter"]])
             self.cell_size = (self.global_size*self.relative_size/self.nres) * u.parsec
-            self.cell_size = self.cell_size.to(u.cm)
+            self.cell_size = self.cell_size.to(u.cm).value
             self.size = self.global_size*self.relative_size
             self.axis = ([self.center[0]*self.global_size-self.size/2,self.center[0]*self.global_size+self.size/2],[self.center[1]*self.global_size-self.size/2,self.center[1]*self.global_size+self.size/2],[self.center[2]*self.global_size-self.size/2,self.center[2]*self.global_size+self.size/2])    
         LOGGER.log(f"Loading finished for simulation {self.name}")
 
-    def from_index_to_scale(self,index):
+    def from_index_to_scale(self,index:int)->float:
         """Return the size in cm"""
         return index*self.cell_size.value
 
-    def _compute_c_density(self, method=compute_column_density, axis=0, force=False):
+    def _compute_c_density(self, method:Callable=compute_column_density, axis:int=0, force:bool=False)->np.ndarray:
+        """
+        Compute column density of an axis if not already computed or force param is set to true.
+        Args:
+            method: Method used to compute the column density.
+            axis (int): Axis
+            force (bool): If true, then even if the column density was already computed on this face, this will be computed again.
+        Returns:
+            2D matrix (ndarray) 
+        """
         if self.column_density_method[axis] is None or self.column_density_method[axis] != method.__name__ or self.column_density[axis] is None or force:
             LOGGER.log(f"Computing {method.__name__} for face {axis}, for {self.name}")
             self.column_density_method[axis] = method.__name__
             self.column_density[axis] = method(self.data, self.cell_size, axis=axis)
         return self.column_density[axis]
     
-    def _compute_v_density(self, method=compute_mass_weighted_density, axis=0, force=False):
+    def _compute_v_density(self, method:Callable=compute_mass_weighted_density, axis:int=0, force:bool=False)->np.ndarray:
+        """
+        Compute volume density of an axis if not already computed or force param is set to true.
+        Args:
+            method: Method used to compute the volume density.
+            axis (int): Axis
+            force (bool): If true, then even if the volume density was already computed on this face, this will be computed again.
+        Returns:
+            2D matrix (ndarray) 
+        """
         if self.volumic_density_method[axis] is None or self.volumic_density_method[axis] != method.__name__ or self.volumic_density[axis] is None or force:
             LOGGER.log(f"Computing {method.__name__} for face {axis}, for {self.name}")
             self.volumic_density_method[axis] = method.__name__
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,name=None,method=compute_mass_weighted_density,what_to_compute={"cospectra":False,"density":False,"divide_vdens":False},number=8,size=5,force_size=0,random_rotate=True,limit_area=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor=0.75):
+    def generate_batch(self,name:str=None,method:Callable=compute_mass_weighted_density,what_to_compute:Dict={"cospectra":False,"density":False,"divide_vdens":False},number:int=8,size:float=5.,force_size:int=0,random_rotate:bool=True,limit_area:Tuple=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor:float=0.75)->bool:
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
 
         Args:
             method(function): Method to compute the volumic density, like do we take the volume weighted mean ? Or the mass weighted mean ? Or even the max density along the l.o.s ?
-            number(float, default: 8): How many pairs of images do we want.
+            number(int, default: 8): How many pairs of images do we want.
             size(float, default: 5): Size in parsec for the areas, this will be rounded to the nearest power of 2 pixels.
-            force_size(float, default: 0): Force the size to be n pixels (for example 128).
+            force_size(int, default: 0): Force the size to be n pixels (for example 128).
             random_rotate(bool, default: True): Randomly rotate 0°,90°,180°,270° for each region.
             limit_area(list): In which region of the simulation we'll pick the areas: ([for face1],[for face2],[for face3]) -> ([x_min,x_max,y_min,y_max],...) for each face.
             nearest_size_factor(float, default:0.75): If the new area picked is too close to an old area of a factor nearest_size_factor*area_size then we'll choose another area.
@@ -363,7 +393,7 @@ class Simulation_DC():
     
         return ds
     
-    def plotSlice(self, axis=0, slice=256, N_arrows=20, show_velocity=True, enable_slider=True):
+    def plotSlice(self, axis:int=0, slice:int=256, N_arrows:int=20, show_velocity:bool=True, enable_slider:bool=True):
             
             if not(axis in [0,1,2]):
                 LOGGER.warn(f"Slice plot: Axis {axis} is not valid -> take the default axis: 0")
@@ -435,12 +465,18 @@ class Simulation_DC():
 
                 slider.on_changed(update_slice)
 
-    def plot(self,method=compute_column_density,axis=[0],plot_pdf=False,color_bar=True,derivate=0):
+    def plot(self,method:Callable=compute_column_density,axis:Union[List[int],int]=[0],plot_pdf:bool=False,color_bar:bool=True,derivate:int=0)->Tuple:
         """
         Plot simulations faces with probabiliy density function
 
         Args:
-            method(function): Method to compute column density
+            method(function): Method to compute the data (2d tensor)
+            axis(list or int): axis or axes
+            plot_pdf(bool): if True plot the probability density function
+            color_bar(bool): if True, plot the colorbar
+            derivate(int): Derivate the data n times where n is derivate param.
+        Returns:
+            Tuple(fig, axes)
         """
 
         axis = axis if type(axis) is list else [axis]
@@ -483,15 +519,18 @@ class Simulation_DC():
 
         return fig, axes
 
-    def plot_correlation(self,method=compute_mass_weighted_density, axis=-1, contour_levels=0, force_compute=False, lines=[0,1,2]):
+    def plot_correlation(self,method:Callable=compute_mass_weighted_density, axis:int=-1, contour_levels:int=0, force_compute:bool=False, lines:List[int]=[0,1,2])->Tuple:
 
         """
         Plot correlation between the column density and the volumic density
 
         Args:
             method(function): Method to compute volumic density
-            axis(int, default:-1): which face of the sim, if -1 all faces are taken
-            contour_levels(int, default:0): If instead of using color map, a contour map is used (for value > 0, levels of the contour map = this var)
+            axis(int): which face of the sim, if -1 all faces are taken
+            contour_levels(int): If instead of using color map, a contour map is used (for value > 0, levels of the contour map = this var)
+            force_compute(bool): if True, the column density and volume density will be computed even if cache is available.
+        Returns:
+            Tuple(fig, ax)
         """
         fig, ax = plt.subplots(1,1)
         if axis >= 0:
@@ -523,7 +562,10 @@ class Simulation_DC():
         fig.tight_layout()
         return fig, ax
 
-def mergeSimu(sim_array):
+def mergeSimu(sim_array:List[Simulation_DC])->Simulation_DC:
+    """
+    Merge simulations into one.
+    """
     assert all(sim.nres == sim_array[0].nres for sim in sim_array),  LOGGER.error("Resolution mismatch among simulations.")
     LOGGER.log(f"merge {len(sim_array)} simulations")
     datacube_size = sim_array[0].nres
@@ -564,7 +606,16 @@ def mergeSimu(sim_array):
     return host
 
 import glob
-def openSimulation(name_root, global_size, use_cache=True):
+def openSimulation(name_root:str, global_size:float, use_cache:bool=True)->Simulation_DC:
+    """
+    Open a datacube simulation
+    Args:
+        name_root(str): name of the simulation folder
+        global_size(float): physical size of the global simulation (not the datacube) like the datacube can be 5pc long but the simulation was runned with a grid 66pc long.
+        use_cache(bool): Use cache
+    Returns:
+        Simulation
+    """
     files =glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../data/sims/"+name_root+"*"))
     LOGGER.log(f"Opening {len(files)} simulations")
     names = [f.split("/")[-1] for f in files]

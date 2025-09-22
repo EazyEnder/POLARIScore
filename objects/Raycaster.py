@@ -1,6 +1,7 @@
 from utils import *
 from config import *
 import numpy as np
+from typing import Dict, Tuple, Callable, Any
 
 class Raycaster():
     """
@@ -9,21 +10,20 @@ class Raycaster():
 
     Todo: get all the data instead of needing simulation data cube
     """
-    def __init__(self, simulation,method,starting_position,axis=0,stop_pos=[0,0,0]):
+    def __init__(self, simulation, method:Callable[[Any,Tuple[int,int,int],Tuple[int,int,int],Dict],Dict], starting_position:Tuple[int,int,int], axis:int=0, stop_pos:Tuple[int,int,int]=[0,0,0]):
         self.simulation = simulation
-        self.axis = axis
-        self.method = method
-        self.ray_position = starting_position
-        self.method = method
-        self.start_pos = starting_position
-        self.position = self.start_pos
-        self.stop_pos = stop_pos
-        self.ray_direction = np.array(self._get_direction())
+        self.axis:Tuple[int,int,int] = axis
+        self.method:Callable[[Any,Tuple[int,int,int],Tuple[int,int,int],Dict],Dict] = method
+        self.ray_position:Tuple[int,int,int] = starting_position
+        self.start_pos:Tuple[int,int,int] = starting_position
+        self.position:Tuple[int,int,int] = self.start_pos
+        self.stop_pos:Tuple[int,int,int] = stop_pos
+        self.ray_direction:Tuple[int,int,int] = np.array(self._get_direction())
         self.ray_direction = self.ray_direction/np.linalg.norm(self.ray_direction)
-        self.dimensions = self.simulation.data.shape
-        self.result = None
+        self.dimensions:Tuple[int,int,int] = self.simulation.data.shape
+        self.result:Dict = None
 
-    def start(self):
+    def start(self)->Dict:
         """
         Starts casting the ray through the simulation, applying the method to each cell the ray crosses.
         """
@@ -39,15 +39,17 @@ class Raycaster():
         self.result = result
         return result
 
-    def _get_direction(self):
+    def _get_direction(self)->np.ndarray:
         direction = [0, 0, 0]
         direction[self.axis] = -1
         return np.array(direction)
     
-    def _in_bounds(self, position):
+    def _in_bounds(self, position:Tuple[int,int,int])->bool:
+        """Returns if the position is still in the cube."""
         return all(self.stop_pos[i] <= position[i] <= self.start_pos[i] for i in range(len(position))) and all(0 <= position[i] < self.dimensions[i] for i in range(len(position)))
     
-def ray_mapping(simulation,method,axis,region=[0,-1,0,-1]):
+def ray_mapping(simulation,method:Callable[[Any,Tuple[int,int,int],Tuple[int,int,int],Dict],Dict],axis:int,region:Tuple[int,int,int,int]=[0,-1,0,-1]):
+    """Launch raycasters on a cube face."""
     results = []
     irange = range(region[0],region[1] if region[1] > 0 else simulation.nres)
     jrange = range(region[2],region[3] if region[3] > 0 else simulation.nres)

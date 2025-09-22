@@ -6,7 +6,7 @@ if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
 from config import *
-from utils import listDictToString
+from utils import dictsToString
 import matplotlib.pyplot as plt 
 import numpy as np
 from utils import *
@@ -18,6 +18,7 @@ from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
 import re
 from objects.Dataset import getDataset
+from typing import Dict, List, Tuple, Union
 
 def _crop(wcs, lims):
     ra_min, ra_max, dec_min, dec_max = lims
@@ -30,19 +31,22 @@ def _crop(wcs, lims):
     return (x_min,x_max,y_min,y_max)
 
 class Observation():
-    def __init__(self,name,file_name):
+    """
+    Observation object contains multiple tools to read observations and apply models on them.
+    """
+    def __init__(self,name:str,file_name:str):
 
-        self.name = name
-        self.folder = os.path.join(OBSERVATIONS_FOLDER, name)
+        self.name:str = name
+        self.folder:str = os.path.join(OBSERVATIONS_FOLDER, name)
         """Path to the folder where the observation is stored"""
 
         file_name = file_name.split(".fits")[0]+".fits"
-        self.file = os.path.join(self.folder,file_name)
+        self.file:str = os.path.join(self.folder,file_name)
         """Path to the observation data"""
-        self.data = None
-        self.prediction = None
-        self.wcs = None
-        self.cores = None
+        self.data:np.ndarray = None
+        self.prediction:np.ndarray = None
+        self.wcs: 'WCS' = None
+        self.cores: List[Dict] = None
         """Cores [{**core1_properties}]"""
 
         self.init()
@@ -54,7 +58,20 @@ class Observation():
         self.wcs = WCS(f.header)
         file.close()
 
-    def predict(self, model_trainer, patch_size=(128, 128), nan_value=-1.0, overlap=0.5, downsample_factor=1, apply_baseline=False):
+    def predict(self, model_trainer, patch_size:Tuple[int,int]=(128, 128), nan_value:float=-1.0, overlap:float=0.5, downsample_factor:float=1., apply_baseline:bool=False)->np.ndarray:
+        """
+        Predict a quantity by applying a model to an observation.
+        Args:
+            model_trainer (Trainer): Model wrapped in a Trainer object.
+            patch_size (tuple[int, int]): Shape of the 2D patches on which the model will be applied.
+                The observation will be divided into patches of this shape.
+            nan_value (float): Value used to replace NaNs in the observation.
+            overlap (float): Fraction of overlap between consecutive patches.
+            downsample_factor (float): Factor by which the observation is downsampled.
+            baseline (bool): Whether to apply baseline correction to the model.
+        Returns:
+            predicted_observation
+        """
 
         input_matrix = self.data
         input_tensor = torch.tensor(input_matrix.astype(np.float32))
@@ -106,7 +123,14 @@ class Observation():
 
         return output_matrix
 
-    def getCores(self, force_compute=False):
+    def getCores(self, force_compute:bool=False)->Union[List[Dict], None]:
+        """
+        Get cores from files "observed_core_catalog.txt" and "derived_core_catalog.txt"
+        Args:
+            force_compute (bool): If False, the function will return the cached version of cores if available.
+        Returns:
+            cores
+        """
 
         if not(self.cores is None) and not(force_compute):
             return self.cores
@@ -203,7 +227,16 @@ class Observation():
 
         return cores
 
-    def plotCores(self,ax,cores=None,norm=None,vol_density=False,show_text=False):
+    def plotCores(self,ax,cores:Union[List[Dict],None]=None,norm=None,vol_density:bool=False,show_text:bool=False):
+        """
+        Plot the cores as dots on a Matplotlib Axes.
+        Args:
+            ax (matplotlib.axes.Axes): the matplotlib ax
+            cores : cores
+            norm (matplotlib.colors.Normalize): matplotlib norm
+            vol_density (bool): If True, treat the provided quantities as volume densities.
+            show_text (bool): If True, annotate each dot with its value next to it.
+        """
         if cores is None:
             cores = self.cores
         if cores is None:
@@ -238,7 +271,10 @@ class Observation():
 
         return ax
     
-    def getPredictedDensityAtCore(self, column_density=False):
+    def getPredictedDensityAtCores(self, column_density:bool=False)->List[float]:
+        """
+        By default, returns the predicted densities at cores position. If column_density is set to True, then it returns the column density instead.
+        """
         if self.cores is None:
             self.getCores()
         if self.cores is None:
@@ -274,7 +310,17 @@ class Observation():
         return values
         
     
-    def plot(self, data=None, norm=None, plotCores=False, crop=None, force_vol=False, force_col=False):
+    def plot(self, data:np.ndarray=None, norm=None, plot_cores:bool=False, crop:Union[Tuple[float,float,float,float],None]=None, force_vol:bool=False, force_col:bool=False):
+        """
+        Plot observation.
+        Args:
+            data: by default column densities of the observation, but can be predicted densities...
+            norm: matplotlib norm
+            plot_cores:
+            crop: [ra_min, ra_max, dec_min, dec_max]
+            force_vol: Force volume density labels.
+            force_col: Force column density labels.
+        """
         fig = plt.figure(figsize=(10,10))
         ax = plt.subplot(projection=self.wcs)
         data = self.data if data is None else data
@@ -292,7 +338,7 @@ class Observation():
         plt.colorbar(im, label=label)
         fig.tight_layout()
 
-        if plotCores:
+        if plot_cores:
             self.plotCores(ax, norm=norm, vol_density=flag_vol_density)
 
         if not(crop is None):
@@ -302,7 +348,7 @@ class Observation():
 
         return fig, ax
 
-    def plot_validity_with_model(self, dataset_name, ax=None, patch_size=(128, 128), nan_value=-1.0, overlap=0.5):
+    def plot_validity_with_model(self, dataset_name:str="batch_highres", ax=None, patch_size:Tuple[int,int]=(128, 128), nan_value:float=-1.0, overlap:float=0.5):
 
         if ax is None:
             fig, ax = plt.subplots()
@@ -338,8 +384,8 @@ class Observation():
                 means_obs.append(patch_mean)
                 stds_obs.append(patch_std)
 
-        ds = getDataset("batch_highres")
-        diagnostic = ds.save_diagnostic()
+        ds = getDataset(dataset_name)
+        diagnostic = ds.save_diagnostic(channel="cdens").values()
         means_ds = [d["mean"] for d in diagnostic]
         stds_ds = [d["std_log10"] for d in diagnostic]
 
@@ -353,8 +399,14 @@ class Observation():
 
         return fig, ax
 
-    def _get_cores_predicted_values(self, region=None, return_ncol=False, return_indexes=False):
-        predicted_densities = np.array(self.getPredictedDensityAtCore())
+    def _get_cores_predicted_values(self, region:Union[Tuple[float,float,float,float],None]=None, return_ncol:bool=False, return_indexes:bool=False):
+        """
+        Args:
+            region: [ra_max, ra_min, dec_min, dec_max]
+            return_ncol: Return column density
+            return_indexes: Return indexes
+        """
+        predicted_densities = np.array(self.getPredictedDensityAtCores())
         derived_densities =  np.array([c["average_n"] for c in self.getCores()])
         global_indexes = np.array(range(predicted_densities.shape[0]))
         mask = (~np.isnan(predicted_densities)) & (predicted_densities > 0) & (derived_densities > 0)
@@ -370,7 +422,7 @@ class Observation():
         predicted_densities = np.log10(predicted_densities)
         derived_densities = np.log10(derived_densities)
         if return_ncol:
-            column_densities = np.array(self.getPredictedDensityAtCore(column_density=True))
+            column_densities = np.array(self.getPredictedDensityAtCores(column_density=True))
             column_densities = np.log10(column_densities[mask])
             sorted_indexes = np.argsort(column_densities)
             global_indexes = global_indexes[sorted_indexes]
@@ -381,7 +433,12 @@ class Observation():
             return (predicted_densities, derived_densities, global_indexes)
         return (predicted_densities, derived_densities)
     
-    def plot_cores_hist(self, ax=None, region=None):
+    def plot_cores_hist(self, ax=None, region:Union[Tuple[float,float,float,float],None]=None):
+        """
+        Args:
+            ax: matplotlib axis
+            region: [ra_max, ra_min, dec_min, dec_max]
+        """
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -398,7 +455,12 @@ class Observation():
 
         return fig, ax
     
-    def plot_cores_hist2d(self, ax=None, region=None):
+    def plot_cores_hist2d(self, ax=None, region:Union[Tuple[float,float,float,float],None]=None):
+        """
+        Args:
+            ax: matplotlib axis
+            region: [ra_max, ra_min, dec_min, dec_max]
+        """
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -414,7 +476,12 @@ class Observation():
 
         return fig, ax
     
-    def plot_cores_space(self, ax=None, region=None):
+    def plot_cores_space(self, ax=None, region:Union[Tuple[float,float,float,float],None]=None):
+        """
+        Args:
+            ax: matplotlib axis
+            region: [ra_max, ra_min, dec_min, dec_max]
+        """
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -449,7 +516,15 @@ class Observation():
 
         return fig, ax
     
-    def plot_cores_error(self, ax=None, region=None, alpha=1., movAverage=5, show_errors=True):
+    def plot_cores_error(self, ax=None, region:Union[Tuple[float,float,float,float],None]=None, alpha:float=1., mov_average:int=5, show_errors:bool=True):
+        """
+        Args:
+            ax: matplotlib axis
+            region: [ra_max, ra_min, dec_min, dec_max]
+            alpha (float): opacity
+            mov_average (bool): data is downsampled/smoothed using moving average method.
+            show_errors (bool): show std deviation induced by the moving average.
+        """
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -460,11 +535,11 @@ class Observation():
         ax.grid()
 
         residuals = predicted_densities-derived_densities
-        if movAverage > 1:
-            residuals, residuals_std = movingAverage(residuals, n=movAverage, return_std=True) 
-            column_densities = movingAverage(column_densities, n=movAverage)
+        if mov_average > 1:
+            residuals, residuals_std = movingAverage(residuals, n=mov_average, return_std=True) 
+            column_densities = movingAverage(column_densities, n=mov_average)
         line, = ax.plot(column_densities,residuals, marker="+", alpha=alpha, label=self.name)
-        if movAverage > 1 and show_errors:
+        if mov_average > 1 and show_errors:
             ax.fill_between(column_densities,residuals-residuals_std,residuals+residuals_std, color=line.get_color(), alpha=0.2)
         
         ax.set_xlabel("$\log_{10}(N_{col})$")
@@ -474,7 +549,8 @@ class Observation():
 
         return fig, ax
 
-    def serialize_cores(self, region=None):
+    def serialize_cores(self, region:Union[Tuple[float,float,float,float],None]=None)->str:
+        """Serialize the core properties into a file named 'cores.txt' within the observation folder."""
         cores = self.getCores()
         if cores is None:
             LOGGER.error("Cant serialize, there is no cores.")
@@ -490,13 +566,17 @@ class Observation():
                 "n_predicted": predicted_densities[i0],
                 "column_density": column_densities[i0],
             })
-        string = listDictToString(returned_cores)
+        string = dictsToString(returned_cores)
         with open(os.path.join(self.folder, "cores.txt"), "w") as file:
             file.write(string)
         LOGGER.log(f"Cores serialized for obs {self.name}, see the cores.txt file.")
         return string
 
-    def save(self,replace=False):
+    def save(self,replace:bool=True):
+        """
+        Args:
+            replace (bool): if set to False, if there is an existing file then this function does nothing. 
+        """
         if self.prediction is None:
             LOGGER.error(f"Can't save cache for prediction on {self.name} because there has no prediction on this observation, use .predict(model)")
             return
@@ -511,17 +591,17 @@ class Observation():
         LOGGER.log(f"Observation prediction {self.name} saved")
         np.save(path,self.prediction)
 
-    def load(self):
+    def load(self)->np.ndarray:
         path = os.path.join(CACHES_FOLDER,self.name.split(".npy")[0]+".npy")
         if not(os.path.exists(path)):
             return
         self.prediction = np.load(path) 
         return self.prediction
     
-def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plotCores=True,normcol=[None,None],normvol=[None,None], show=True):
+def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plot_cores=True,normcol=[None,None],normvol=[None,None], show=True):
     obs = Observation(name, "column_density_map")
     name = name.replace("_","")
-    fig, ax = obs.plot(norm=LogNorm(vmin=normcol[0], vmax= normcol[1]),plotCores=plotCores,crop=crop, force_col=True)
+    fig, ax = obs.plot(norm=LogNorm(vmin=normcol[0], vmax= normcol[1]),plot_cores=plot_cores,crop=crop, force_col=True)
     suff = '_'+suffix if not(suffix is None) else ""
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_columndensity{suff}.jpg")
@@ -532,11 +612,11 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plotCores=
         trainer = load_trainer("Unet_highres_2outputs_Adam")
         obs.predict(trainer,patch_size=(128,128), overlap=0., downsample_factor=1, apply_baseline=False)
         obs.save()
-    fig, ax = obs.plot(obs.prediction,plotCores=plotCores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
+    fig, ax = obs.plot(obs.prediction,plot_cores=plot_cores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity{suff}.jpg")
     
-    from training_batch import plot_batch_correlation
+    from batch_utils import plot_batch_correlation
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
     ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
     ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
@@ -555,16 +635,16 @@ if __name__ == "__main__":
 
     # Orion B cropped_regions
     #cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
-    #script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plotCores=True)
+    #script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plot_cores=True)
     #cropped_region = [Angle("5h42m56s").deg, Angle("5h40m28s").deg, Angle("-2d32m").deg, Angle("-1d28m").deg]
-    #script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plotCores=True)
+    #script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plot_cores=True)
 
-    #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plotCores=False, show=True)
+    #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plot_cores=False, show=True)
 
     #fig, ax = plt.subplots()
     names = ["OrionB", "Taurus_L1495", "Aquila"]
 
-    from training_batch import plot_batch_correlation
+    from batch_utils import plot_batch_correlation
     obs = Observation(names[0],"column_density_map")
     obs.load()
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)

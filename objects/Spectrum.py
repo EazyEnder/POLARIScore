@@ -9,19 +9,21 @@ from physics_utils import *
 import uuid
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+from typing import Tuple, List, Union
 
 class Spectrum():
     """
     Object for spectra, this can also contains map of spectrum but a lot of functions will not work, use SpectrumMap instead. 
     """
-    def __init__(self,spectrum, name=None):
+    def __init__(self,spectrum:np.ndarray, name:bool=None):
         self.name = "spectrum_"+str(uuid.uuid4()) if name is None else name
         if not("spectrum" in self.name):
             self.namename = "spectrum_"+self.name
-        self.spectrum = spectrum
-        self.derivatives = [None, None]
+        self.spectrum:np.ndarray = spectrum
+        """np.ndarray : 1D tensor"""
+        self.derivatives:Tuple[Union[np.ndarray,None],Union[np.ndarray,None]] = [None, None]
 
-    def save(self,folder=None, replace=False, log=True):
+    def save(self,folder:str=None, replace:bool=False, log:bool=True):
         folder = CACHES_FOLDER if folder is None else folder
         if not(os.path.exists(folder)):
             os.mkdir(folder)

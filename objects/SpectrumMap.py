@@ -54,7 +54,7 @@ def _unpack_and_call(worker_func, job):
 def _worker(method, y, row):
     return (y, [method({"x": x, "y": y, "data": val["data"], "output": val["output"]}) for x, val in enumerate(row)])
 
-#TODO As for training sets, make this memory less by open the spectra just when it is needed
+#TODO As for training sets, make this memory less by opening the spectra just when it is needed
 class SpectrumMap():
     """
     Map (matrix NxN) of spectra. Each element of the matrix contains a list of values (which can be passed easily to Spectra object).

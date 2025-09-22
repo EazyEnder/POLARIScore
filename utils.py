@@ -1,48 +1,52 @@
 import numpy as np
-
 from scipy.ndimage import rotate
-def convert_pc_to_index(pc,nres,size,start=0):
-    return(int(np.floor((pc-start)/(size)*nres)))
+import matplotlib.pyplot as plt
+import platform
+from typing import List, Tuple, Callable, Union, Dict
+try:
+    import psutil
+    psutil_available = True
+except ImportError:
+    psutil_available = False
+try:
+    import GPUtil
+    gputil_available = True
+except ImportError:
+    gputil_available = False
+from config import LOGGER
 
+def convert_pc_to_index(pc:float,nres:int,size:float,start:float=0.)->int:
+    """
+    Args:
+        pc(float): value in parsec unit
+        nres(int): resolutions of the sim datacube
+        size(float): physical size of the datacube in pc
+        start(float): if there is an offset in the datacube.
+    Returns:
+        float: index
+    """
+    return (int(np.floor((pc-start)/(size)*nres)))
 
-def compute_column_density(data_cube,cell_size, axis=0):
-    return np.sum(data_cube, axis=axis) * cell_size.value
-def compute_volume_weighted_density(data_cube, axis=0, divide=False):
-    if divide:
-        data_cube = data_cube.astype(np.float32, copy=False)
-        threshold = 300
-        dense_mask = data_cube >= threshold
-        diffuse_mask = ~dense_mask
-
-        dense_count = np.sum(dense_mask, axis=axis)
-        diffuse_count = np.sum(diffuse_mask, axis=axis)
-
-        dense_mean = np.max(data_cube * dense_mask, axis=axis)
-        diffuse_mean = np.max(data_cube * diffuse_mask, axis=axis)
-
-        #dense_mean = np.divide(dense_sum, dense_count, out=np.zeros_like(dense_sum), where=dense_count != 0)
-        dense_mean += 0.01
-        #diffuse_mean = np.divide(diffuse_sum, diffuse_count, out=np.zeros_like(diffuse_sum), where=diffuse_count != 0)
-        diffuse_mean += 0.01
-
-        return [diffuse_mean, dense_mean]
+def compute_column_density(data_cube:np.ndarray,cell_size:float, axis:int=0)->np.ndarray:
+    return np.sum(data_cube, axis=axis) * cell_size
+def compute_volume_weighted_density(data_cube:np.ndarray, axis:int=0)->np.ndarray:
     return np.sum(data_cube, axis=axis) / data_cube.shape[0]
-def compute_mass_weighted_density(data_cube, axis=0):
+def compute_mass_weighted_density(data_cube:np.ndarray, axis:int=0)->np.ndarray:
     return np.sum(np.power(data_cube,2), axis=axis) / np.sum(data_cube, axis= axis)
-def compute_squared_weighted_density(data_cube, axis=0):
+def compute_squared_weighted_density(data_cube:np.ndarray, axis:int=0)->np.ndarray:
     return np.sum(np.power(data_cube,2), axis=axis) / data_cube.shape[0]
-def compute_max_density(data_cube, axis=0):
+def compute_max_density(data_cube:np.ndarray, axis:int=0)->np.ndarray:
     return np.max(data_cube, axis=axis)
-def compute_derivative(data_slice, order=1, axis=0):
+def compute_derivative(data_slice:np.ndarray, order:int=1, axis:int=0):
     d = data_slice
     for o in range(order):
         d = np.gradient(d)[axis]
     return d
 
-def rotate_cube(data_cube, angle, axis):
+def rotate_cube(data_cube:np.ndarray, angle:float, axis:int)->np.ndarray:
     """Rotates the cube around a given axis (0=X, 1=Y, 2=Z) by a given angle in degrees."""
     return rotate(data_cube, angle, axes=axis, reshape=False, mode="nearest")
-def compute_pdf(data_slice, bins=100, func=lambda x: np.log(x)/np.log(10), center=False):
+def compute_pdf(data_slice:np.ndarray, bins:int=100, func:Callable=lambda x: np.log(x)/np.log(10), center:bool=False)->Tuple[List[float],List[float]]:
     """
     Compute the probability density function of a matrix
 
@@ -74,7 +78,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-def divide_matrix_to_sub(matrix,final_dim=128):
+def divide_matrix_to_sub(matrix:np.ndarray,final_dim:int=128)->List[np.ndarray]:
     final_dim = int(2**round(np.log2(final_dim)))
     img_number = int(matrix.shape[0]/final_dim)
     imgs = []
@@ -83,7 +87,7 @@ def divide_matrix_to_sub(matrix,final_dim=128):
             imgs.append(matrix[i*final_dim:(i+1)*final_dim,j*final_dim:(j+1)*final_dim])
     return imgs
 
-def group_matrix(mats):
+def group_matrix(mats:List[np.ndarray]):
     grid_size = int(np.sqrt(len(mats)))
     final_dim = len(mats[0])
     new_mat_shape = final_dim * grid_size
@@ -154,7 +158,8 @@ def applyBaseline(t,y,T,Y):
 
     return Y
 
-def listDictToString(dicts):
+def dictsToString(dicts:List[Dict])->str:
+    """Combine a list of dicts to a string with first line of keys and one line per dict."""
     string = ""
     keys = []
     for d in dicts:
@@ -174,8 +179,7 @@ def listDictToString(dicts):
         string = string + "\n"
     return string
 
-import matplotlib.pyplot as plt
-def plot_function(function, ax=None, res=100, lims=[0,1], **args):
+def plot_function(function:Callable, ax=None, res:int=100, lims:Tuple[float]=[0,1], **args):
     if ax is None:
         fig, ax = plt.subplots()
     else:
@@ -189,7 +193,10 @@ def plot_function(function, ax=None, res=100, lims=[0,1], **args):
     return fig, ax
 
 
-def plot_lines(x,y, ax, lines=[0,1,2], x_max=None, x_min=None, y_max=None, y_min=None):
+def plot_lines(x:Union[np.ndarray,List,None],y:Union[np.ndarray,List,None], ax, lines:List[float]=[0,1,2], x_max:float=None, x_min:float=None, y_max:float=None, y_min:float=None):
+    """
+    Plots lines on matplotlib plot. 
+    """
     x_max = np.max(x) if x_max is None else x_max
     x_min = np.min(x) if x_min is None else x_min
     y_max = np.max(y) if y_max is None else y_max
@@ -208,19 +215,6 @@ def plot_lines(x,y, ax, lines=[0,1,2], x_max=None, x_min=None, y_max=None, y_min
                 ax.text(x_corner + length + length*0.1, y_corner + l*length, f'$x^{l}$', color='black')
     return ax
 
-import platform
-try:
-    import psutil
-    psutil_available = True
-except ImportError:
-    psutil_available = False
-
-try:
-    import GPUtil
-    gputil_available = True
-except ImportError:
-    gputil_available = False
-from config import LOGGER
 def get_system_info():
     system_info = {}
     if not(psutil_available) or not(psutil_available):

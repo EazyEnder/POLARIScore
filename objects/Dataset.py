@@ -4,23 +4,26 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 from config import *
-from utils import plot_lines, listDictToString
+from utils import plot_lines
 import json
 import glob
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import shutil
 from matplotlib.widgets import Slider
+from typing import Dict, List, Union, Tuple, Literal
 
-BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","vdensdiffuse","vdensdense"]
+BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density"]
+
+#TODO
 AUGMENTS = {
     "sum": lambda x: np.sum(x, dim=-1)
 }
 
-def _formate_name(name):
+def _formate_name(name:str):
     return name.split("_")[-1]
 
-def _open_batch(batch_name):
+def _open_batch(batch_name:str):
     assert os.path.exists(TRAINING_BATCH_FOLDER), LOGGER.error(f"Can't open batch {batch_name}, no folder exists.")
     batch_path = os.path.join(TRAINING_BATCH_FOLDER,batch_name)
 
@@ -42,7 +45,8 @@ def _open_batch(batch_name):
         order.append(bc)
     return imgs, order
 
-def getDataset(name):
+def getDataset(name:str)->"Dataset":
+    """Get dataset by name"""
     ds = Dataset()
     try:
         ds.load_from_name(name, changeName=True)
@@ -52,18 +56,30 @@ def getDataset(name):
     return ds
 
 class Dataset():
-    """Dataset object which contains just the imgs paths for reduce the memory usage"""
+    """Datasets contains just the imgs paths for reduce the memory usage"""
     def __init__(self):
-        self.batch = []
-        self.settings = {}
-        """settings contains:
+        self.batch:List[Union[str, List[str]]] = []
+        """A batch is a list of file paths or a list of pairs(i.e list of list) of paths. 
+        For example for one element of the list, it can have two paths: one for volume density and another one for column density."""
+        self.settings:Dict = {}
+        """settings (can) contains:
             'order', eg: 'order':['cdens','vdens','cospectra']
+            'img_number': nbr of imgs
+            'img_size': size of an image in parsec (can be a list of sizes)
+            'areas_explored': positions of the images in the simulation faces
+            'scores': score for each image computed using score_fct
+            'scores_fct',
+            'random_rotate': Does the images were randomly rotated when the dataset was generated.
         """
-        self.name = str(uuid.uuid4())
+        self.name:str = str(uuid.uuid4())
+        self.active_batch:List[Union[List[np.ndarray],np.ndarray]] = []
+        """Same as self.batch but instead of paths, it's loaded arrays."""
 
-        self.active_batch = []
-
-    def get_element_index(self, names):
+    def get_element_index(self, names:Union[str, List[str]])->Union[List[int],int,None]:
+        """In self.batch, an element like col density or vol density can be at any place in the list.
+          So to get the path or data, we need to get the corresponding index. 
+          <br />*(Yes, i keep digging in my mistake of not using dicts (TODO?))*  
+        """
         assert "order" in self.settings, LOGGER.error("No order list in dataset settings")
 
         names = names if type(names) is list else [names]
@@ -85,9 +101,14 @@ class Dataset():
         
         return indexes
 
-    def load_from_name(self, name, changeName=False):
+    def load_from_name(self, name:str, change_name:bool=False):
+        """
+        Args:
+            name(str): batch folder name
+            change_name(bool): if we change self.name with name
+        """
         LOGGER.log(f"Loading dataset {name}")
-        if changeName:
+        if change_name:
             self.name = name
         batch, order = _open_batch(name)
         self.batch.extend(batch)
@@ -102,10 +123,10 @@ class Dataset():
         if "img_size" in settings:
             self.settings["img_size"] = settings["img_size"]
 
-    def add(self,imgs_path):
+    def add(self,imgs_path:Union[str,List[str]]):
         self.batch.append(imgs_path)
     
-    def get(self, indexes = None):
+    def get(self, indexes:Union[List[int],int,None] = None):
         if len(self.batch) == 0:
             LOGGER.error("Can't load images in dataset because it's empty.")
             return
@@ -119,7 +140,7 @@ class Dataset():
         else:
             return self.load(np.array(self.batch))
 
-    def load(self, paths):
+    def load(self, paths:List[Union[List, np.ndarray, str]])->List[Union[List[np.ndarray],np.ndarray]]:
         result = []
         for pair in paths:
             if not(type(pair) is list or type(pair) is np.ndarray):
@@ -133,7 +154,10 @@ class Dataset():
         self.active_batch = result
         return result
 
-    def split(self, cutoff=0.7):
+    def split(self, cutoff:float=0.7)->Tuple['Dataset','Dataset']:
+        """
+        Divide the dataset into two subsets, split at the cutoff parameter.
+        """
         LOGGER.log(f"Splitting dataset {self.name} with cutoff at {cutoff}")
         batch = np.array(self.batch)
         cut_index = int(cutoff * len(batch))
@@ -149,14 +173,23 @@ class Dataset():
 
         return (b1, b2)
     
-    def clone(self, new_name):
+    def clone(self, new_name:str)->'Dataset':
         ds = Dataset()
         ds.batch = self.batch
         ds.settings = self.settings
         ds.name = new_name
         return ds
 
-    def downsample(self, channel_names, target_depths, methods="mean"):
+    def downsample(self, channel_names:Union[List[str],str], target_depths:Union[List[int], int], methods:Literal['mean','max','crop','nn']="mean"):
+        """
+        Downsample the dataset z axis (depth) and save into a new folder (TODO for other axis ?)
+        Args:
+            channel_names:
+            target_depths:
+            methods:
+        Returns:
+            Dataset: the downsampled dataset
+        """
         LOGGER.log(f"Downsampling ({methods}) channels: {channel_names} to depths {target_depths}")
         ds = self.clone(self.name+"_downsampled")
         ds.save(force=True)
@@ -176,9 +209,9 @@ class Dataset():
 
                 method = methods[ci]
                 if method == "mean":
-                    batch[i] = img.reshape(128, 128, target_depth, factor).mean(axis=-1)
+                    batch[i] = img.reshape(img.shape[0], img.shape[1], target_depth, factor).mean(axis=-1)
                 elif method == "max":
-                    batch[i] = img.reshape(128, 128, target_depth, factor).max(axis=-1)
+                    batch[i] = img.reshape(img.shape[0], img.shape[1], target_depth, factor).max(axis=-1)
                 elif method == "crop":
                     assert target_depth % 2 == 0, LOGGER.error(f"Target depth {target_depth} need to be even if method 'crop' is used for downsampling.")
                     batch[i] = img[:, :, img.shape[-1]//2-target_depth//2:img.shape[-1]//2+target_depth//2]
@@ -188,7 +221,10 @@ class Dataset():
             del batch
         return ds
 
-    def save_batch(self, batch, i):
+    def save_batch(self, batch:List[np.ndarray], i:int):
+        """
+        Save a batch, here this means a pair of images not a list of pairs.
+        """
         if not(os.path.exists(TRAINING_BATCH_FOLDER)):
             os.mkdir(TRAINING_BATCH_FOLDER)
         batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
@@ -207,39 +243,54 @@ class Dataset():
         with open(os.path.join(batch_path,'settings.json'), 'w') as file:
             json.dump(self.settings, file, indent=4)
     
-    def save_diagnostic(self):
-        batch = self.get()
-        map_index = self.get_element_index("cdens")
-        result_dicts = []
-        for i,b in enumerate(batch):
-            data = np.array(b[map_index]).flatten()
-        
-            result_dicts.append({
-                "index": i,
-                "mean": np.mean(data),
-                "std_log10": np.std(np.log10(data)),
-                "min": np.min(data),
-                "max": np.max(data),
-                "median": np.median(data)
-            })
+    def save_diagnostic(self,channels:Union[str,List[str],None]='cdens')->Dict:
+        """
+        Save & return a diagnostic for each image in the dataset.
+        Args:
+            channels: Channels on which the diagnostic will be made, like 'cdens'.
+        Returns:
+            Dict: if more that one channel in channels: dicts will be nested into 'channel_{channel_name}'.
+        """
 
-        string = listDictToString(result_dicts)
+        channels = channels if type(channels) is list else [channels]
+
+        batch = self.get()
+        map_indexes = self.get_element_index(channels)
+        result_dicts = {}
+        for i,b in enumerate(batch):
+            temp_dict = {"index": i}
+            for j,map_index in enumerate(map_indexes):
+                data = np.array(b[map_index]).flatten()
+                stats = {
+                    "type": channels[j],
+                    "mean": np.mean(data),
+                    "std_log10": np.std(np.log10(data)),
+                    "min": np.min(data),
+                    "max": np.max(data),
+                    "median": np.median(data),
+                }
+                if len(channels) == 1:
+                    temp_dict.update(stats)
+                else:
+                    temp_dict['channel_'+channels[j]] = stats
+            result_dicts[i] = temp_dict
+
         if not(os.path.exists(TRAINING_BATCH_FOLDER)):
             os.mkdir(TRAINING_BATCH_FOLDER)
         batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
         if not(os.path.exists(batch_path)):
             os.mkdir(batch_path)
-        path = os.path.join(batch_path, "diagnostic.txt")
+        path = os.path.join(batch_path, "diagnostic.json")
         if os.path.exists(path):
             LOGGER.warn(f"Previous diagnostic file was removed for dataset {self.name}.")
             os.remove(path)
         with open(path, "w") as file:
-            file.write(string)
-        LOGGER.log(f"Diagnostic of {self.name} saved.")
+            json.dump(result_dicts, file, indent=4)
+        LOGGER.log(f"Diagnostic of {self.name} saved to {path}.")
 
         return result_dicts
 
-    def save(self,batch=None, name=None, force=False):
+    def save(self,batch:Union[List[List[np.ndarray]],None]=None, name:Union[str,None]=None, force:bool=False)->bool:
 
         batch = self.get() if batch is None else batch
 
@@ -272,7 +323,7 @@ class Dataset():
 
         return True
 
-    def plot(self, enable_slider=True, element_index=0):
+    def plot(self, enable_slider:bool=True, element_index:int=0):
 
         element_index = element_index
         

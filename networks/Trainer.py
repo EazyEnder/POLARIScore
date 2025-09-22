@@ -9,58 +9,76 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
-from training_batch import *
+from batch_utils import *
 from config import *
 import uuid
 from networks.nn_UNet import *
 from networks.nn_FCN import FCN
 from networks.nn_MultiNet import MultiNet
 from networks.nn_PPV import PPV, Test
-from networks.nn_RecursiveUNet import Recursive_UNet
 from networks.nn_KNet import *
 from networks.utils.nn_utils import compute_batch_accuracy
 from utils import movingAverage, applyBaseline
 import json
-from objects.Dataset import getDataset
+from objects.Dataset import getDataset, Dataset
 import shutil
+from typing import List, Dict, Union, Tuple
 
 class Trainer():
-    def __init__(self,network=None,training_set=None,validation_set=None,learning_rate=0.001,model_name=None,auto_save=0):
+    """
+    Allows training of models and experiments with them.
+    """
+    def __init__(self,network=None,training_set:Dataset=None,validation_set:Dataset=None,learning_rate:float=0.001,model_name:str=None,auto_save:int=0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        """device: gpu or cpu"""
 
-        self.auto_save = auto_save
+        self.auto_save:int = auto_save
+        """The model is saved each 'auto_save' epochs during training."""
 
-        self.model_name = model_name
+        self.model_name:str = model_name
         if model_name is None:
             self.model_name = str(uuid.uuid4())
 
         LOGGER.log(f"{self.device} is used for {self.model_name}")
         
-        self.network_type = "None"
+        self.network_type:str = "None"
+        """Network class name used for the model"""
         if not(network is None):
             self.network_type = network.__name__
-        self.learning_rate = learning_rate
-        self.training_set = training_set
-        self.validation_set = validation_set
+        self.learning_rate:float = learning_rate
+        """Not constant step size at each iteration during training while moving toward a minimum of a loss function."""
+        self.training_set:Dataset = training_set
+        """Dataset with the data used for training, i.e used for training/rectify the model weights."""
+        self.validation_set:Dataset = validation_set
+        """Dataset with the data used for validation, i.e not seen during training."""
 
-        self.prediction_batch = None
+        self.prediction_batch:Tuple[List[np.ndarray],List[np.ndarray]] = None
+        """data channel 0, prediction channel 0"""
 
         self.network = network
-        self.network_settings ={}
+        """Network class used"""
+        self.network_settings: Dict ={}
+        """Network settings"""
 
-        self.target_names = "vdens"
-        self.input_names = ["cdens"]
+        self.target_names:Union[List[str],str] = ["vdens"]
+        self.input_names:Union[List[str],str] = ["cdens"]
 
-        self.training_random_transform = False
+        self.training_random_transform:bool = False
 
         self.model = None
+        """Instance of self.network"""
         self.optimizer = None
-        self.optimizer_name = str(type(torch.optim.Adam))
+        """Instance of an optimizer, by default Adam if optimizer_name was not changed."""
+        self.optimizer_name:str = str(type(torch.optim.Adam))
         self.scheduler = None
-        self.weight_decay = 0.
-        self.cache_threshold = 2.
+        """Instance of a scheduler"""
+        self.weight_decay:float = 0.
+        self.cache_threshold:float = 2.
+        """If validation error is lower that this value and if cache option is enable then the model is saved as 'cache_model'
+        (and each time the validation error is lower than the previous minimum)."""
         
-        self.baseline = None
+        self.baseline:Tuple[List[float],List[float]] = None
+        """Baseline : (*predictions, *residuals)"""
 
         if not(self.network is None):
             self.model = network(**self.network_settings).to(self.device)
@@ -71,27 +89,35 @@ class Trainer():
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
         self.loss_method = nn.MSELoss()
-        self.training_losses = []
-        self.validation_losses = []
-        self.last_epoch = 0
+        self.training_losses:List[float] = []
+        self.validation_losses:List[float] = []
+        self.last_epoch:int = 0
 
-    def init(self, model=None):
-        if not(self.network is None) or not(model is None):
-            self.network_type = self.network.__name__
-            if model is None:
-                self.model = self.network(**self.network_settings).to(self.device)
-            else:
-                self.model = model.to(self.device)
-            if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam") or "Adam" in self.optimizer_name:
-                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
-            elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD") or "SGD" in self.optimizer_name:
-                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.5)
-            self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
-            return True
-        LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
-        return False
+    def init(self, model=None)->bool:
+        """
+        Init the model, use this function if you changed settings as self.network,self.optimizer or self.scheduler. 
+        By default, when creating a Trainer instance a model is created with default settings as Adam for optimizer.
+        Args:
+            model: Network instance, can be None if you want to let the code create the instance using self.network_settings.
+        Returns:
+            bool: If a model was created.
+        """
+        if(self.network is None and model is None):
+            LOGGER.warn(f"Can't init model {self.model_name}, check if network is defined or model is not None.")
+            return False
+        self.network_type = self.network.__name__
+        if model is None:
+            self.model = self.network(**self.network_settings).to(self.device)
+        else:
+            self.model = model.to(self.device)
+        if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam") or "Adam" in self.optimizer_name:
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.optimizer_name in (str(type(torch.optim.SGD)),"SGD") or "SGD" in self.optimizer_name:
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.5)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
+        return True
 
-    def train(self, epoch_number=50, batch_number=32, compute_validation=10, cache=True):
+    def train(self, epoch_number:int=50, batch_number:int=32, compute_validation:int=10, cache:bool=True):
         """
         Train the model (check trainer variables for settings)
 
@@ -100,13 +126,12 @@ class Trainer():
             batch_number(int, default: 32): How many images will be processed at a time in the GPU/CPU.
             compute_validation(int, default:10): compute validation losses each x epochs.
             cache(bool, default:True): If the validation loss is less than a previous epoch, the model will be saved in a cache.
-
         """
         LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}, model has {sum(p.numel() for p in self.model.parameters())} parameters.")
    
         self.model.train()
 
-        def _format_time(seconds):
+        def _format_time(seconds:float)->str:
             hours, rem = divmod(seconds, 3600)
             minutes, seconds = divmod(rem, 60)
             return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
@@ -214,7 +239,16 @@ class Trainer():
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
 
-    def fit_baseline(self,n=1000, force_compute=False, log=True):
+    def create_baseline(self,n:int=1000, force_compute:bool=False, log:bool=True)->Tuple[List[float],List[float]]:
+        """
+        Create a baseline using moving average method.
+        Args:
+            n(int): Moving average step
+            force_compute(bool): Erase the previous computed baseline and compute a new one.
+            log(bool): Log to the console.
+        Returns:
+            (List of predictions, List of residuals)
+        """
         if not(force_compute) and not(self.baseline is None):
             return self.baseline
         if log:
@@ -235,11 +269,19 @@ class Trainer():
 
         return self.baseline
     
-    def apply_baseline(self, prediction, log=True):
+    def apply_baseline(self, prediction:np.ndarray, log:bool=True)->np.ndarray:
+        """
+        Apply the baseline to data (prediction).
+        Args:
+            prediction: data to be processed
+            log (bool): log output in console.
+        Returns:
+            modified prediction: Prediction minus residuals.
+        """
         if log:
             LOGGER.log(f"Applying baseline for prediction {prediction.shape[0]}x{prediction.shape[1]}")
         if self.baseline is None:
-            self.fit_baseline(log=log)
+            self.create_baseline(log=log)
 
         H,W = prediction.shape
         d_prediction = np.array(np.log10(prediction)).flatten()
@@ -369,7 +411,16 @@ class Trainer():
 
         return fig, ax
     
-    def predict(self, dataset, batch_number=1):
+    def predict(self, dataset:Dataset, batch_number:int=1)->List[Tuple[List[np.ndarray],List[np.ndarray]]]:
+        """Apply the model on a dataset
+        Args:
+            dataset: the dataset
+            batch_number(int): How many pairs of images/arrays send to the gpu and computed at the same time.
+        Returns:
+            List: list of 
+        """
+        #TODO prendre en compte si il y a plusieurs outputs, idem sur les autres fonctions. Car là c'est pas clair et pas fou. 
+
         self.model.eval()
 
         result_batch = []
@@ -988,7 +1039,7 @@ if __name__ == "__main__":
     #trainer = load_trainer("UneK_highres_fingercrossed")  
     #trainer.validation_set = ds2  
     #trainer.plot()
-    trainer.fit_baseline()
+    trainer.create_baseline()
 
     batch = trainer.get_prediction_batch()
     reconstructed_batch = []
