@@ -17,6 +17,7 @@ from objects.SpectrumMap import getSimulationSpectra
 from objects.Dataset import Dataset
 from typing import Dict,List,Tuple,Callable,Union
 from matplotlib.widgets import Slider
+from scipy.ndimage import zoom
 
 
 class Simulation_DC():
@@ -200,7 +201,7 @@ class Simulation_DC():
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,name:str=None,method:Callable=compute_mass_weighted_density,what_to_compute:Dict={"cospectra":False,"density":False,"divide_vdens":False},number:int=8,size:float=5.,force_size:int=0,random_rotate:bool=True,limit_area:Tuple=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor:float=0.75)->bool:
+    def generate_batch(self,name:str=None,method:Callable=compute_mass_weighted_density,what_to_compute:Dict={"cospectra":False,"density":False,"context":False},number:int=8,size:Union[float,Tuple[float,float]]=0.,img_size:int=128,random_rotate:bool=True,limit_area:Tuple=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor:float=0.75)->bool:
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -208,12 +209,12 @@ class Simulation_DC():
         Args:
             method(function): Method to compute the volumic density, like do we take the volume weighted mean ? Or the mass weighted mean ? Or even the max density along the l.o.s ?
             number(int, default: 8): How many pairs of images do we want.
-            size(float, default: 5): Size in parsec for the areas, this will be rounded to the nearest power of 2 pixels.
-            force_size(int, default: 0): Force the size to be n pixels (for example 128).
+            size(float, default: 0): Size in parsec for the areas, if 0 it takes the lowest size possible else it is downsampled. Can be an interval.
+            img_size(int, default: 128):  Size of the img/matrix, if 0 it will take the size rounded (for example 128).
             random_rotate(bool, default: True): Randomly rotate 0°,90°,180°,270° for each region.
             limit_area(list): In which region of the simulation we'll pick the areas: ([for face1],[for face2],[for face3]) -> ([x_min,x_max,y_min,y_max],...) for each face.
             nearest_size_factor(float, default:0.75): If the new area picked is too close to an old area of a factor nearest_size_factor*area_size then we'll choose another area.
-
+            what_to_compute(dict): keys descriptions (values are bools):<br /> 'co_spectra': compute the co spectra<br /> 'density': keep the density cube in the dataset<br /> 'context': generate a downsampled global region (default is all the sim face) with a channel for a crop mask: 1 if the random region contains the pos else 0.
         Returns:
             flag: if dataset was correctly generated.
         """
@@ -231,22 +232,22 @@ class Simulation_DC():
         if flag_cospectra:
             co_spectra = getSimulationSpectra(self)
         flag_number_density = what_to_compute["density"] if "density" in what_to_compute else False
-        flag_divide_vdens = what_to_compute["divide_vdens"] if "divide_vdens" in what_to_compute else False
+        flag_context = what_to_compute["context"] if "context" in what_to_compute else False
 
         order = ["cdens","vdens"]
         if flag_cospectra:
             order.append("cospectra")
         if flag_number_density:
             order.append("density")
-        if flag_divide_vdens:
-            order.append("vdensdiffuse")
-            order.append("vdensdense")
+        if flag_context:
+            order.append("cdens_context")
 
         name = self.name if name is None else name
 
         ds = Dataset()
         ds.name = name
         ds.settings = {"order": order}
+        ds.data = {"physical_size": []}
 
         scores = []
         img_generated = 0
@@ -270,11 +271,13 @@ class Simulation_DC():
                 limits = [0,self.global_size,0,self.global_size]
             center = np.array([limits[0]+(limits[1]-limits[0])*np.random.random(),limits[2]+(limits[3]-limits[2])*np.random.random()])
 
-            s = int(2**round(np.log2(np.floor(convert_pc_to_index(size, self.nres, self.size)/2)*2)))
-            if force_size > 0:
-                s = int(force_size)
-
+            s = img_size
+            if type(size) is list:
+                size = size[0] + np.random.random()*(size[1]-size[0])
+            s = max(convert_pc_to_index(size, self.nres, self.size, start=self.axis[0][0]), img_size)
             size = self.from_index_to_scale(s)/PC_TO_CM
+
+
             #Verify if the region is already covered by a previous generated image
             flag = False
             for point in areas_explored[face]:
@@ -295,13 +298,19 @@ class Simulation_DC():
             if(start_x < 0 or start_y < 0 or end_x >= self.nres or end_y >= self.nres):
                 continue
 
-            def _process_img(img, k):
+            def _process_img(img, k, skip_crop=False):
                 p_img = img
-                p_img = p_img[start_x:end_x, start_y:end_y]
-
-                #Verify if there is no low density region (outside cloud) inside the area
-                #if(((cropped_vdens < 10).sum()) > s*s*0.01), TODO:
-                #    continue
+                if not(skip_crop):
+                    p_img = p_img[start_x:end_x, start_y:end_y]
+                #downsample
+                if p_img.shape[0] > img_size:
+                    factors = []
+                    for si, shape in enumerate(p_img.shape):
+                        if si < 2:
+                            factors.append(img_size/shape)
+                            continue
+                        factors.append(1.)
+                    p_img = zoom(p_img, factors, order=3)
 
                 # Randomly choose a rotation (0, 90, 180, or 270 degrees)
                 if random_rotate:
@@ -326,29 +335,26 @@ class Simulation_DC():
                 elif densities.shape[1] == self.nres:
                     densities = np.moveaxis(densities, 1, -1)
 
-                if random_rotate:
-                    densities = np.rot90(densities, k, axes=(0,1))
+                densities = _process_img(densities, k, skip_crop=True)
 
                 b.append(densities)
 
-            if flag_divide_vdens:
-                if not(hasattr(self, 'vdens_diff')):
-                    self.vdens_diff = [None,None,None]
-                if not(hasattr(self, 'vdens_dense')):
-                    self.vdens_dense = [None,None,None]
-
-                if self.vdens_diff[face] is None or self.vdens_dense[face] is None:
-                    diff, dense = compute_volume_weighted_density(self.data, axis=face, divide=True)
-                    self.vdens_diff[face] = diff
-                    self.vdens_dense[face] = dense
-
-                b.append(_process_img(self.vdens_diff[face],k))
-                b.append(_process_img(self.vdens_dense[face],k))
-
+            if flag_context:
+                assert column_density[face].shape[0]//s, LOGGER.error("Datacube dimension need to be divisible by size asked to generate context.")
+                context_cdens = column_density[face].copy()
+                context_cdens = context_cdens.reshape(img_size, context_cdens.shape[0]//img_size, img_size , context_cdens.shape[1]//img_size).mean(axis=(1,3))
+                context_cropmask = np.zeros_like(context_cdens)
+                context_cropmask[start_x:end_x, start_y:end_y] = 1.
+                context_mat = np.zeros((2,img_size,img_size))
+                context_mat[0,:,:] = _process_img(context_cdens,k,skip_crop=True)
+                context_mat[1,:,:] = _process_img(context_cropmask,k,skip_crop=True)
+                b.append(context_mat)
+                
             score = compute_img_score(b[0],b[1])
             if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
                 continue
 
+            ds.data['physical_size'].append(size)
             ds.save_batch(b, img_generated)
             del b
             scores.append(score)
@@ -378,8 +384,8 @@ class Simulation_DC():
             "what_was_computed": what_to_compute,
             "img_number": img_generated,
             "img_size": size,
-            "areas_explored":str(areas_explored),
-            "scores": str(scores),
+            "areas_explored":areas_explored,
+            "scores": scores,
             "scores_fct": inspect.getsourcelines(RANDOM_BATCH_SCORE_fct)[0][0],
             "scores_offset": str(RANDOM_BATCH_SCORE_offset),
             "number_goal": number,
@@ -651,7 +657,7 @@ if __name__ == "__main__":
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)
     
-    #sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_max",method=compute_max_density,what_to_compute = {"cospectra":True}, number = 1000, force_size=128, nearest_size_factor=0.75)
+    #sim.generate_batch(name="orionMHD_lowB_0.39_512_13CO_max",method=compute_max_density,what_to_compute = {"cospectra":True}, number = 1000, img_size=128, nearest_size_factor=0.75)
     #from Dataset import getDataset
     #ds = getDataset("batch_highres_twochannels")
     #pair = ds.get(1)

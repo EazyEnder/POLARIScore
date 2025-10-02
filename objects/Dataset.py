@@ -12,13 +12,18 @@ from matplotlib.colors import LogNorm
 import shutil
 from matplotlib.widgets import Slider
 from typing import Dict, List, Union, Tuple, Literal
+import ast
+import re
 
-BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density"]
-
-#TODO
-AUGMENTS = {
-    "sum": lambda x: np.sum(x, dim=-1)
-}
+BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","cdens_context"]
+""" 
+Contains:
+- 'cdens': tensor NxN
+- 'vdens': tensor NxN
+- 'cospectra': tensor NxNxdepth
+- 'density': tensor NxNxdepth
+- 'cdens_context': tensor 2xNxN (cdens, crop_mask)
+"""
 
 def _formate_name(name:str):
     return name.split("_")[-1]
@@ -68,8 +73,13 @@ class Dataset():
             'img_size': size of an image in parsec (can be a list of sizes)
             'areas_explored': positions of the images in the simulation faces
             'scores': score for each image computed using score_fct
-            'scores_fct',
+            'scores_fct', (TODO)
             'random_rotate': Does the images were randomly rotated when the dataset was generated.
+        """
+        self.data: Dict = {}
+        """
+        Datas which are not np matrix. Like a float per image. <br /> It can contains:
+        'physical_size': physical size of the regions in parsec (List[float])
         """
         self.name:str = str(uuid.uuid4())
         self.active_batch:List[Union[List[np.ndarray],np.ndarray]] = []
@@ -162,13 +172,40 @@ class Dataset():
         batch = np.array(self.batch)
         cut_index = int(cutoff * len(batch))
 
+        def split_dict(dic:Dict)->Tuple[Dict,Dict]:
+            dic1 = {}
+            dic2 = {} 
+            for k in dic.keys():
+                v = dic[k]
+                if type(v) is str:
+                    try:
+                        temp_v = ast.literal_eval(re.sub(r'\barray\(', 'np.array(', v))
+                        if temp_v is None:
+                            raise
+                        v = temp_v
+                    except:
+                        pass
+                if type(v) is list or type(v) is np.ndarray:
+                    dic1[k] = v[:cut_index]
+                    dic2[k] = v[cut_index:]
+                    continue
+                if not(k in dic1):
+                    dic1[k] = v
+                if not(k in dic2):
+                    dic2[k] = v
+            return (dic1, dic2)
+        b1_settings, b2_settings = split_dict(self.settings)
+        b1_data, b2_data = split_dict(self.data)
+                    
         b1 = Dataset()
         b1.batch = batch[:cut_index]
-        b1.settings = self.settings #TODO
+        b1.settings = b1_settings
+        b1.data = b1_data
         b1.name = self.name + "_b1"
         b2 = Dataset()
         b2.batch = batch[cut_index:]
-        b2.settings = self.settings #TODO
+        b2.settings = b2_settings
+        b2_data = b2_data
         b2.name = self.name + "_b2"
 
         return (b1, b2)
@@ -177,6 +214,7 @@ class Dataset():
         ds = Dataset()
         ds.batch = self.batch
         ds.settings = self.settings
+        ds.data = self.data
         ds.name = new_name
         return ds
 
@@ -242,6 +280,15 @@ class Dataset():
             os.mkdir(batch_path)
         with open(os.path.join(batch_path,'settings.json'), 'w') as file:
             json.dump(self.settings, file, indent=4)
+
+    def save_data(self):
+        if not(os.path.exists(TRAINING_BATCH_FOLDER)):
+            os.mkdir(TRAINING_BATCH_FOLDER)
+        batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(self.name).split("batch_")[-1])
+        if not(os.path.exists(batch_path)):
+            os.mkdir(batch_path)
+        with open(os.path.join(batch_path,'data.json'), 'w') as file:
+            json.dump(self.data, file, indent=4)
     
     def save_diagnostic(self,channels:Union[str,List[str],None]='cdens')->Dict:
         """
@@ -311,8 +358,8 @@ class Dataset():
         batch_path = os.path.join(TRAINING_BATCH_FOLDER,"batch_"+str(batch_uuid).split("batch_")[-1])
         os.mkdir(batch_path)
 
-        with open(os.path.join(batch_path,'settings.json'), 'w') as file:
-            json.dump(self.settings, file, indent=4)
+        self.save_settings()
+        self.save_data()
 
         order = self.settings["order"]
         for i,img in enumerate(batch):

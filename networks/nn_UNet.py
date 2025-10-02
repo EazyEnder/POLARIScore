@@ -129,7 +129,7 @@ class AttentionBlock(nn.Module):
 
 from networks.nn_BaseModule import BaseModule
 class UNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, deeper_skips=False, num_layers=4, base_filters=64, in_channels=1, out_channels=None, convBlock_layer=None, filter_function='constant', k=2., attention = False, is3D = False):
+    def __init__(self, convBlock=ConvBlock, deeper_skips=False, num_layers=4, base_filters=64, in_channels=1, out_channels=None, convBlock_layer=None, filter_function='constant', k=2., attention = True, is3D = False):
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
