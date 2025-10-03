@@ -111,7 +111,7 @@ class MultiNet(BaseModule):
         else:
             self.final_conv = nn.Conv2d(base_filters, 1, kernel_size=1)
 
-    def _compute_moments(self, v, v_axis=torch.linspace(-12.8, 12.8, 256, device="cuda").view(1, 1, 1, 1, 256), moments=2):
+    def _compute_moments(self, v, v_axis=torch.linspace(-12.8, 12.8, 256, device="cuda" if torch.cuda.is_available() else "cpu").view(1, 1, 1, 1, 256), moments=2):
         if moments < 0:
             moments = 0
         moments_list = []

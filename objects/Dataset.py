@@ -54,7 +54,7 @@ def getDataset(name:str)->"Dataset":
     """Get dataset by name"""
     ds = Dataset()
     try:
-        ds.load_from_name(name, changeName=True)
+        ds.load_from_name(name, change_name=True)
     except AssertionError:
         LOGGER.error(f"Can't load dataset: {name}")
         return None
@@ -73,7 +73,7 @@ class Dataset():
             'img_size': size of an image in parsec (can be a list of sizes)
             'areas_explored': positions of the images in the simulation faces
             'scores': score for each image computed using score_fct
-            'scores_fct', (TODO)
+            'scores_fct', (make score_settings TODO)
             'random_rotate': Does the images were randomly rotated when the dataset was generated.
         """
         self.data: Dict = {}
@@ -221,6 +221,7 @@ class Dataset():
     def downsample(self, channel_names:Union[List[str],str], target_depths:Union[List[int], int], methods:Literal['mean','max','crop','nn']="mean"):
         """
         Downsample the dataset z axis (depth) and save into a new folder (TODO for other axis ?)
+        <br />e.g: dataset.downsample(channel_names=["cospectra"], target_depths=[128], methods=["mean"])
         Args:
             channel_names:
             target_depths:

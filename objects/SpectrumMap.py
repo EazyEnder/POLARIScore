@@ -186,8 +186,7 @@ class SpectrumMap():
         stride = int(stride)
 
         if used_cpu > 0.:
-            if used_cpu > 1.:
-                used_cpu = 1.
+            used_cpu = max(used_cpu,1.)
 
             jobs = [
             (y,[{"data": data_point, "output": self.output_settings} for data_point in self.map[y][::stride]],)

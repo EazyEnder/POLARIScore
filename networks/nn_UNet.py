@@ -9,6 +9,13 @@ import torch.nn.functional as F
 from config import LOGGER
 from torch.nn import init
 from networks.utils.nn_utils import xavier_init
+from typing import Union, Literal
+
+"""
+Some saved models use the old version of early May 2025.
+Check https://github.com/EazyEnder/POLARIScore/blob/e247372b4617c842894e4d91e0b4e1ec54261505/networks/nn_UNet.py 
+If you want to load and use the models, just replace this file by the github file.
+"""
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False):
@@ -88,7 +95,13 @@ class ResConvBlock(nn.Module):
         return F.relu(x)
     
 class AttentionBlock(nn.Module):
-    def __init__(self, F_g, F_l, F_int, is3D):
+    def __init__(self, F_g:int, F_l:int, F_int:int, is3D=False):
+        """
+        Args:
+            F_g: dimensions of upsampled features
+            F_l: dimensions of skip features
+            F_int: number of hidden intermediary parameters in the block
+        """
         super(AttentionBlock, self).__init__()
 
         c = nn.Conv2d
@@ -129,7 +142,22 @@ class AttentionBlock(nn.Module):
 
 from networks.nn_BaseModule import BaseModule
 class UNet(BaseModule):
-    def __init__(self, convBlock=ConvBlock, deeper_skips=False, num_layers=4, base_filters=64, in_channels=1, out_channels=None, convBlock_layer=None, filter_function='constant', k=2., attention = True, is3D = False):
+    def __init__(self, convBlock:'nn.Module'=ConvBlock, deeper_skips:bool=False, num_layers:int=4, base_filters:int=64, in_channels:int=1, out_channels:Union[None,int]=None, convBlock_layer:int=None, filter_function:Literal['constant']='constant', k:float=2., attention:bool=True, is3D:bool=False):
+        """
+        UNet implementation using torch
+        Args:
+            convBlock: convblock used (like ConvBlock classic, DoubleConv, ResConv, KAN) 
+            convBlock_layer (int): if not None: if depth > convBlock_layer use convBlock else use classic convBlock (default: use convBlock).
+            num_layers (int): Number of layers in the UNet
+            deeper_skips (bool): if enable deeper skips (not recommanded)
+            base_filters (int): how many features per layer = base_filters*k^layer if layer begins at 0 where k is algo an arg(default 2) (and if filter_function is 'constant')
+            k (float): for base_filters laws.
+            in_channels (int): How many inputs (encoders branchs), for example if only column density, 'in_channels' is 1
+            out_channels (int, default:None): How many outputs (decoders branchs)
+            attention (bool): Enable attention blocks
+            is3D (bool): is3D
+        """
+        
         super(UNet, self).__init__()
 
         self.num_layers = num_layers
@@ -201,7 +229,7 @@ class UNet(BaseModule):
 
     def initialize(self):
         for f in self.final_conv:
-            init.xavier_uniform(f.weight)
+            init.xavier_uniform_(f.weight)
             init.zeros_(f.bias)
     
     def forward(self, x):

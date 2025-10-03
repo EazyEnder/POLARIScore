@@ -1,6 +1,8 @@
 import os
 import sys
 import time
+
+from networks.nn_CAUNet import ContextAwareUNet
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 import torch
@@ -13,6 +15,7 @@ from batch_utils import *
 from config import *
 import uuid
 from networks.nn_UNet import *
+from networks.nn_CAUNet import ContextAwareUNet
 from networks.nn_FCN import FCN
 from networks.nn_MultiNet import MultiNet
 from networks.nn_PPV import PPV, Test
@@ -95,8 +98,8 @@ class Trainer():
 
     def init(self, model=None)->bool:
         """
-        Init the model, use this function if you changed settings as self.network,self.optimizer or self.scheduler. 
-        By default, when creating a Trainer instance a model is created with default settings as Adam for optimizer.
+        Init the model, use this function if you changed settings as for example self.network,self.optimizer or self.scheduler. 
+        By default, when creating a Trainer instance a model is created with default settings with Adam for the optimizer.
         Args:
             model: Network instance, can be None if you want to let the code create the instance using self.network_settings.
         Returns:
@@ -139,16 +142,16 @@ class Trainer():
         def _random_transform(tensors_input, tensors_target):
             k = torch.randint(0, 4, (1,)).item()
             #Maybe need to change this: See if it works ! 
-            tensors_input = [torch.rot90(t, k, [2, 3]) for t in tensors_input]
-            tensors_target = [torch.rot90(t, k, [2, 3]) for t in tensors_target]
+            tensors_input = [torch.rot90(t, k, [-2, -1]) for t in tensors_input]
+            tensors_target = [torch.rot90(t, k, [-2, -1]) for t in tensors_target]
 
             if torch.rand(1).item() > 0.5:
-                tensors_input = [torch.flip(t, [2]) for t in tensors_input]
-                tensors_target = [torch.flip(t, [2]) for t in tensors_target]
+                tensors_input = [torch.flip(t, [-2]) for t in tensors_input]
+                tensors_target = [torch.flip(t, [-2]) for t in tensors_target]
 
             if torch.rand(1).item() > 0.5:
-                tensors_input = [torch.flip(t, [3]) for t in tensors_input]
-                tensors_target = [torch.flip(t, [3]) for t in tensors_target]
+                tensors_input = [torch.flip(t, [-1]) for t in tensors_input]
+                tensors_target = [torch.flip(t, [-1]) for t in tensors_target]
 
             return tensors_input, tensors_target
 
@@ -293,7 +296,7 @@ class Trainer():
 
         return d_prediction
 
-    def plot_losses(self, ax=None ,log10=True):
+    def plot_losses(self, ax=None ,log10=True, save=False):
         """
         Plot training and validation losses.
 
@@ -328,6 +331,9 @@ class Trainer():
 
         ax.set_xlabel("epoch")
         ax.legend()
+
+        if save:
+            self.save_fig(fig, fig_name='losses')
         
         return fig, ax
 
@@ -345,13 +351,15 @@ class Trainer():
     
         return self.prediction_batch
 
-    def plot_validation(self, inter=(None,None),number_per_row=8,same_limits=True):
+    def plot_validation(self, inter=(None,None), number_per_row=8, same_limits=True, save=False):
         """
         Show target and model prediction images
         """
-        plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=same_limits, number_per_row=number_per_row)
+        fig, axes = plot_batch(self.get_prediction_batch()[0 if inter[0] is None else inter[0]: -1 if inter[1] is None else inter[1]], same_limits=same_limits, number_per_row=number_per_row)
+        if save:
+            self.save_fig(fig, fig_name='validation')
 
-    def plot_residuals(self, batch=None, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None)):
+    def plot_residuals(self, batch=None, ax=None, plot_distribution=True, color="blue", bins_inter=(None,None), save=False):
         """
         Plot model predictions residuals
 
@@ -409,6 +417,9 @@ class Trainer():
         ax.set_ylabel("Residuals (prediction-target)")
         ax.grid(True, linestyle="--", alpha=0.5)
 
+        if(save):
+            self.save_fig(fig, fig_name='residuals')
+
         return fig, ax
     
     def predict(self, dataset:Dataset, batch_number:int=1)->List[Tuple[List[np.ndarray],List[np.ndarray]]]:
@@ -458,7 +469,7 @@ class Trainer():
         output = output.cpu().detach().numpy()
         return np.exp(output)
 
-    def plot_sim_validation(self, simulation, plot_total=False):
+    def plot_sim_validation(self, simulation, plot_total=False, save=False):
         sim_col_dens = simulation._compute_c_density()
         sim_mass_dens = simulation._compute_v_density(method=compute_mass_weighted_density)
         raw_sim_batch =  [(sim_col_dens,sim_mass_dens)]
@@ -491,10 +502,13 @@ class Trainer():
             axes[1].imshow(divided_axes_image)
             axes[1].set_title("Divided Data")
             axes[1].axis("off")
+
+            if save:
+                self.save_fig(fig, fig_name='sim_validation')
         else:
             fig = None
     
-    def plot_validation_spatial_error(self,number_per_row=4,log=True):
+    def plot_validation_spatial_error(self,number_per_row=4,log=True,save=False):
         batch = self.get_prediction_batch()
         if log:
             error = (np.log10(np.array([b[0] for b in batch]))-np.array(np.log10([b[1] for b in batch])))
@@ -508,9 +522,11 @@ class Trainer():
                 im = axes[i].imshow(e, cmap="jet")
             plt.colorbar(im)
         fig.subplots_adjust( left=None, bottom=None,  right=None, top=None, wspace=None, hspace=None)
+        if save:
+            self.save_fig(fig, fig_name='spatial_error')
         return fig, axes
 
-    def plot_prediction_correlation(self,ax=None,factors=[0]):
+    def plot_prediction_correlation(self,ax=None,factors=[0], save=False):
         if ax is None:
             fig, ax = plt.subplots()
         else:
@@ -534,9 +550,12 @@ class Trainer():
 
         plt.legend()
 
+        if save:
+            self.save_fig(fig, fig_name='pred_correlation')
+
         return fig, ax
 
-    def plot(self):
+    def plot(self, save=False):
         """
         Plot all in one figure: validation correlation, residuals and losses.
         """
@@ -544,15 +563,22 @@ class Trainer():
         plt.suptitle(self.model_name)
         
         ax1 = plt.subplot(2,2,1)
-        self.plot_prediction_correlation(ax=ax1)
+        self.plot_prediction_correlation(ax=ax1, save=save)
 
         ax2 = plt.subplot(2,2,2)
-        self. plot_residuals(ax=ax2)
+        self. plot_residuals(ax=ax2, save=save)
 
         ax3 = plt.subplot(2,2,3)
-        self.plot_losses(ax=ax3)
+        self.plot_losses(ax=ax3, save=save)
 
         plt.tight_layout()
+
+    def save_fig(self, fig, fig_name='default'):
+        if not(os.path.exists(MODEL_FOLDER)):
+            os.mkdir(MODEL_FOLDER)
+        model_path = os.path.join(MODEL_FOLDER,self.model_name.rsplit("_epoch",1)[0])
+        fig_path = os.path.join(model_path,fig_name+'.jpg')
+        fig.savefig(fig_path)
 
     def save(self, model_name=None, is_cache=False):
         """
@@ -655,6 +681,7 @@ def load_trainer(model_name, load_model=True):
            "UneK": UneK,
            "MultiNet": MultiNet,
            "PPV": PPV,
+           "CAUNet": ContextAwareUNet,
            "JustKAN": JustKAN,
            "Test": Test,
            "None": None
@@ -679,12 +706,13 @@ def load_trainer(model_name, load_model=True):
     if load_model:
         model = trainer.network(**trainer.network_settings)
         try:
-            model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth")))
+            model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+".pth"), map_location=trainer.device))
         except FileNotFoundError:
             try:
-                model.load_state_dict(torch.load(os.path.join(model_path,folder_model_name+".pth")))
+                model.load_state_dict(torch.load(os.path.join(model_path,folder_model_name+".pth"), map_location=trainer.device))
             except FileNotFoundError:
-                model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+f"_epoch{trainer.last_epoch}.pth")))
+                print(os.path.join(model_path,trainer.model_name+f"_epoch{trainer.last_epoch}.pth"))
+                model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+f"_epoch{trainer.last_epoch}.pth"), map_location=trainer.device))
         model.to(trainer.device)
         trainer.init(model=model)
 
@@ -989,53 +1017,35 @@ if __name__ == "__main__":
     #ds = ds.downsample(channel_names=["cospectra"], target_depths=[128], methods=["mean"])
     ds1, ds2 = ds.split(cutoff=0.7)
 
-
-    """
-    trainer = Trainer(MultiNet, ds1, ds2, model_name="MultiNet_13CO_max_wout")
+    trainer = Trainer(ContextAwareUNet, ds1, ds2, model_name="ContextAwareUNet")
     trainer.training_set = ds1
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["convBlock"] = DoubleConvBlock
     trainer.network_settings["num_layers"] = 4
-    #trainer.network_settings["out_channels"] = 2
-    #trainer.network_settings["deeper_skips"] = True
-    trainer.network_settings["channel_dimensions"] = [2]
-    trainer.network_settings["channel_modes"] = [None]
     trainer.training_random_transform = False
-    trainer.network_settings["attention"] = True
     trainer.optimizer_name = "Adam"
     trainer.target_names = ["vdens"]
-    trainer.input_names = ["cdens"]
-    import numpy as np
-    #y_train = np.array(ds1.get_element_index("vdens"))
-    #num_bins = 100 
-    #hist, bin_edges = np.histogram(y_train, bins=num_bins, density=False)
-    #bin_weights = 1.0 / (hist + 1)
-    #trainer.loss_method = WeightedMSELoss(bin_edges,bin_weights)
+    trainer.input_names = ["cdens","cdens_context"]
     trainer.init()
-    trainer.train(1500,batch_number=4,compute_validation=10)
+    trainer.train(1500,batch_number=16,compute_validation=10)
     trainer.save()
-    #trainer.plot()
-    #trainer.plot_validation()
+    trainer.plot(save=True)
+    trainer.plot_validation(save=True)
     #plot_models_accuracy([trainer,trainer2])
-    """
 
-    lis = ["MultiNet_13CO_max","MultiNet_13CO_max_proj","MultiNet_13CO_max_moments","MultiNet_13CO_max_wout"]
-    ts = [load_trainer(l) for l in lis]
-    for t in ts:
-        t.model_name = t.model_name.replace("_max","")
-    fig, ax = plot_models_accuracy(ts, show_errors=True)
-    fig2, ax2, _ = plot_models_residuals(ts)
-        
-    #fig.savefig(os.path.join(FIGURE_FOLDER,"multinet_accuracy_max.jpg"))
-    #fig2.savefig(os.path.join(FIGURE_FOLDER,"multinet_residuals_max.jpg"))
+    #lis = ["MultiNet_13CO_max","MultiNet_13CO_max_proj","MultiNet_13CO_max_moments","MultiNet_13CO_max_wout"]
+    #ts = [load_trainer(l) for l in lis]
+    #for t in ts:
+    #    t.model_name = t.model_name.replace("_max","")
+    #fig, ax = plot_models_accuracy(ts, show_errors=True)
+    #fig2, ax2, _ = plot_models_residuals(ts)
 
     #trainer = load_trainer("UneK_highres_fingercrossed")
     #fig, ax=  trainer.plot_residuals()
     #fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    
 
 
-    """
+    """How to create and use baseline on a model
     #trainer = load_trainer("UneK_highres_fingercrossed")  
     #trainer.validation_set = ds2  
     #trainer.plot()

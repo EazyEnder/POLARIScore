@@ -426,7 +426,7 @@ class Simulation_DC():
                 elif axis == 2:
                     density = self.data[:,:,slice]
 
-                if not(velocity[0] is None):
+                if not(any([val is None for val in velocity])):
                     Ux = velocity[0][slice,:,:]
                     Uy = velocity[1][slice,:,:]
                     if axis == 1:
@@ -653,6 +653,7 @@ if __name__ == "__main__":
     sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     sim.init(loadTemp=True, loadVel=True)
     #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
+    sim.plotSlice(axis=2, enable_slider=True)
     #sim.plot(derivate=2, axis=0)
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)

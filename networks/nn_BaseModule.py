@@ -6,6 +6,7 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 from config import LOGGER
+from typing import Union, List
 
 class BaseModule(nn.Module):
     def __init__(self, **args):
@@ -13,12 +14,22 @@ class BaseModule(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
-    def shape_image(self, image):
+    def shape_image(self, image:np.ndarray):
+        """
+        Shape a ndarray to a torch tensor.
+        """
         if np.min(image) > 0:
             image = np.log(image)
         return torch.from_numpy(image).float().unsqueeze(1).to(self.device)
 
-    def shape_data(self, batch, target_indexes=1, input_indexes=0):
+    def shape_data(self, batch, target_indexes:Union[int,List[int]]=1, input_indexes:Union[int, List[int]]=0):
+        """
+        Shape a input batch, i.e list of objects like ndarray or list of ndarray, to lidt of torch tensor.
+        Args:
+            batch:
+            target_indexes:
+            input_indexes:
+        """
         
         assert (len(batch)) > 0, LOGGER.error("Can't apply the model on the batch, the batch is empty.")
 

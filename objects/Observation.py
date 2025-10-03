@@ -609,7 +609,7 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plot_cores
     from networks.Trainer import load_trainer
     obs.load()
     if obs.prediction is None:
-        trainer = load_trainer("Unet_highres_2outputs_Adam")
+        trainer = load_trainer("UNet_highres_fingercrossed")
         obs.predict(trainer,patch_size=(128,128), overlap=0., downsample_factor=1, apply_baseline=False)
         obs.save()
     fig, ax = obs.plot(obs.prediction,plot_cores=plot_cores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
@@ -642,10 +642,12 @@ if __name__ == "__main__":
     #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plot_cores=False, show=True)
 
     #fig, ax = plt.subplots()
-    names = ["OrionB", "Taurus_L1495", "Aquila"]
 
+    script_data_and_figures(name="OrionB", show=True, save_fig=False)
+
+    """
     from batch_utils import plot_batch_correlation
-    obs = Observation(names[0],"column_density_map")
+    obs = Observation('OrionB',"column_density_map")
     obs.load()
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
     ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
@@ -661,6 +663,7 @@ if __name__ == "__main__":
     #fig.savefig(FIGURE_FOLDER+f"obs_{names[1].lower()}_correlation.jpg")
 
     plt.show()
+    """
     
     """
     for n in names:
