@@ -13,7 +13,7 @@ def init_network(model, init_method=init.kaiming_uniform_):
         if hasattr(layer, 'bias') and layer.bias is not None:
             init.zeros_(layer.bias)
 
-def compute_accuracy(label, pred,sigma=.1,log10=True):
+def compute_accuracy(label, pred, sigma=.1, log10=True):
     if log10:
         pred = np.log(pred)/np.log(10)
         label = np.log(label)/np.log(10)

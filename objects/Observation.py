@@ -122,7 +122,7 @@ class Observation():
 
         return output_matrix
 
-    def getCores(self, force_compute:bool=False)->Union[List[Dict], None]:
+    def get_cores(self, force_compute:bool=False)->Union[List[Dict], None]:
         """
         Get cores from files "observed_core_catalog.txt" and "derived_core_catalog.txt"
         Args:
@@ -227,7 +227,7 @@ class Observation():
 
         return cores
 
-    def plotCores(self,ax,cores:Union[List[Dict],None]=None,norm=None,vol_density:bool=False,show_text:bool=False):
+    def plot_cores(self,ax,cores:Union[List[Dict],None]=None,norm=None,vol_density:bool=False,show_text:bool=False):
         """
         Plot the cores as dots on a Matplotlib Axes.
         Args:
@@ -240,7 +240,7 @@ class Observation():
         if cores is None:
             cores = self.cores
         if cores is None:
-            cores = self.getCores()
+            cores = self.get_cores()
             if cores is None:
                 LOGGER.warn("Can't get the dense cores")
                 return
@@ -271,12 +271,12 @@ class Observation():
 
         return ax
     
-    def getPredictedDensityAtCores(self, column_density:bool=False)->List[float]:
+    def get_predicted_density_at_cores(self, column_density:bool=False)->List[float]:
         """
         By default, returns the predicted densities at cores position. If column_density is set to True, then it returns the column density instead.
         """
         if self.cores is None:
-            self.getCores()
+            self.get_cores()
         if self.cores is None:
             LOGGER.error("No cores found")
             return None
@@ -339,7 +339,7 @@ class Observation():
         fig.tight_layout()
 
         if plot_cores:
-            self.plotCores(ax, norm=norm, vol_density=flag_vol_density)
+            self.plot_cores(ax, norm=norm, vol_density=flag_vol_density)
 
         if not(crop is None):
             x_min, x_max, y_min, y_max = _crop(self.wcs, crop)
@@ -406,14 +406,14 @@ class Observation():
             return_ncol: Return column density
             return_indexes: Return indexes
         """
-        predicted_densities = np.array(self.getPredictedDensityAtCores())
-        derived_densities =  np.array([c["average_n"] for c in self.getCores()])
+        predicted_densities = np.array(self.get_predicted_density_at_cores())
+        derived_densities =  np.array([c["average_n"] for c in self.get_cores()])
         global_indexes = np.array(range(predicted_densities.shape[0]))
         mask = (~np.isnan(predicted_densities)) & (predicted_densities > 0) & (derived_densities > 0)
         if region is not None:
             ra_max, ra_min, dec_min, dec_max = region
-            ra = np.array([c["ra"] for c in self.getCores()])
-            dec = np.array([c["dec"] for c in self.getCores()])
+            ra = np.array([c["ra"] for c in self.get_cores()])
+            dec = np.array([c["dec"] for c in self.get_cores()])
             region_mask = (ra >= ra_min) & (ra <= ra_max) & (dec >= dec_min) & (dec <= dec_max)
             mask = mask & region_mask
         predicted_densities = predicted_densities[mask]
@@ -422,7 +422,7 @@ class Observation():
         predicted_densities = np.log10(predicted_densities)
         derived_densities = np.log10(derived_densities)
         if return_ncol:
-            column_densities = np.array(self.getPredictedDensityAtCores(column_density=True))
+            column_densities = np.array(self.get_predicted_density_at_cores(column_density=True))
             column_densities = np.log10(column_densities[mask])
             sorted_indexes = np.argsort(column_densities)
             global_indexes = global_indexes[sorted_indexes]
@@ -483,7 +483,7 @@ class Observation():
             ax: matplotlib axis
             bins: number of bins in the DCMF
         """
-        derived_cores = self.getCores()
+        derived_cores = self.get_cores()
         derived_densities = []
         derived_mass = []
         derived_radius = []
@@ -619,7 +619,7 @@ class Observation():
 
     def serialize_cores(self, region:Union[Tuple[float,float,float,float],None]=None)->str:
         """Serialize the core properties into a file named 'cores.txt' within the observation folder."""
-        cores = self.getCores()
+        cores = self.get_cores()
         if cores is None:
             LOGGER.error("Cant serialize, there is no cores.")
             return
@@ -684,7 +684,7 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plot_cores
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity{suff}.jpg")
     
-    from batch_utils import plot_batch_correlation
+    from utils.batch_utils import plot_batch_correlation
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
     ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
     ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")

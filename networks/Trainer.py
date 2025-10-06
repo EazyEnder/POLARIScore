@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
-from ..batch_utils import *
+from ..utils.batch_utils import *
 from ..config import *
 import uuid
 from .nn_UNet import *
@@ -21,7 +21,7 @@ from .nn_MultiNet import MultiNet
 from .nn_PPV import PPV, Test
 from .nn_KNet import *
 from .utils.nn_utils import compute_batch_accuracy
-from ..utils import movingAverage, applyBaseline
+from ..utils.utils import movingAverage, applyBaseline
 import json
 from ..objects.Dataset import getDataset, Dataset
 import shutil

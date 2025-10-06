@@ -6,8 +6,8 @@ if __name__ == "__main__":
     sys.path.append(parent_dir)
 from ..config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER, FIGURE_FOLDER
 import numpy as np
-from ..utils import *
-from ..physics_utils import *
+from ..utils.utils import *
+from ..utils.physics_utils import *
 from .Raycaster import ray_mapping
 from .Spectrum import Spectrum
 import json

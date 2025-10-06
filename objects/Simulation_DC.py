@@ -3,13 +3,13 @@ import sys
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from ..utils import *
+from ..utils.utils import *
 from ..config import *
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import json
 import inspect
-from ..batch_utils import compute_img_score
+from ..utils.batch_utils import compute_img_score
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
@@ -201,7 +201,7 @@ class Simulation_DC():
             self.volumic_density[axis] = method(self.data, axis=axis)
         return self.volumic_density[axis]
 
-    def generate_batch(self,name:str=None,method:Callable=compute_mass_weighted_density,what_to_compute:Dict={"cospectra":False,"density":False,"context":False,"physize":False},number:int=8,size:Union[float,Tuple[float,float]]=0.,img_size:int=128,random_rotate:bool=True,limit_area:Tuple=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor:float=0.75)->bool:
+    def generate_batch(self,name:str=None,method:Callable=compute_mass_weighted_density,what_to_compute:Dict={"cospectra":False,"density":False,"context":10.},number:int=8,size:Union[float,Tuple[float,float]]=0.,img_size:int=128,random_rotate:bool=True,limit_area:Tuple=([27,40,26,39],[26.4,40,22.5,44.3],[26.4,39,21,44.5]),nearest_size_factor:float=0.75)->bool:
         """
         Generate a batch, i.e pairs of images (2D matrix) like [(col_dens_1, vol_dens_1),(col_dens_2, vol_dens_2)]
         using this simulation. This will take randoms positions images in simulation.
@@ -214,7 +214,7 @@ class Simulation_DC():
             random_rotate(bool, default: True): Randomly rotate 0°,90°,180°,270° for each region.
             limit_area(list): In which region of the simulation we'll pick the areas: ([for face1],[for face2],[for face3]) -> ([x_min,x_max,y_min,y_max],...) for each face.
             nearest_size_factor(float, default:0.75): If the new area picked is too close to an old area of a factor nearest_size_factor*area_size then we'll choose another area.
-            what_to_compute(dict): keys descriptions (values are bools):<br /> 'co_spectra': compute the co spectra<br /> 'density': keep the density cube in the dataset<br /> 'context': generate a downsampled global region (default is all the sim face) with a channel for a crop mask: 1 if the random region contains the pos else 0.<br />physize: physical size
+            what_to_compute(dict): keys descriptions (values are bools):<br /> 'co_spectra': compute the co spectra<br /> 'density': keep the density cube in the dataset<br /> 'context': generate a downsampled global region (default is all the sim face) with a channel for a crop mask: 1 if the random region contains the pos else 0.
         Returns:
             flag: if dataset was correctly generated.
         """
@@ -232,8 +232,8 @@ class Simulation_DC():
         if flag_cospectra:
             co_spectra = getSimulationSpectra(self)
         flag_number_density = what_to_compute["density"] if "density" in what_to_compute else False
-        flag_context = what_to_compute["context"] if "context" in what_to_compute else False
-        flag_physize = what_to_compute["physize"] if "physize" in what_to_compute else False
+        flag_context = (what_to_compute["context"] is not None and what_to_compute["context"]) if "context" in what_to_compute else False
+        flag_physize = True
 
         order = ["cdens","vdens"]
         if flag_cospectra:

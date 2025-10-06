@@ -13,7 +13,7 @@ try:
     gputil_available = True
 except ImportError:
     gputil_available = False
-from .config import LOGGER
+from ..config import LOGGER
 
 def convert_pc_to_index(pc:float,nres:int,size:float,start:float=0.)->int:
     """
