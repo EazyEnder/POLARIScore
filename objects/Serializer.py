@@ -84,5 +84,5 @@ if __name__ == "__main__":
     sys.path.append(parent_dir)
 
     from networks.nn_UNet import ConvBlock
-    info = serialize_module(ConvBlock)
+    info = serialize_module(ConvBlock, in_channels=1, out_channels=1, kernel_size=1)
     print(json.dumps(info, indent=2))

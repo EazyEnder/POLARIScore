@@ -6,10 +6,11 @@ sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from config import LOGGER
+from ..config import LOGGER
 from torch.nn import init
-from networks.utils.nn_utils import xavier_init
+from .utils.nn_utils import init_network
 from typing import Union, Literal
+from .nn_BaseModule import BaseModule
 
 """
 Some saved models use the old version of early May 2025.
@@ -18,8 +19,9 @@ If you want to load and use the models, just replace this file by the github fil
 """
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_):
         super(ConvBlock, self).__init__()
+        self.init_method = init_method
         c = nn.Conv2d
         b = nn.BatchNorm2d
         d = nn.Dropout2d
@@ -37,13 +39,14 @@ class ConvBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        xavier_init(self)
+        init_network(self,self.init_method)
     def forward(self, x):
         return self.conv(x)
     
 class DoubleConvBlock(nn.Module):
-    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_):
         super(DoubleConvBlock, self).__init__()
+        self.init_method = init_method
         c = nn.Conv2d
         b = nn.BatchNorm2d
         d = nn.Dropout2d
@@ -64,14 +67,15 @@ class DoubleConvBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        xavier_init(self)
+        init_network(self,self.init_method)
     
     def forward(self, x):
         return self.conv(x)
     
 class ResConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, is3D):
+    def __init__(self, in_channels, out_channels, is3D, init_method=init.kaiming_uniform_):
         super(ResConvBlock, self).__init__()
+        self.init_method = init_method
         c = nn.Conv2d
         b = nn.BatchNorm2d
         if is3D:
@@ -86,6 +90,9 @@ class ResConvBlock(nn.Module):
         )
         self.match_dim = c(in_channels, out_channels, kernel_size=1, stride=1, padding=0) if in_channels != out_channels else None
     
+    def initialize(self):
+        init_network(self,self.init_method)
+
     def forward(self, x):
         res = x.clone()
         x = self.conv(x)
@@ -95,7 +102,7 @@ class ResConvBlock(nn.Module):
         return F.relu(x)
     
 class AttentionBlock(nn.Module):
-    def __init__(self, F_g:int, F_l:int, F_int:int, is3D=False):
+    def __init__(self, F_g:int, F_l:int, F_int:int, is3D=False, init_method=init.kaiming_uniform_):
         """
         Args:
             F_g: dimensions of upsampled features
@@ -103,6 +110,7 @@ class AttentionBlock(nn.Module):
             F_int: number of hidden intermediary parameters in the block
         """
         super(AttentionBlock, self).__init__()
+        self.init_method = init_method
 
         c = nn.Conv2d
         b = nn.BatchNorm2d
@@ -131,7 +139,7 @@ class AttentionBlock(nn.Module):
         self.initialize()
 
     def initialize(self):
-        xavier_init(self)
+        init_network(self,self.init_method)
 
     def forward(self, g, x):
         g1 = self.W_g(g)  # Apply 1x1 Conv on upsampled feature
@@ -140,9 +148,8 @@ class AttentionBlock(nn.Module):
         psi = self.psi(psi)  # Apply sigmoid activation
         return x * psi  # Scale encoder features
 
-from networks.nn_BaseModule import BaseModule
 class UNet(BaseModule):
-    def __init__(self, convBlock:'nn.Module'=ConvBlock, deeper_skips:bool=False, num_layers:int=4, base_filters:int=64, in_channels:int=1, out_channels:Union[None,int]=None, convBlock_layer:int=None, filter_function:Literal['constant']='constant', k:float=2., attention:bool=True, is3D:bool=False):
+    def __init__(self, convBlock:'nn.Module'=ConvBlock, deeper_skips:bool=False, num_layers:int=4, base_filters:int=64, in_channels:int=1, out_channels:Union[None,int]=None, convBlock_layer:int=None, filter_function:Literal['constant']='constant', k:float=2., attention:bool=True, is3D:bool=False, init_method=init.kaiming_uniform_):
         """
         UNet implementation using torch
         Args:
@@ -156,10 +163,12 @@ class UNet(BaseModule):
             out_channels (int, default:None): How many outputs (decoders branchs)
             attention (bool): Enable attention blocks
             is3D (bool): is3D
+            init_method (Callable): choose the init method for the network (e.g xavier_init, kaiming_init...)
         """
         
         super(UNet, self).__init__()
 
+        self.init_method = init_method
         self.num_layers = num_layers
         self.deeperskips = deeper_skips
         self.attention = attention
@@ -183,9 +192,9 @@ class UNet(BaseModule):
         for i in range(num_layers):
             out_channels = filter_sizes[i]
             if i >= convBlock_layer:
-                self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D))
+                self.encoders.append(convBlock(in_channels, out_channels, is3D=is3D, init_method=init_method))
             else:
-                self.encoders.append(DoubleConvBlock(in_channels, out_channels, is3D=is3D))
+                self.encoders.append(DoubleConvBlock(in_channels, out_channels, is3D=is3D, init_method = init_method))
             in_channels = out_channels
         out_channels = filter_sizes[-1]
 
@@ -210,11 +219,11 @@ class UNet(BaseModule):
                 upconv = nn.ConvTranspose3d if is3D else nn.ConvTranspose2d
                 self.upconvs[j].append(upconv(in_channels, out_channels, kernel_size=2, stride=2))
                 if self.attention:
-                    self.attentions[j].append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D))
+                    self.attentions[j].append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D, init_method=init_method))
                 concat_ch = out_channels * 2
                 if i+2 <= num_layers and self.deeperskips:
                     concat_ch += reversed_filters[2+i]
-                block = convBlock(concat_ch, out_channels, is3D=is3D) if num_layers-i >= convBlock_layer else DoubleConvBlock(concat_ch, out_channels, is3D=is3D)
+                block = convBlock(concat_ch, out_channels, is3D=is3D) if num_layers-i >= convBlock_layer else DoubleConvBlock(concat_ch, out_channels, is3D=is3D, init_method=init_method)
                 self.decoders[j].append(block)
 
                 in_channels = out_channels
@@ -229,7 +238,7 @@ class UNet(BaseModule):
 
     def initialize(self):
         for f in self.final_conv:
-            init.xavier_uniform_(f.weight)
+            self.init_method(f.weight)
             init.zeros_(f.bias)
     
     def forward(self, x):

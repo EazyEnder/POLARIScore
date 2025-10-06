@@ -4,12 +4,12 @@ import sys
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER, FIGURE_FOLDER
+from ..config import CACHES_FOLDER, LOGGER, SPECTRA_FOLDER, FIGURE_FOLDER
 import numpy as np
-from utils import *
-from physics_utils import *
-from objects.Raycaster import ray_mapping
-from objects.Spectrum import Spectrum
+from ..utils import *
+from ..physics_utils import *
+from .Raycaster import ray_mapping
+from .Spectrum import Spectrum
 import json
 import shutil
 import matplotlib.pyplot as plt
@@ -245,7 +245,7 @@ class SpectrumMap():
         if simulation is None:
             if "simulation_name" in self.global_settings and not(self.global_settings["simulation_name"] is None):
                 LOGGER.warn("Simulation is loaded using the settings, this can give an error if the simulation can't be opened by the easy way.")
-                from objects.Simulation_DC import Simulation_DC
+                from .Simulation_DC import Simulation_DC
                 simulation = Simulation_DC(name=self.global_settings["simulation_name"], global_size=66.0948, init=False)
                 simulation.init(loadTemp=True,loadVel=True)
             else:
@@ -444,7 +444,7 @@ def getSimulationSpectra(simulation, name_used=None):
         spectra[i] = s.map
     return spectra
 
-from objects.Spectrum import _method_getMoment
+from .Spectrum import _method_getMoment
 def _method_getMom(args):
     return _method_getMoment(args, m=0)
 
@@ -452,7 +452,7 @@ if __name__ == "__main__":
 
     #generate_spectrummap_using_orphan("spectrum_orionMHD_lowB_0.39_512_1")
     #map = SpectrumMap(name="spectrum_highresspec_0")
-    from objects.Simulation_DC import Simulation_DC
+    from .Simulation_DC import Simulation_DC
     sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
     map = SpectrumMap(name="spectrum_orionMHD_lowB_0.39_512_2")
     #map.plot(simulation=sim)

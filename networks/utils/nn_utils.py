@@ -1,13 +1,13 @@
 import numpy as np
 
 from torch.nn import init
-def xavier_init(model):
+def init_network(model, init_method=init.kaiming_uniform_):
     for layer in model.modules():
         if hasattr(layer, 'initialize') and callable(layer.initialize):
             continue
         if hasattr(layer, 'weight') and layer.weight is not None:
             if layer.weight.ndim >= 2:
-                init.xavier_uniform_(layer.weight)
+                init_method(layer.weight)
             else:
                 init.ones_(layer.weight)
         if hasattr(layer, 'bias') and layer.bias is not None:

@@ -5,11 +5,11 @@ from astropy.wcs import WCS
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from config import *
-from utils import dictsToString
+from ..config import *
+from ..utils import dictsToString
 import matplotlib.pyplot as plt 
 import numpy as np
-from utils import *
+from ..utils import *
 from matplotlib.colors import LogNorm
 import torch
 import torch.nn.functional as F
@@ -17,7 +17,7 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
 import re
-from objects.Dataset import getDataset
+from .Dataset import getDataset
 from typing import Dict, List, Tuple, Union
 
 def _crop(wcs, lims):
@@ -47,7 +47,7 @@ class Observation():
         self.prediction:np.ndarray = None
         self.wcs: 'WCS' = None
         self.cores: List[Dict] = None
-        """Cores [{**core1_properties}]"""
+        """Cores [{...core1_properties}]"""
 
         self.init()
     
@@ -63,8 +63,7 @@ class Observation():
         Predict a quantity by applying a model to an observation.
         Args:
             model_trainer (Trainer): Model wrapped in a Trainer object.
-            patch_size (tuple[int, int]): Shape of the 2D patches on which the model will be applied.
-                The observation will be divided into patches of this shape.
+            patch_size (tuple[int, int]): Shape of the 2D patches on which the model will be applied. The observation will be divided into patches of this shape.
             nan_value (float): Value used to replace NaNs in the observation.
             overlap (float): Fraction of overlap between consecutive patches.
             downsample_factor (float): Factor by which the observation is downsampled.
@@ -149,7 +148,7 @@ class Observation():
         border_car = ["!","|"]
 
         def _search_for_property(name, lines):
-            for i, line in enumerate(observed_lines):
+            for i, line in enumerate(lines):
                 if not(line[0] in border_car):
                     continue
                 if not(name.lower() in line.lower()):
@@ -198,6 +197,7 @@ class Observation():
                     "name": properties[1],
                     "peak_n": float(properties[13+offset_index])*1e4,
                     "average_n": float(properties[14+offset_index])*1e4,
+                    "mass": float(properties[6+offset_index]),
                     "radius_pc": float(properties[4+offset_index]),
                     "comment": properties[18+offset_index] if len(properties) > (18+offset_index) else "" 
                 }
@@ -215,9 +215,9 @@ class Observation():
             for der_dict in derived_cores:
                 if obs_dict["name"] != der_dict["name"]:
                     continue
-                if (type(der_dict["type"]) is int and der_dict["type"] < 2) or (type(der_dict["type"]) is str and der_dict["type"] in ["prestellar", "protostellar"]):
+                if (type(der_dict["type"]) is int and der_dict["type"] != 2) or (type(der_dict["type"]) is str and der_dict["type"] in ["starless","protostellar"]):
                     continue
-                if "tentative" in der_dict["comment"] or "SED" in der_dict["comment"]:
+                if "tentative" in der_dict["comment"] or "SED" in der_dict["comment"] or "N region" in der_dict["comment"]:
                     continue
                 core = {**obs_dict, **der_dict}
                 cores.append(core)
@@ -475,6 +475,74 @@ class Observation():
         ax.set_ylabel("Derived")
 
         return fig, ax
+
+    def plot_dcmf(self, ax=None, bins=10):
+        """
+        Plot the dense core mass function
+        Args:
+            ax: matplotlib axis
+            bins: number of bins in the DCMF
+        """
+        derived_cores = self.getCores()
+        derived_densities = []
+        derived_mass = []
+        derived_radius = []
+        for i in range(len(derived_cores)):
+            #if(derived_cores[i]['peak_ncol'] < 1e22):
+            #    continue
+            derived_densities.append(derived_cores[i]['peak_n'])
+            derived_mass.append(derived_cores[i]['mass'])
+            derived_radius.append(derived_cores[i]['radius_pc'])
+        #compute bonnor ebert instead of uniform density
+        #'outer radius when the core can be approximately described by a Gaussian distribution, as is the case for a critical Bonnor-Ebert spheroid'
+
+        m_H = 1.67e-24  # g
+        mu = 2.4        # mean molecular weight
+        pc_to_cm = 3.086e18
+        Msun = 1.989e33 # g
+        masses = []
+        for n, r_pc in zip(derived_densities, derived_radius):
+            r_cm = r_pc * pc_to_cm
+            volume = (4/3) * np.pi * (r_cm**3)
+            mass_g = mu * m_H * n * volume
+            mass_Msun = mass_g / Msun
+            masses.append(mass_Msun)
+
+        masses = np.array(derived_mass)
+
+        def _get_dcmf(masses:np.ndarray):
+            logM = np.log10(masses)
+            hist, bin_edges = np.histogram(logM, bins=bins)
+            bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
+            dcmf = hist / (bin_edges[1:] - bin_edges[:-1])
+            return dcmf, bin_centers
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure()
+
+        derived_dcmf, derived_bin_centers = _get_dcmf(derived_mass)
+        ax.plot(10**derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="Konyves")
+
+        if(self.prediction):
+            pass
+            #predicted_densities = self._get_cores_predicted_values()
+            #predicted_dcmf, predicted_bin_centers = _get_dcmf(predicted_mass)
+            #ax.plot(10**predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="UNet")
+
+
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel(r"Mass [$M_\odot$]")
+        ax.set_ylabel(r"$dN/d\log M$")
+        ax.set_title("Dense Core Mass Function (DCMF)")
+
+        ax.set_xlim([0.01, 100])
+        ax.set_ylim([0.8,600])
+
+        return fig, ax
+
     
     def plot_cores_space(self, ax=None, region:Union[Tuple[float,float,float,float],None]=None):
         """
@@ -643,7 +711,11 @@ if __name__ == "__main__":
 
     #fig, ax = plt.subplots()
 
-    script_data_and_figures(name="OrionB", show=True, save_fig=False)
+    #script_data_and_figures(name="OrionB", show=True, save_fig=False)
+
+    obs = Observation('OrionB',"column_density_map")
+    #obs.plot(plot_cores=True)
+    plt.show()
 
     """
     from batch_utils import plot_batch_correlation

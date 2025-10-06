@@ -5,7 +5,7 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from config import LOGGER
+from ..config import LOGGER
 from typing import Union, List
 
 class BaseModule(nn.Module):

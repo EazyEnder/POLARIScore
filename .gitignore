@@ -24,3 +24,12 @@ data/
 iframe_figures/
 
 *.pickle
+
+make.bat
+
+Makefile
+
+source/
+
+build/doctrees/
+build/

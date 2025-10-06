@@ -3,9 +3,9 @@ import sys
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from config import CACHES_FOLDER, LOGGER
+from ..config import CACHES_FOLDER, LOGGER
 import numpy as np
-from physics_utils import *
+from ..physics_utils import *
 import uuid
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize

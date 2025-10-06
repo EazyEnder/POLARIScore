@@ -3,8 +3,8 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from config import *
-from utils import plot_lines
+from ..config import *
+from ..utils import plot_lines
 import json
 import glob
 import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ from typing import Dict, List, Union, Tuple, Literal
 import ast
 import re
 
-BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","cdens_context"]
+BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","cdens_context","physize"]
 """ 
 Contains:
 - 'cdens': tensor NxN
@@ -23,6 +23,7 @@ Contains:
 - 'cospectra': tensor NxNxdepth
 - 'density': tensor NxNxdepth
 - 'cdens_context': tensor 2xNxN (cdens, crop_mask)
+- 'physize': tensor n (1 if context is off else 2)
 """
 
 def _formate_name(name:str):
@@ -218,46 +219,81 @@ class Dataset():
         ds.name = new_name
         return ds
 
-    def downsample(self, channel_names:Union[List[str],str], target_depths:Union[List[int], int], methods:Literal['mean','max','crop','nn']="mean"):
+    def downsample(self, channel_names:Union[List[str],str], target_sizes:Union[List[int], int], axis:Union[int,List[int]]=2, methods:Literal['mean','max','crop','nn']="mean"):
         """
-        Downsample the dataset z axis (depth) and save into a new folder (TODO for other axis ?)
-        <br />e.g: dataset.downsample(channel_names=["cospectra"], target_depths=[128], methods=["mean"])
+        Downsample the dataset and save into a new folder.
+        <br />e.g: dataset.downsample(channel_names=["cospectra"], target_sizes=[128], methods=["mean"])
         Args:
-            channel_names:
-            target_depths:
-            methods:
+                channel_names: Channel name(s) to downsample.
+                target_sizes: Target size(s) along the specified axis (or axes).
+                axis: Axis or list of axes to downsample (default: 2 for z-axis).
+                methods: Downsampling method(s) - 'mean', 'max', 'crop', or 'nn' (nearest neighbor).
         Returns:
             Dataset: the downsampled dataset
         """
-        LOGGER.log(f"Downsampling ({methods}) channels: {channel_names} to depths {target_depths}")
-        ds = self.clone(self.name+"_downsampled")
+        LOGGER.log(f"Downsampling ({methods}) channels: {channel_names} to sizes {target_sizes} along axis {axis}")
+
+        ds = self.clone(self.name + "_downsampled")
         ds.save(force=True)
-        channel_indexes = [ds.get_element_index(c) for c in channel_names] if type(channel_names) is list else [ds.get_element_index(channel_names)]
-        target_depths = target_depths if type(target_depths) is list else [target_depths]
-        methods = methods if type(methods) is list else [methods]
+
+        channel_indexes = (
+            [ds.get_element_index(c) for c in channel_names]
+            if isinstance(channel_names, list)
+            else [ds.get_element_index(channel_names)]
+        )
+
+        target_sizes = target_sizes if isinstance(target_sizes, list) else [target_sizes]
+        methods = methods if isinstance(methods, list) else [methods]
+        axes = axis if isinstance(axis, list) else [axis]
+
         for bi in range(len(ds.batch)):
             batch = ds.get(bi)
-            for ci,i in enumerate(channel_indexes):
-                img = batch[i]
-                original_depth = img.shape[-1]
-                target_depth = target_depths[ci]
-                factor = original_depth // target_depth
+            for ci, channel_index in enumerate(channel_indexes):
+                img = batch[channel_index]
 
-                if original_depth % target_depth != 0:
-                    LOGGER.warn(f"Warning: {original_depth} is not perfectly divisible by {target_depth}, possible data loss.")
+                # Apply downsampling along one or multiple axes
+                for ai, ax in enumerate(axes):
+                    target_size = target_sizes[min(ci, len(target_sizes) - 1)]
+                    method = methods[min(ci, len(methods) - 1)]
 
-                method = methods[ci]
-                if method == "mean":
-                    batch[i] = img.reshape(img.shape[0], img.shape[1], target_depth, factor).mean(axis=-1)
-                elif method == "max":
-                    batch[i] = img.reshape(img.shape[0], img.shape[1], target_depth, factor).max(axis=-1)
-                elif method == "crop":
-                    assert target_depth % 2 == 0, LOGGER.error(f"Target depth {target_depth} need to be even if method 'crop' is used for downsampling.")
-                    batch[i] = img[:, :, img.shape[-1]//2-target_depth//2:img.shape[-1]//2+target_depth//2]
-                else:
-                    batch[i] = img[:, :, ::factor]
-            ds.save_batch(batch,bi)
+                    original_size = img.shape[ax]
+                    factor = original_size // target_size
+                    if original_size % target_size != 0:
+                        LOGGER.warn(f"Warning: axis {ax} size {original_size} is not perfectly divisible by {target_size}, possible data loss.")
+
+                    if method == "mean":
+                        img = np.moveaxis(img, ax, -1)
+                        new_shape = img.shape[:-1] + (target_size, factor)
+                        img = img.reshape(new_shape).mean(axis=-1)
+                        img = np.moveaxis(img, -1, ax)
+
+                    elif method == "max":
+                        img = np.moveaxis(img, ax, -1)
+                        new_shape = img.shape[:-1] + (target_size, factor)
+                        img = img.reshape(new_shape).max(axis=-1)
+                        img = np.moveaxis(img, -1, ax)
+
+                    elif method == "crop":
+                        start = (original_size - target_size) // 2
+                        end = start + target_size
+                        slicer = [slice(None)] * img.ndim
+                        slicer[ax] = slice(start, end)
+                        img = img[tuple(slicer)]
+
+                    elif method == "nn":
+                        step = max(1, original_size // target_size)
+                        slicer = [slice(None)] * img.ndim
+                        slicer[ax] = slice(0, original_size, step)
+                        img = img[tuple(slicer)]
+
+                    else:
+                        raise ValueError(f"Unsupported downsampling method: {method}")
+
+                batch[channel_index] = img
+
+            ds.save_batch(batch, bi)
             del batch
+
         return ds
 
     def save_batch(self, batch:List[np.ndarray], i:int):

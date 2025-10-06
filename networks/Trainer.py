@@ -2,7 +2,7 @@ import os
 import sys
 import time
 
-from networks.nn_CAUNet import ContextAwareUNet
+from .nn_CAUNet import ContextAwareUNet
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 import torch
@@ -11,19 +11,19 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
-from batch_utils import *
-from config import *
+from ..batch_utils import *
+from ..config import *
 import uuid
-from networks.nn_UNet import *
-from networks.nn_CAUNet import ContextAwareUNet
-from networks.nn_FCN import FCN
-from networks.nn_MultiNet import MultiNet
-from networks.nn_PPV import PPV, Test
-from networks.nn_KNet import *
-from networks.utils.nn_utils import compute_batch_accuracy
-from utils import movingAverage, applyBaseline
+from .nn_UNet import *
+from .nn_CAUNet import ContextAwareUNet
+from .nn_FCN import FCN
+from .nn_MultiNet import MultiNet
+from .nn_PPV import PPV, Test
+from .nn_KNet import *
+from .utils.nn_utils import compute_batch_accuracy
+from ..utils import movingAverage, applyBaseline
 import json
-from objects.Dataset import getDataset, Dataset
+from ..objects.Dataset import getDataset, Dataset
 import shutil
 from typing import List, Dict, Union, Tuple
 
@@ -81,7 +81,7 @@ class Trainer():
         (and each time the validation error is lower than the previous minimum)."""
         
         self.baseline:Tuple[List[float],List[float]] = None
-        """Baseline : (*predictions, *residuals)"""
+        """Baseline : (...predictions, ...residuals)"""
 
         if not(self.network is None):
             self.model = network(**self.network_settings).to(self.device)

@@ -1,5 +1,5 @@
 import numpy as np
-from utils import *
+from .utils import *
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from typing import List
