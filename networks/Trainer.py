@@ -21,7 +21,7 @@ from .nn_MultiNet import MultiNet
 from .nn_PPV import PPV, Test
 from .nn_KNet import *
 from .utils.nn_utils import compute_batch_accuracy
-from ..utils.utils import movingAverage, applyBaseline
+from ..utils.utils import moving_average, applyBaseline
 import json
 from ..objects.Dataset import getDataset, Dataset
 import shutil
@@ -265,8 +265,8 @@ class Trainer():
         d_prediction = d_prediction[sorted_indexes]
         residuals = residuals[sorted_indexes]
 
-        mresiduals = movingAverage(residuals, n=n)
-        mx = movingAverage(d_prediction, n=n)
+        mresiduals = moving_average(residuals, n=n)
+        mx = moving_average(d_prediction, n=n)
 
         self.baseline = (mx,mresiduals)
 

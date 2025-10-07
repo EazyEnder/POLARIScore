@@ -604,8 +604,8 @@ class Observation():
 
         residuals = predicted_densities-derived_densities
         if mov_average > 1:
-            residuals, residuals_std = movingAverage(residuals, n=mov_average, return_std=True) 
-            column_densities = movingAverage(column_densities, n=mov_average)
+            residuals, residuals_std = moving_average(residuals, n=mov_average, return_std=True) 
+            column_densities = moving_average(column_densities, n=mov_average)
         line, = ax.plot(column_densities,residuals, marker="+", alpha=alpha, label=self.name)
         if mov_average > 1 and show_errors:
             ax.fill_between(column_densities,residuals-residuals_std,residuals+residuals_std, color=line.get_color(), alpha=0.2)

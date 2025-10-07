@@ -49,13 +49,12 @@ def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:
                 try:
                     scores[i, j, k] = s_method(context)
                 except Exception as e:
-                    LOGGER.error(f"Error in score method {k}: {e}")
+                    LOGGER.warn(f"Error in score method {k}: {e}")
                     scores[i, j, k] = -np.inf
     
     if method == "mean":
         combined_score = np.nanmean(scores, axis=2)
     else:  # "order"
-        # Normalize scores and average ranks
         ranks = np.argsort(np.argsort(scores, axis=None)).reshape(scores.shape)
         combined_score = np.mean(ranks, axis=2)
 

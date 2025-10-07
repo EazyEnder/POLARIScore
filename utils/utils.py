@@ -99,7 +99,7 @@ def group_matrix(mats:List[np.ndarray]):
                col_idx * final_dim: (col_idx + 1) * final_dim] = np.array(mat)
     return result
 
-def movingAverage(l, n=5, return_std=False):
+def moving_average(l, n=5, return_std=False):
     l = np.asarray(l, dtype=float)
     cs = np.cumsum(l)
     cs[n:] = cs[n:] - cs[:-n]
@@ -111,7 +111,7 @@ def movingAverage(l, n=5, return_std=False):
     
     return moving_avg
 
-def movingMin(l, n=5, exclude_zeros=False):
+def moving_minimum(l, n=5, exclude_zeros=False):
     result = []
     for i in range(len(l) - n + 1):
         window = l[i:i+n]

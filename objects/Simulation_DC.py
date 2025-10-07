@@ -10,6 +10,7 @@ from matplotlib.colors import LogNorm
 import json
 import inspect
 from ..utils.batch_utils import compute_img_score
+from ..utils.observation_utils import find_context
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
@@ -306,6 +307,7 @@ class Simulation_DC():
                 if not(skip_crop):
                     p_img = p_img[start_x:end_x, start_y:end_y]
                 #downsample
+                #Verify this downsample method 
                 if p_img.shape[0] > img_size:
                     factors = []
                     for si, shape in enumerate(p_img.shape):
@@ -344,10 +346,16 @@ class Simulation_DC():
 
             if flag_context:
                 assert column_density[face].shape[0]//s, LOGGER.error("Datacube dimension need to be divisible by size asked to generate context.")
+                context_size = what_to_compute["context"] if type(what_to_compute["context"]) is float else size
+                if(context_size < size*2):
+                    context_size = size*2
+                context_size_idx = convert_pc_to_index(context_size, self.nres,self.size,start=self.axis[0][0])
                 context_cdens = column_density[face].copy()
-                context_cdens = context_cdens.reshape(img_size, context_cdens.shape[0]//img_size, img_size , context_cdens.shape[1]//img_size).mean(axis=(1,3))
+                context_x1,context_y1,context_x2,context_y2 = find_context(canvas=context_cdens, region=(start_x,start_y,end_x,end_y), context_size=context_size_idx)
+                #crop to context
+                context_cdens = context_cdens[context_x1:context_x2,context_y1:context_y2]
                 context_cropmask = np.zeros_like(context_cdens)
-                context_cropmask[start_x:end_x, start_y:end_y] = 1.
+                context_cropmask[start_x-context_x1:end_x-context_x1, start_y-context_y1:end_y-context_y1] = 1.
                 context_mat = np.zeros((2,img_size,img_size))
                 context_mat[0,:,:] = _process_img(context_cdens,k,skip_crop=True)
                 context_mat[1,:,:] = _process_img(context_cropmask,k,skip_crop=True)
@@ -406,6 +414,8 @@ class Simulation_DC():
         return ds
     
     def plotSlice(self, axis:int=0, slice:int=256, N_arrows:int=20, show_velocity:bool=True, enable_slider:bool=True):
+
+            assert slice < self.data.shape[axis], LOGGER.error(f"Slice index ({str(slice)}) can't be higher than data matrix size ({self.data.shape[axis]}).")
             
             if not(axis in [0,1,2]):
                 LOGGER.warn(f"Slice plot: Axis {axis} is not valid -> take the default axis: 0")

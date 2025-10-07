@@ -82,10 +82,10 @@ class ResConvBlock(nn.Module):
             c = nn.Conv3d
             b = nn.BatchNorm3d
         self.conv = nn.Sequential(
-            c(in_channels, out_channels//2, kernel_size=3, padding=1),
-            b(out_channels//2),
+            c(in_channels, out_channels, kernel_size=3, padding=1),
+            b(out_channels),
             nn.ReLU(inplace=False),
-            c(out_channels//2, out_channels, kernel_size=3, padding=1),
+            c(out_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
         )
         self.match_dim = c(in_channels, out_channels, kernel_size=1, stride=1, padding=0) if in_channels != out_channels else None
@@ -156,7 +156,7 @@ class UNet(BaseModule):
             convBlock: convblock used (like ConvBlock classic, DoubleConv, ResConv, KAN) 
             convBlock_layer (int): if not None: if depth > convBlock_layer use convBlock else use classic convBlock (default: use convBlock).
             num_layers (int): Number of layers in the UNet
-            deeper_skips (bool): if enable deeper skips (not recommanded)
+            deeper_skips (bool): if deeper skips are enabled (not recommanded)
             base_filters (int): how many features per layer = base_filters*k^layer if layer begins at 0 where k is algo an arg(default 2) (and if filter_function is 'constant')
             k (float): for base_filters laws.
             in_channels (int): How many inputs (encoders branchs), for example if only column density, 'in_channels' is 1
@@ -259,7 +259,6 @@ class UNet(BaseModule):
         
         # Decoder forward pass
         decoded_x = []
-        interp_mode = 'trilinear' if self.is3D else 'bilinear'
         for j in range(self.out_channels):
             xj = x#.clone()
             for i in range(self.num_layers):
@@ -272,7 +271,7 @@ class UNet(BaseModule):
                 if i+2 <= self.num_layers and self.deeperskips:
                     deeper_skip = enc_features[-(i+2)]
                     if deeper_skip.shape[2:] != xj.shape[2:]:
-                        deeper_skip = F.interpolate(deeper_skip, size=xj.shape[2:], mode=interp_mode, align_corners=False)
+                        deeper_skip = F.interpolate(deeper_skip, size=xj.shape[2:], mode='trilinear' if self.is3D else 'bilinear', align_corners=False)
                     skip_feats.append(deeper_skip)
             
                 xj = torch.cat(skip_feats, dim=1)
