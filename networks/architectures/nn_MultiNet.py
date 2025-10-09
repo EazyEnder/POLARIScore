@@ -2,16 +2,16 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ..config import LOGGER
+from ...config import LOGGER
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nn_UNet import ConvBlock, AttentionBlock
+from .nn_UNet import ConvBlock, GatedAttentionBlock
 from .nn_BaseModule import BaseModule
 import numpy as np
 from kan import KAN
-from .utils.fastkanconv import FastKANConvLayer
+from ..utils.fastkanconv import FastKANConvLayer
 from .nn_KNet import JustKAN
 
 class MultiNet(BaseModule):
@@ -101,7 +101,7 @@ class MultiNet(BaseModule):
                 self.upconvs.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
 
             if self.attention:
-                self.attentions.append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=self.is3D))
+                self.attentions.append(GatedAttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=self.is3D))
             self.decoders.append(convBlock(2*out_channels, out_channels, is3D=self.is3D))
             in_channels = out_channels
 
@@ -193,22 +193,6 @@ class MultiNet(BaseModule):
         # Output
         f_x = self.final_conv(x)
         return f_x if self.is3D else f_x
-    
-    def shape_data(self, batch, target_index=3, input_indexes=[0,2]):
-        input_tensors = []
-        input_indexes = input_indexes if type(input_indexes) is list else [input_indexes]
-
-        assert (len(batch)) > 0, LOGGER.error("Can't apply the model on the batch, the batch is empty.")
-        for i in range(len(batch[0])):
-            if not(i in input_indexes):
-                continue
-            if i == target_index:
-                continue
-            xi = self.shape_image(np.array([b[i] for b in batch])).to(self.device)
-            input_tensors.append(xi)
-
-        target_tensor = self.shape_image(np.array([b[target_index] for b in batch]))
-        return input_tensors, target_tensor
     
 if __name__ == "__main__":
     model = MultiNet(channel_dimensions=[2,2], channel_modes=[None,("moments",2)])

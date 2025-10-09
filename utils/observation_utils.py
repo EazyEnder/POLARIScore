@@ -1,12 +1,22 @@
 import numpy as np
 from typing import Tuple, List, Union, Literal, Callable
 from ..config import LOGGER
+from .batch_utils import compute_smoothness
 
 def count_nonan(matrix:np.ndarray)->int:
     """Returns the number of non nan in a matrix"""
     return np.count_nonzero(~np.isnan(matrix))
 
-def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:int, score_methods:Union[List[Callable[[np.ndarray],float]],Callable[[np.ndarray],float]]=count_nonan, method:Literal["order","mean"]="mean")->Tuple[int,int,int,int]:
+def distance_to_center(matrix:np.ndarray)->int:
+    """Returns the distance to center of the matrix normalized between 0. to 1. where 1. is on center"""
+    h, w = matrix.shape
+    y, x = np.indices((h, w))    
+    cy, cx = (h - 1) / 2.0, (w - 1) / 2.0    
+    dist = np.sqrt((x - cx)**2 + (y - cy)**2)    
+    dist_normalized = 1.0 - dist / dist.max()
+    return dist_normalized
+
+def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:int, score_methods:Union[List[Callable[[np.ndarray],float]],Callable[[np.ndarray],float]]=[count_nonan,compute_smoothness,distance_to_center], method:Literal["order","mean"]="order")->Tuple[int,int,int,int]:
     """
     Find the best context(matrix) for a region(matrix) in a large matrix (named canvas).
     The best matrix is choosen by finding the maximum of a score function.
@@ -50,7 +60,7 @@ def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:
                     scores[i, j, k] = s_method(context)
                 except Exception as e:
                     LOGGER.warn(f"Error in score method {k}: {e}")
-                    scores[i, j, k] = -np.inf
+                    scores[i, j, k] = 0.
     
     if method == "mean":
         combined_score = np.nanmean(scores, axis=2)
@@ -58,6 +68,7 @@ def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:
         ranks = np.argsort(np.argsort(scores, axis=None)).reshape(scores.shape)
         combined_score = np.mean(ranks, axis=2)
 
+    #TODO random choise between all image with maximum score
     best_idx = np.unravel_index(np.nanargmax(combined_score), combined_score.shape)
     best_i, best_j = best_idx
 

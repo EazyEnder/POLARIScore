@@ -1,4 +1,4 @@
-from ..config import LOGGER
+from ...config import LOGGER
 import torch
 import torch.nn as nn
 from typing import List, Literal, Tuple
@@ -15,7 +15,7 @@ class FiLMGenerator(nn.Module):
                     nn.Linear(256, sum(2*d for d in film_dim_list))  # gamma and beta for each layer
                 )
             case "kan":
-                self.mlp = KAN(width=[in_channels,10,10,sum(2*d for d in film_dim_list)], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
+                self.mlp = KAN(width=[in_channels,16,16,sum(2*d for d in film_dim_list)], grid=5, k=3, seed=1, device='cuda' if torch.cuda.is_available() else 'cpu', auto_save=False)
         self.layer_dims = film_dim_list
     def forward(self, x)->List[Tuple]:
         """

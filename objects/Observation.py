@@ -100,7 +100,7 @@ class Observation():
                 patch = downsampled_tensor[i:i+patch_height, j:j+patch_width]
                 patch = patch.unsqueeze(0).unsqueeze(0)
                 
-                output_patch = model_trainer.predict_image(patch)
+                output_patch = model_trainer.predict_tensor(patch)
                 output_patch = output_patch.squeeze(0).squeeze(0) 
 
                 if apply_baseline:

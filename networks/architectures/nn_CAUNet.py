@@ -2,17 +2,17 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ..config import LOGGER
+from ...config import LOGGER
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nn_UNet import DoubleConvBlock, AttentionBlock
+from .nn_UNet import DoubleConvBlock, GatedAttentionBlock
 from .nn_BaseModule import BaseModule
-from .utils.nn_utils import init_network
+from ..utils.nn_utils import init_network
 from torch.nn import init
 from typing import List, Literal, Tuple
 from kan import KAN
-from .FiLM import FiLMGenerator
+from ..addons.FiLM import FiLMGenerator
 
 #tensors shape B,C,H,W ; no third axis
 class ContextAwareUNet(BaseModule):
@@ -39,7 +39,7 @@ class ContextAwareUNet(BaseModule):
         for i in range(num_layers):
             out_channels = filter_sizes[i]
             self.l_encoders.append(DoubleConvBlock(in_channels, out_channels, init_method=self.init_method))
-            self.g_encoders.append(DoubleConvBlock(in_channels*2 if i==0 else in_channels, out_channels, init_method=self.init_method))
+            self.g_encoders.append(DoubleConvBlock(2 if i==0 else in_channels, out_channels, init_method=self.init_method))
             in_channels = out_channels
         out_channels = filter_sizes[-1]
 
@@ -68,7 +68,7 @@ class ContextAwareUNet(BaseModule):
             for i in range(num_layers):
                 out_channels = reversed_filters[1+i]
                 self.upconvs[j].append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2))
-                self.attentions[j].append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, init_method=self.init_method))
+                self.attentions[j].append(GatedAttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, init_method=self.init_method))
                 concat_ch = out_channels * 2
                 block = DoubleConvBlock(concat_ch, out_channels, init_method=self.init_method)
                 self.decoders[j].append(block)

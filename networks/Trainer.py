@@ -2,30 +2,52 @@ import os
 import sys
 import time
 
-from .nn_CAUNet import ContextAwareUNet
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
+#parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+#sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
+
+from .architectures.nn_BaseModule import BaseModule
 from ..utils.batch_utils import *
 from ..config import *
 import uuid
-from .nn_UNet import *
-from .nn_CAUNet import ContextAwareUNet
-from .nn_FCN import FCN
-from .nn_MultiNet import MultiNet
-from .nn_PPV import PPV, Test
-from .nn_KNet import *
+from . import *
+from .architectures.nn_UNet import *
+from .architectures.nn_CAUNet import ContextAwareUNet
+from .architectures.nn_FCN import FCN
+from .architectures.nn_MultiNet import MultiNet
+from .architectures.nn_PPV import PPV, Test
+from .architectures.nn_KNet import *
 from .utils.nn_utils import compute_batch_accuracy
 from ..utils.utils import moving_average, applyBaseline
 import json
 from ..objects.Dataset import getDataset, Dataset
 import shutil
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union, Tuple, Callable
+
+NETWORK_OPTIONS = {
+    "UNet" : UNet,
+    "FCN" : FCN,
+    "KNet" : KNet,
+    "UneK": UneK,
+    "MultiNet": MultiNet,
+    "PPV": PPV,
+    "CAUNet": ContextAwareUNet,
+    "JustKAN": JustKAN,
+    "None": None
+}
+
+CONVBLOCK_OPTIONS = {
+    "DoubleConvBlock": DoubleConvBlock,
+    "ResConvBlock":ResConvBlock,
+    "KanConvBlock":KanConvBlock,
+    "ConvBlock":ConvBlock
+}
+
 
 class Trainer():
     """
@@ -65,10 +87,13 @@ class Trainer():
 
         self.target_names:Union[List[str],str] = ["vdens"]
         self.input_names:Union[List[str],str] = ["cdens"]
+        self.norms:Dict[str,Tuple[Callable[[np.ndarray],np.ndarray],Callable[[np.ndarray],np.ndarray]]] = {} 
+        """Normalizations, dict of tuple of function which map physical quantity to normed and invert"""
+
 
         self.training_random_transform:bool = False
 
-        self.model = None
+        self.model:'BaseModule' = None
         """Instance of self.network"""
         self.optimizer = None
         """Instance of an optimizer, by default Adam if optimizer_name was not changed."""
@@ -176,7 +201,8 @@ class Trainer():
                 used_batch = self.training_set.get(indexes=shuffled_indices[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                 if batch_number == 1:
                     used_batch = [used_batch]
-                t_input, t_target = self.model.shape_data(used_batch, self.training_set.get_element_index(self.target_names), self.training_set.get_element_index(self.input_names))
+                t_input, t_target = self.model.shape_batch(used_batch, self.training_set.get_element_index(self.target_names), self.training_set.get_element_index(self.input_names),
+                                                          target_names=self.target_names, input_names=self.input_names, norms=self.norms)
                 if not(type(t_input) is list):
                     t_input = [t_input]
 
@@ -209,7 +235,8 @@ class Trainer():
                         used_batch = self.validation_set.get(indexes=list(range(len(self.validation_set.batch)))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
                         if batch_number == 1:
                             used_batch = [used_batch]
-                        v_input_tensor, v_target_tensor = self.model.shape_data(used_batch, self.validation_set.get_element_index(self.target_names), self.validation_set.get_element_index(self.input_names))
+                        v_input_tensor, v_target_tensor = self.model.shape_batch(used_batch, self.validation_set.get_element_index(self.target_names), self.validation_set.get_element_index(self.input_names),
+                                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms)
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = self.model(*v_input_tensor)
@@ -428,9 +455,8 @@ class Trainer():
             dataset: the dataset
             batch_number(int): How many pairs of images/arrays send to the gpu and computed at the same time.
         Returns:
-            List: list of 
+            List: list of (targets,outputs) where targets and outputs are lists in the dataset order, use self.target_names to know what are the quantities.
         """
-        #TODO prendre en compte si il y a plusieurs outputs, idem sur les autres fonctions. Car là c'est pas clair et pas fou. 
 
         self.model.eval()
 
@@ -443,31 +469,41 @@ class Trainer():
             used_batch = dataset.get(indexes=list(range(batch_size))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
             if batch_number == 1:
                 used_batch = [used_batch]
-            input_tensor, target_tensor = self.model.shape_data(used_batch, dataset.get_element_index(self.target_names), dataset.get_element_index(self.input_names))
+            input_tensor, target_tensor = self.model.shape_batch(used_batch, dataset.get_element_index(self.target_names), dataset.get_element_index(self.input_names),
+                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms)
             if not(type(input_tensor) is list):
                 input_tensor = [input_tensor]
             if not(type(target_tensor) is list):
                 target_tensor = [target_tensor]
             output = self.model(*input_tensor)
-            target_tensor = [t.cpu().detach().numpy() for t in target_tensor] 
-            if type(output) is list:
-                output = [o.cpu().detach().numpy() for o in output]
-            else:
-                output = [output.cpu().detach().numpy()]
-            result_batch.append((*(np.exp(target_tensor[0][:,0])), *(np.exp(output[0][:,0]))))
+            target_tensor = [self.model.shape_tensor(t, reverse=True, name=self.target_names[ti], norms=self.norms) for ti,t in enumerate(target_tensor)] 
+            output = output if type(output) is list else [output]
+            output = [self.model.shape_tensor(o, reverse=True, name=self.target_names[oi], norms=self.norms) for oi,o in enumerate(output)]
+            for i in range(len(target_tensor[0])):
+                l1 = [target_tensor[j][i] for j in len(target_tensor)]
+                l2 = [output[j][i] for j in len(output)]
+                result_batch.append((l1,l2))
 
         return result_batch
     
-    def predict_image(self, image):
+    def predict_tensor(self, inputs:Union[np.ndarray,List[np.ndarray]], input_names:Union[str,List[str],None]=None, output_names:Union[str,List[str],None]=None):
+        """
+        Apply a model to inputs
+        Args:
+            inputs: List of arrays for example [col_dens,spectra]
+            input_names: if not None, use the names to find a normalization if this is defined
+            output_names: if not None, use the names to find a normalization if this is defined
+        Returns:
+            List of output, for example [vol_dens]
+        """
+        
         self.model.eval()
 
-        #TODO: generalize this function for image of nparray type and torch image
-        input_tensor = torch.log(image).float().to(self.device)
-        output = self.model(input_tensor)
-        if type(output) is list:
-            output = output[0]
-        output = output.cpu().detach().numpy()
-        return np.exp(output)
+        inputs = inputs if type(inputs) is list else [inputs]
+        input_tensors = [self.model.shape_tensor(inputs[i], name=input_names[i] if input_names else None) for i in range(len(inputs))]
+        outputs = self.model(*input_tensors)
+        outputs = outputs if type(outputs) is list else [outputs]
+        return [self.model.shape_tensor(outputs[i], name=output_names[i] if output_names else None, reverse=True) for i in range(len(outputs))]
 
     def plot_sim_validation(self, simulation, plot_total=False, save=False):
         sim_col_dens = simulation._compute_c_density()
@@ -642,6 +678,7 @@ class Trainer():
             "total_epoch": str(self.last_epoch),
             "input_names": self.input_names,
             "target_names": self.target_names,
+            "normalizations": str(self.norms),
             "training_set": str(self.training_set.name),
             "validation_set": str(self.validation_set.name),
             "system": get_system_info(),
@@ -675,18 +712,8 @@ def load_trainer(model_name, load_model=True):
     if "validation_set" in settings and not(settings["validation_set"] is None):
         trainer.validation_set = getDataset(settings["validation_set"])
 
-    network_options = {"UNet" : UNet,
-           "FCN" : FCN,
-           "KNet" : KNet,
-           "UneK": UneK,
-           "MultiNet": MultiNet,
-           "PPV": PPV,
-           "CAUNet": ContextAwareUNet,
-           "JustKAN": JustKAN,
-           "Test": Test,
-           "None": None
-    }
-    network_convblock_options = {"DoubleConvBlock": DoubleConvBlock,"ResConvBlock":ResConvBlock, "KanConvBlock":KanConvBlock, "ConvBlock":ConvBlock}
+    network_options = NETWORK_OPTIONS
+    network_convblock_options = CONVBLOCK_OPTIONS
     network_settings = settings["network_settings"] if "network_settings" in settings else {}
     if "convBlock" in network_settings:
         network_settings["convBlock"] = network_convblock_options[network_settings["convBlock"]]
@@ -801,6 +828,7 @@ def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_err
     plt.tight_layout()
 
     return fig, ax
+    
 
 import re
 from scipy.interpolate import griddata
@@ -1018,6 +1046,10 @@ if __name__ == "__main__":
     ds1, ds2 = ds.split(cutoff=0.7)
 
     trainer = Trainer(ContextAwareUNet, ds1, ds2, model_name="ContextAwareUNet")
+    #trainer.norms = {
+    #    "cdens": DATA_NORMALIZATION_CDENS,
+    #    "vdens": DATA_NORMALIZATION_VDENS,
+    #}
     trainer.training_set = ds1
     trainer.validation_set = ds2
     trainer.network_settings["base_filters"] = 64

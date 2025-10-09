@@ -6,9 +6,9 @@ sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..config import LOGGER
+from ...config import LOGGER
 from .nn_BaseModule import BaseModule
-from .nn_UNet import UNet, AttentionBlock
+from .nn_UNet import UNet, GatedAttentionBlock
 import numpy as np
 from .nn_KNet import JustKAN
 

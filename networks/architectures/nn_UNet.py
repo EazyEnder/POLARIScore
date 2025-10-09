@@ -6,16 +6,16 @@ sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..config import LOGGER
+from ...config import LOGGER
 from torch.nn import init
-from .utils.nn_utils import init_network
+from ..utils.nn_utils import init_network
 from typing import Union, Literal
 from .nn_BaseModule import BaseModule
 
 """
 Some saved models use the old version of early May 2025.
 Check https://github.com/EazyEnder/POLARIScore/blob/e247372b4617c842894e4d91e0b4e1ec54261505/networks/nn_UNet.py 
-If you want to load and use the models, just replace this file by the github file.
+If you want to load and use these models, just replace this file by the github one.
 """
 
 class ConvBlock(nn.Module):
@@ -31,8 +31,8 @@ class ConvBlock(nn.Module):
             d = nn.Dropout3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
             b(out_channels),
+            nn.ReLU(),
             d(p=0.05),
         )
 
@@ -83,8 +83,8 @@ class ResConvBlock(nn.Module):
             b = nn.BatchNorm3d
         self.conv = nn.Sequential(
             c(in_channels, out_channels, kernel_size=3, padding=1),
-            b(out_channels),
             nn.ReLU(inplace=False),
+            b(out_channels),
             c(out_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
         )
@@ -101,7 +101,11 @@ class ResConvBlock(nn.Module):
         x = x+res
         return F.relu(x)
     
-class AttentionBlock(nn.Module):
+class GatedAttentionBlock(nn.Module):
+    """
+    Gated attention block from Attention U-Net paper (https://arxiv.org/pdf/1804.03999).
+    Different and lighter than multi head self attention.
+    """
     def __init__(self, F_g:int, F_l:int, F_int:int, is3D=False, init_method=init.kaiming_uniform_):
         """
         Args:
@@ -109,7 +113,7 @@ class AttentionBlock(nn.Module):
             F_l: dimensions of skip features
             F_int: number of hidden intermediary parameters in the block
         """
-        super(AttentionBlock, self).__init__()
+        super(GatedAttentionBlock, self).__init__()
         self.init_method = init_method
 
         c = nn.Conv2d
@@ -219,7 +223,7 @@ class UNet(BaseModule):
                 upconv = nn.ConvTranspose3d if is3D else nn.ConvTranspose2d
                 self.upconvs[j].append(upconv(in_channels, out_channels, kernel_size=2, stride=2))
                 if self.attention:
-                    self.attentions[j].append(AttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D, init_method=init_method))
+                    self.attentions[j].append(GatedAttentionBlock(F_g=out_channels, F_l=out_channels, F_int=out_channels//2, is3D=is3D, init_method=init_method))
                 concat_ch = out_channels * 2
                 if i+2 <= num_layers and self.deeperskips:
                     concat_ch += reversed_filters[2+i]
