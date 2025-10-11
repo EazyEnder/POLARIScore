@@ -2,6 +2,8 @@ import os
 import sys
 from astropy.io import fits
 from astropy.wcs import WCS
+
+from utils.physics_utils import PC_TO_CM
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
@@ -72,7 +74,7 @@ class Observation():
             predicted_observation
         """
 
-        input_matrix = self.data
+        input_matrix = self.data*2. #Obs are in N_H2, models are trained on N_H
         input_tensor = torch.tensor(input_matrix.astype(np.float32))
         nan_mask = np.isnan(input_matrix)
         if nan_value < 0:
@@ -181,7 +183,7 @@ class Observation():
                     coord = SkyCoord(ra_str, dec_str, unit=(u.hourangle, u.deg)) 
                 pc = {
                     "name": properties[1],
-                    "peak_ncol": float(properties[54+offset_index])*1e21,
+                    "peak_ncol": float(properties[54+offset_index])*1e21*2,
                     "radius": float(properties[58+offset_index]),
                     "ra": coord.ra.deg,
                     "dec": coord.dec.deg
@@ -195,8 +197,8 @@ class Observation():
                     continue
                 pc = {
                     "name": properties[1],
-                    "peak_n": float(properties[13+offset_index])*1e4,
-                    "average_n": float(properties[14+offset_index])*1e4,
+                    "peak_n": float(properties[13+offset_index])*1e4*2,
+                    "average_n": float(properties[14+offset_index])*1e4*2,
                     "mass": float(properties[6+offset_index]),
                     "radius_pc": float(properties[4+offset_index]),
                     "comment": properties[18+offset_index] if len(properties) > (18+offset_index) else "" 
@@ -210,7 +212,6 @@ class Observation():
                 derived_cores.append(pc)
         
         cores = []
-        #Disgusting code, TODO
         for obs_dict in observed_cores:
             for der_dict in derived_cores:
                 if obs_dict["name"] != der_dict["name"]:
@@ -493,22 +494,6 @@ class Observation():
             derived_densities.append(derived_cores[i]['peak_n'])
             derived_mass.append(derived_cores[i]['mass'])
             derived_radius.append(derived_cores[i]['radius_pc'])
-        #compute bonnor ebert instead of uniform density
-        #'outer radius when the core can be approximately described by a Gaussian distribution, as is the case for a critical Bonnor-Ebert spheroid'
-
-        m_H = 1.67e-24  # g
-        mu = 2.4        # mean molecular weight
-        pc_to_cm = 3.086e18
-        Msun = 1.989e33 # g
-        masses = []
-        for n, r_pc in zip(derived_densities, derived_radius):
-            r_cm = r_pc * pc_to_cm
-            volume = (4/3) * np.pi * (r_cm**3)
-            mass_g = mu * m_H * n * volume
-            mass_Msun = mass_g / Msun
-            masses.append(mass_Msun)
-
-        masses = np.array(derived_mass)
 
         def _get_dcmf(masses:np.ndarray):
             logM = np.log10(masses)
@@ -526,10 +511,22 @@ class Observation():
         ax.plot(10**derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="Konyves")
 
         if(self.prediction):
-            pass
-            #predicted_densities = self._get_cores_predicted_values()
-            #predicted_dcmf, predicted_bin_centers = _get_dcmf(predicted_mass)
-            #ax.plot(10**predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="UNet")
+            #Use gaussian distribution to compute mass instead
+            predicted_densities = self._get_cores_predicted_values()
+            m_H = 1.67e-27  # kg
+            mu = 1.4        # mean molecular weight for H (not H2)
+            pc_to_cm = PC_TO_CM
+            Msun = 1.989e30 # kg
+            predicted_masses = []
+            for n, r_pc in zip(predicted_densities, derived_radius):
+                r_cm = r_pc * pc_to_cm
+                volume = (4/3) * np.pi * (r_cm**3)
+                mass = mu * m_H * n * volume
+                mass_Msun = mass / Msun
+                predicted_masses.append(mass_Msun)
+            predicted_masses = np.array(predicted_masses)
+            predicted_dcmf, predicted_bin_centers = _get_dcmf(predicted_masses)
+            ax.plot(10**predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="UNet")
 
 
         ax.set_xscale("log")
@@ -715,6 +712,7 @@ if __name__ == "__main__":
 
     obs = Observation('OrionB',"column_density_map")
     #obs.plot(plot_cores=True)
+    #obs.plot_validity_with_model()
     plt.show()
 
     """

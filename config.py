@@ -37,8 +37,6 @@ DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)),"data/")
 
 OBSERVATIONS_FOLDER = os.path.join(DATA_FOLDER,"observations/")
 
-PC_TO_CM = 3.086e+18
-
-"""Normalization functions are tuples of lambda,lambda. One is to normalize, other is the invert function to recover the physical scale"""
+#Normalization functions are tuples of (lambda,lambda). First one is to normalize, second one is the invert function to recover the physical scale
 DATA_NORMALIZATION_CDENS = (lambda x: (np.log10(x)-19.)/6., lambda y: np.power(10.,y*6.+19.) )
 DATA_NORMALIZATION_VDENS = (lambda x: np.log10(x)/6., lambda y: np.power(10,y*6.))

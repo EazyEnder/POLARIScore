@@ -5,6 +5,7 @@ if __name__ == "__main__":
     sys.path.append(parent_dir)
 from ..utils.utils import *
 from ..config import *
+from ..utils.physics_utils import PC_TO_CM
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import json
