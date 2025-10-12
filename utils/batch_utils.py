@@ -1,5 +1,5 @@
 import numpy as np
-from .utils import *
+from POLARIScore.utils.utils import *
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from typing import List
@@ -63,7 +63,7 @@ def plot_batch_correlation(batch, ax=None, bins_number:int=256, show_yx:bool=Tru
     if show_yx:
         yx = np.linspace(np.min(column_density), np.max(column_density), 10)
         p = ax.plot(yx,yx,linestyle="--",color="red",label=r"$y=x$")
-        plt.legend(p)
+        #plt.legend(p)
 
     plt.colorbar(hist, ax=ax, label="counts")
     ax = plt.gca()

@@ -1,5 +1,5 @@
-from ..utils import *
-from ..config import *
+from POLARIScore.utils import *
+from POLARIScore.config import *
 import numpy as np
 from typing import Dict, Tuple, Callable, Any
 

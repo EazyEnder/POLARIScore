@@ -2,17 +2,17 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nn_UNet import DoubleConvBlock, GatedAttentionBlock
-from .nn_BaseModule import BaseModule
-from ..utils.nn_utils import init_network
+from POLARIScore.networks.architectures.nn_UNet import DoubleConvBlock, GatedAttentionBlock
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
+from POLARIScore.networks.utils.nn_utils import init_network
 from torch.nn import init
 from typing import List, Literal, Tuple
 from kan import KAN
-from ..addons.FiLM import FiLMGenerator
+from POLARIScore.networks.addons.FiLM import FiLMGenerator
 
 #tensors shape B,C,H,W ; no third axis
 class ContextAwareUNet(BaseModule):
@@ -87,7 +87,7 @@ class ContextAwareUNet(BaseModule):
             init_network(self,self.init_method)
             init.zeros_(f.bias)
 
-    def forward(self, x:List[torch.tensor]):
+    def forward(self, *x:List[torch.tensor]):
         """
         Args
             x: tensor shape [(B,1,H,W),(B,2,H,W),(B,1)] ; i.e [region, context, physical_size]
@@ -128,7 +128,8 @@ class ContextAwareUNet(BaseModule):
             decoded_x.append(xj)
         
         # Output
-        return self.final_conv[0](decoded_x[0])
+        rslt = self.final_conv[0](decoded_x[0])
+        return rslt
     
 if __name__ == "__main__":
     #Test shape

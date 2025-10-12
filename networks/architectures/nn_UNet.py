@@ -6,11 +6,11 @@ sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 from torch.nn import init
-from ..utils.nn_utils import init_network
+from POLARIScore.networks.utils.nn_utils import init_network
 from typing import Union, Literal
-from .nn_BaseModule import BaseModule
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
 
 """
 Some saved models use the old version of early May 2025.
@@ -19,7 +19,7 @@ If you want to load and use these models, just replace this file by the github o
 """
 
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_, dropout=0.01):
         super(ConvBlock, self).__init__()
         self.init_method = init_method
         c = nn.Conv2d
@@ -33,7 +33,7 @@ class ConvBlock(nn.Module):
             c(in_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
             nn.ReLU(),
-            d(p=0.05),
+            d(p=dropout),
         )
 
         self.initialize()
@@ -44,7 +44,7 @@ class ConvBlock(nn.Module):
         return self.conv(x)
     
 class DoubleConvBlock(nn.Module):
-    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_):
+    def __init__(self, in_channels:int=1, out_channels:int=1, is3D:bool=False, init_method=init.kaiming_uniform_, dropout=0.05):
         super(DoubleConvBlock, self).__init__()
         self.init_method = init_method
         c = nn.Conv2d
@@ -61,7 +61,7 @@ class DoubleConvBlock(nn.Module):
             c(out_channels, out_channels, kernel_size=3, padding=1),
             b(out_channels),
             nn.ReLU(),
-            d(p=0.05)
+            d(p=dropout)
         )
 
         self.initialize()
@@ -153,7 +153,7 @@ class GatedAttentionBlock(nn.Module):
         return x * psi  # Scale encoder features
 
 class UNet(BaseModule):
-    def __init__(self, convBlock:'nn.Module'=ConvBlock, deeper_skips:bool=False, num_layers:int=4, base_filters:int=64, in_channels:int=1, out_channels:Union[None,int]=None, convBlock_layer:int=None, filter_function:Literal['constant']='constant', k:float=2., attention:bool=True, is3D:bool=False, init_method=init.kaiming_uniform_):
+    def __init__(self, convBlock:'nn.Module'=DoubleConvBlock, deeper_skips:bool=False, num_layers:int=4, base_filters:int=64, in_channels:int=1, out_channels:Union[None,int]=None, convBlock_layer:int=None, filter_function:Literal['constant']='constant', k:float=2., attention:bool=True, is3D:bool=False, init_method=init.kaiming_uniform_):
         """
         UNet implementation using torch
         Args:
@@ -246,7 +246,6 @@ class UNet(BaseModule):
             init.zeros_(f.bias)
     
     def forward(self, x):
-
         x = super().forward(x)
 
         assert (self.is3D and len(x.shape) > 4) or (not(self.is3D) and len(x.shape) < 5), LOGGER.error(f"U-Net is defined as {'3D' if self.is3D else '2D'} but input has {len(x.shape)-2} dimensions")

@@ -1,15 +1,15 @@
 import os
 import sys
 
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nn_UNet import UNet
-from .nn_BaseModule import BaseModule
-from .nn_MultiNet import MultiNet
+from POLARIScore.networks.architectures.nn_UNet import UNet
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
+from POLARIScore.networks.architectures.nn_MultiNet import MultiNet
 
 class Recursive_UNet(BaseModule):
     def __init__(self,num_steps=5,**kwargs):

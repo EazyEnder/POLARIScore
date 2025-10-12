@@ -3,15 +3,14 @@ import sys
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from utils.physics_utils import PC_TO_CM
+from POLARIScore.utils.physics_utils import PC_TO_CM
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from ..config import *
-from ..utils import dictsToString
+from POLARIScore.config import *
 import matplotlib.pyplot as plt 
 import numpy as np
-from ..utils import *
+from POLARIScore.utils.utils import *
 from matplotlib.colors import LogNorm
 import torch
 import torch.nn.functional as F
@@ -19,7 +18,8 @@ from astropy.coordinates import SkyCoord, Angle
 from astropy.wcs.utils import pixel_to_skycoord, skycoord_to_pixel
 import astropy.units as u
 import re
-from .Dataset import getDataset
+from POLARIScore.networks.Trainer import Trainer
+from POLARIScore.objects.Dataset import getDataset
 from typing import Dict, List, Tuple, Union
 
 def _crop(wcs, lims):
@@ -56,11 +56,11 @@ class Observation():
     def init(self):
         file = fits.open(self.file)
         f = file[0]
-        self.data = f.data
+        self.data = np.clip(f.data*2.,a_min=0.,a_max=None) #Obs are in N_H2, models are trained on N_H
         self.wcs = WCS(f.header)
         file.close()
 
-    def predict(self, model_trainer, patch_size:Tuple[int,int]=(128, 128), nan_value:float=-1.0, overlap:float=0.5, downsample_factor:float=1., apply_baseline:bool=False)->np.ndarray:
+    def predict(self, model_trainer:'Trainer', patch_size:Tuple[int,int]=(128, 128), nan_value:float=-1.0, overlap:float=0.5, downsample_factor:float=1., apply_baseline:bool=False)->np.ndarray:
         """
         Predict a quantity by applying a model to an observation.
         Args:
@@ -74,16 +74,19 @@ class Observation():
             predicted_observation
         """
 
-        input_matrix = self.data*2. #Obs are in N_H2, models are trained on N_H
-        input_tensor = torch.tensor(input_matrix.astype(np.float32))
-        nan_mask = np.isnan(input_matrix)
+        input_matrix = self.data
+        nan_mask = np.isnan(input_matrix) | (input_matrix <= 0)
         if nan_value < 0:
-            nan_value = float(np.nanmin(self.data))
-        input_tensor[nan_mask] = nan_value
-
+            nan_value = float(np.nanmin(self.data[self.data>0]))
+        input_matrix[nan_mask] = nan_value
+        input_tensor = torch.tensor(input_matrix.astype(np.float32))
         downsampled_tensor = F.interpolate(input_tensor.unsqueeze(0).unsqueeze(0), 
                                        scale_factor=1.0/downsample_factor, 
                                        mode='bilinear', align_corners=True).squeeze(0).squeeze(0)
+        
+        downsampled_nan_mask = F.interpolate(torch.tensor(nan_mask.astype(np.float32)).unsqueeze(0).unsqueeze(0),
+                                               scale_factor=1.0 / downsample_factor,mode='nearest'
+                                               ).squeeze(0).squeeze(0).numpy().astype(bool)
 
         height, width = downsampled_tensor.shape
         patch_height, patch_width = patch_size
@@ -99,16 +102,18 @@ class Observation():
         for i0,i in enumerate(i_range):
             for j0,j in enumerate(j_range):
                 printProgressBar(i0*len(j_range)+j0,len(i_range)*len(j_range),prefix="Obs Pred")
-                patch = downsampled_tensor[i:i+patch_height, j:j+patch_width]
-                patch = patch.unsqueeze(0).unsqueeze(0)
-                
-                output_patch = model_trainer.predict_tensor(patch)
-                output_patch = output_patch.squeeze(0).squeeze(0) 
+                patch = downsampled_tensor[i:i+patch_height, j:j+patch_width].cpu().detach().numpy()
+                valid_patch_mask = downsampled_nan_mask[i:i + patch_height, j:j + patch_width]
 
+                if np.any(valid_patch_mask):
+                    continue
+                
+                #Work only for 1 output: col density
+                output_patch = model_trainer.predict_tensor(patch)[0]
                 if apply_baseline:
                     output_patch = model_trainer.apply_baseline(output_patch, log=False)
                 
-                output_tensor[i:i+patch_height, j:j+patch_width] += output_patch
+                output_tensor[i:i+patch_height, j:j+patch_width] += torch.from_numpy(output_patch)
                 count_tensor[i:i+patch_height, j:j+patch_width] += 1
 
         print("")
@@ -123,6 +128,25 @@ class Observation():
         self.prediction = output_matrix
 
         return output_matrix
+    
+    def find_scale(self, pc: float, px_size: int, distance_pc: float) -> float:
+        """
+        Compute the downsampling scale factor so that a region of `px_size` pixels 
+        corresponds to `pc` parsecs in width.
+        """
+
+        try:
+            pixscale_deg = np.abs(self.wcs.pixel_scale_matrix.diagonal()).mean()
+        except AttributeError:
+            cdelt = self.wcs.wcs.cdelt
+            pixscale_deg = np.mean(np.abs(cdelt))
+
+        pixscale_rad = np.deg2rad(pixscale_deg)
+        pc_per_pix = distance_pc * pixscale_rad
+        current_width_pc = px_size * pc_per_pix
+        scale = pc/current_width_pc
+
+        return scale
 
     def get_cores(self, force_compute:bool=False)->Union[List[Dict], None]:
         """
@@ -386,7 +410,7 @@ class Observation():
                 stds_obs.append(patch_std)
 
         ds = getDataset(dataset_name)
-        diagnostic = ds.save_diagnostic(channel="cdens").values()
+        diagnostic = ds.save_diagnostic(channels="cdens").values()
         means_ds = [d["mean"] for d in diagnostic]
         stds_ds = [d["std_log10"] for d in diagnostic]
 
@@ -491,7 +515,7 @@ class Observation():
         for i in range(len(derived_cores)):
             #if(derived_cores[i]['peak_ncol'] < 1e22):
             #    continue
-            derived_densities.append(derived_cores[i]['peak_n'])
+            derived_densities.append(derived_cores[i]['average_n'])
             derived_mass.append(derived_cores[i]['mass'])
             derived_radius.append(derived_cores[i]['radius_pc'])
 
@@ -510,18 +534,18 @@ class Observation():
         derived_dcmf, derived_bin_centers = _get_dcmf(derived_mass)
         ax.plot(10**derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="Konyves")
 
-        if(self.prediction):
-            #Use gaussian distribution to compute mass instead
-            predicted_densities = self._get_cores_predicted_values()
-            m_H = 1.67e-27  # kg
+        if(self.prediction is not None):
+            predicted_densities, _ = self._get_cores_predicted_values()
+            predicted_densities = 10**predicted_densities
+            m_H = 1.67e-24  # g
             mu = 1.4        # mean molecular weight for H (not H2)
             pc_to_cm = PC_TO_CM
-            Msun = 1.989e30 # kg
+            Msun = 1.989e33 # g
             predicted_masses = []
             for n, r_pc in zip(predicted_densities, derived_radius):
                 r_cm = r_pc * pc_to_cm
                 volume = (4/3) * np.pi * (r_cm**3)
-                mass = mu * m_H * n * volume
+                mass = mu * m_H *n* volume
                 mass_Msun = mass / Msun
                 predicted_masses.append(mass_Msun)
             predicted_masses = np.array(predicted_masses)
@@ -674,21 +698,22 @@ def script_data_and_figures(name,crop=None,suffix=None,save_fig=False,plot_cores
     from networks.Trainer import load_trainer
     obs.load()
     if obs.prediction is None:
-        trainer = load_trainer("UNet_highres_fingercrossed")
-        obs.predict(trainer,patch_size=(128,128), overlap=0., downsample_factor=1, apply_baseline=False)
+        trainer = load_trainer("UNet")
+        obs.predict(trainer,patch_size=(128,128), overlap=0.5, downsample_factor=4, nan_value=-1., apply_baseline=False)
         obs.save()
     fig, ax = obs.plot(obs.prediction,plot_cores=plot_cores,norm=LogNorm(vmin=normvol[0], vmax=normvol[1]),crop=crop, force_vol=True)
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_volumedensity{suff}.jpg")
     
-    from utils.batch_utils import plot_batch_correlation
+    """from POLARIScore.utils.batch_utils import plot_batch_correlation
     fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
     ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
     ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
     fig.tight_layout()
     if save_fig:
         fig.savefig(FIGURE_FOLDER+f"obs_{name.lower()}_correlation.jpg")
-
+    """
+        
     print(f"Max: {np.nanmax(obs.prediction)}, percentiles(10%,50%,90%,95%): {np.nanpercentile(obs.prediction,[10,50,90,95])}")
 
     if show:
@@ -700,19 +725,29 @@ if __name__ == "__main__":
 
     # Orion B cropped_regions
     #cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
-    #script_data_and_figures("OrionB", suffix="NGC2024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plot_cores=True)
+    #script_data_and_figures("OrionB", suffix="NGC20712068_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=True, plot_cores=True)
     #cropped_region = [Angle("5h42m56s").deg, Angle("5h40m28s").deg, Angle("-2d32m").deg, Angle("-1d28m").deg]
-    #script_data_and_figures("OrionB", suffix="NGC2023_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=False, plot_cores=True)
+    #script_data_and_figures("OrionB", suffix="NGC20232024_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=True, crop=cropped_region, show=True, plot_cores=True)
 
     #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plot_cores=False, show=True)
 
     #fig, ax = plt.subplots()
 
-    #script_data_and_figures(name="OrionB", show=True, save_fig=False)
-
-    obs = Observation('OrionB',"column_density_map")
-    #obs.plot(plot_cores=True)
-    #obs.plot_validity_with_model()
+    obs = Observation("OrionB","column_density_map")
+    from networks.Trainer import load_trainer
+    trainer = load_trainer("UNet")
+    #downsample_factor=obs.find_scale(3.3,128,400)
+    obs.predict(trainer,patch_size=(512,512), overlap=0.5, nan_value=-1., apply_baseline=True)
+    obs.save()
+    obs.load()
+    cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
+    script_data_and_figures("OrionB", suffix="NGC20712068_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region, show=True, plot_cores=True)
+    obs.plot_cores_error()
+    #obs.plot_dcmf(bins=10)
+    #obs.plot_cores_hist2d()
+    #obs.plot_cores_hist()
+    #obs.serialize_cores()
+    #obs.plot_validity_with_model("batch_highres", patch_size=(512,512))
     plt.show()
 
     """

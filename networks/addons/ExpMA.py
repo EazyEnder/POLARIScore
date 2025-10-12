@@ -2,6 +2,7 @@
 import copy
 import torch
 import torch.nn as nn
+from POLARIScore.config import LOGGER
 
 class ExponentialMovingAverage:
     """
@@ -18,6 +19,7 @@ class ExponentialMovingAverage:
 
     def register_model(self, model: nn.Module):
         """Initialize EMA parameters from the given model."""
+        LOGGER.log("EMA enabled on model")
         for param_name, param_tensor in model.named_parameters():
             if param_tensor.requires_grad:
                 self.ema_parameters[param_name] = param_tensor.detach().clone().to(param_tensor.device)

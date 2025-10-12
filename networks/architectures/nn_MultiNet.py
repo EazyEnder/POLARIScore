@@ -2,17 +2,17 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .nn_UNet import ConvBlock, GatedAttentionBlock
-from .nn_BaseModule import BaseModule
+from POLARIScore.networks.architectures.nn_UNet import ConvBlock, GatedAttentionBlock
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
 import numpy as np
 from kan import KAN
-from ..utils.fastkanconv import FastKANConvLayer
-from .nn_KNet import JustKAN
+from POLARIScore.networks.utils.fastkanconv import FastKANConvLayer
+from POLARIScore.networks.architectures.nn_KNet import JustKAN
 
 class MultiNet(BaseModule):
     def __init__(self, convBlock=ConvBlock, channel_dimensions=[2], channel_modes=[None] , num_layers=3, base_filters=32, attention = False, is3D=None):

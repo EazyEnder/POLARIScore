@@ -1,22 +1,23 @@
 import numpy as np
 from typing import Tuple, List, Union, Literal, Callable
-from ..config import LOGGER
-from .batch_utils import compute_smoothness
+from POLARIScore.config import LOGGER
+from POLARIScore.utils.batch_utils import compute_smoothness
 
 def count_nonan(matrix:np.ndarray)->int:
     """Returns the number of non nan in a matrix"""
     return np.count_nonzero(~np.isnan(matrix))
 
-def distance_to_center(matrix:np.ndarray)->int:
+def distance_to_center(matrix:np.ndarray)->np.ndarray:
     """Returns the distance to center of the matrix normalized between 0. to 1. where 1. is on center"""
     h, w = matrix.shape
     y, x = np.indices((h, w))    
     cy, cx = (h - 1) / 2.0, (w - 1) / 2.0    
     dist = np.sqrt((x - cx)**2 + (y - cy)**2)    
     dist_normalized = 1.0 - dist / dist.max()
+    print(dist_normalized)
     return dist_normalized
 
-def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:int, score_methods:Union[List[Callable[[np.ndarray],float]],Callable[[np.ndarray],float]]=[count_nonan,compute_smoothness,distance_to_center], method:Literal["order","mean"]="order")->Tuple[int,int,int,int]:
+def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:int, score_methods:Union[List[Callable[[np.ndarray],float]],Callable[[np.ndarray],float]]=[count_nonan], method:Literal["order","mean"]="order")->Tuple[int,int,int,int]:
     """
     Find the best context(matrix) for a region(matrix) in a large matrix (named canvas).
     The best matrix is choosen by finding the maximum of a score function.
@@ -32,9 +33,9 @@ def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:
 
     assert len(canvas.shape) == 2, LOGGER.error("Can't find context because canvas is not 2D (i.e not a matrix).")
 
-    assert region[2]-region[0]!=region[3]-region[1], LOGGER.error("Region need to be a square")
+    assert region[2]-region[0]==region[3]-region[1], LOGGER.error(f"Region need to be a square: ({region[2]-region[0]},{region[3]-region[1]})")
     region_size:int = region[2]-region[0]
-    assert context_size > region_size, LOGGER.error("Context size need to higher than the region size.")
+    assert context_size > region_size, LOGGER.error(f"Context size need to higher than the region size: (cont:{context_size},reg:{region_size})")
 
     if callable(score_methods):
         score_methods = [score_methods]
@@ -42,8 +43,8 @@ def find_context(canvas:np.ndarray, region:Tuple[int,int,int,int], context_size:
     steps = context_size-region_size
     scores = np.zeros((steps,steps,len(score_methods)))
 
-    for j in range(len(steps)):
-        for i in range(len(steps)):
+    for j in range(steps):
+        for i in range(steps):
             #if(all(scores[k] > 0 for k in scores)):
             #    continue
             x1 = max(region[0] - i, 0)

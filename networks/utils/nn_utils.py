@@ -38,9 +38,12 @@ def compute_accuracy(label:np.ndarray, pred:np.ndarray, sigma:float=.1, log10:bo
         label = np.log(label)/np.log(10)
     corrects = (np.abs(pred-label) <= sigma)
 
-    if bins is None or col_dens is None:
+    if bins is None:
         acc = corrects.sum() / (corrects.shape[0]*corrects.shape[1])
         return acc
+    
+    if(col_dens is None):
+        col_dens = label
     
     col_dens_flat = col_dens.flatten()
     corrects_flat = corrects.flatten()
@@ -51,7 +54,7 @@ def compute_accuracy(label:np.ndarray, pred:np.ndarray, sigma:float=.1, log10:bo
         if mask.sum() > 0:
             acc_bin = corrects_flat[mask].sum() / mask.sum()
         else:
-            acc_bin = 0.
+            acc_bin = 1.
         bin_acc.append(acc_bin)
 
     return bin_acc

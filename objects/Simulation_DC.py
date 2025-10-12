@@ -3,24 +3,23 @@ import sys
 if __name__ == "__main__":
     parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.append(parent_dir)
-from ..utils.utils import *
-from ..config import *
-from ..utils.physics_utils import PC_TO_CM
+from POLARIScore.utils.utils import *
+from POLARIScore.config import *
+from POLARIScore.utils.physics_utils import PC_TO_CM
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import json
 import inspect
-from ..utils.batch_utils import compute_img_score
-from ..utils.observation_utils import find_context
+from POLARIScore.utils.batch_utils import compute_img_score
+from POLARIScore.utils.observation_utils import find_context
 from astropy.io import fits
 from astropy import units as u
 import numpy as np
-from .SpectrumMap import getSimulationSpectra
-from .Dataset import Dataset
+from POLARIScore.objects.SpectrumMap import getSimulationSpectra
+from POLARIScore.objects.Dataset import Dataset
 from typing import Dict,List,Tuple,Callable,Union
 from matplotlib.widgets import Slider
 from scipy.ndimage import zoom
-
 
 class Simulation_DC():
     """
@@ -169,7 +168,7 @@ class Simulation_DC():
 
     def from_index_to_scale(self,index:int)->float:
         """Return the size in cm"""
-        return index*self.cell_size.value
+        return index*self.cell_size
 
     def _compute_c_density(self, method:Callable=compute_column_density, axis:int=0, force:bool=False)->np.ndarray:
         """
@@ -279,7 +278,7 @@ class Simulation_DC():
             s = img_size
             if type(size) is list:
                 size = np.min(size) + np.random.random()*(np.max(size)-np.min(size))
-            s = max(convert_pc_to_index(size, self.nres, self.size, start=self.axis[0][0]), img_size)
+            s = max(convert_pc_to_index(size, self.nres, self.size), img_size)
             size = self.from_index_to_scale(s)/PC_TO_CM
 
 
@@ -325,6 +324,11 @@ class Simulation_DC():
 
             k = np.random.choice([0, 1, 2, 3])
             b = [_process_img(c_dens,k),_process_img(v_dens,k)]
+
+            score = compute_img_score(b[0],b[1])
+            if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
+                continue
+
             if flag_cospectra:
                 b.append(_process_img(co_spec,k))
 
@@ -347,10 +351,10 @@ class Simulation_DC():
 
             if flag_context:
                 assert column_density[face].shape[0]//s, LOGGER.error("Datacube dimension need to be divisible by size asked to generate context.")
-                context_size = what_to_compute["context"] if type(what_to_compute["context"]) is float else size
+                context_size = what_to_compute["context"] if type(what_to_compute["context"]) is float or type(what_to_compute["context"]) is int else size
                 if(context_size < size*2):
                     context_size = size*2
-                context_size_idx = convert_pc_to_index(context_size, self.nres,self.size,start=self.axis[0][0])
+                context_size_idx = convert_pc_to_index(context_size, self.nres,self.size)
                 context_cdens = column_density[face].copy()
                 context_x1,context_y1,context_x2,context_y2 = find_context(canvas=context_cdens, region=(start_x,start_y,end_x,end_y), context_size=context_size_idx)
                 #crop to context
@@ -364,10 +368,6 @@ class Simulation_DC():
 
             if flag_physize:
                 b.append(np.array([size]))
-
-            score = compute_img_score(b[0],b[1])
-            if(np.random.random() > RANDOM_BATCH_SCORE_fct(score[0])):
-                continue
 
             ds.data['physical_size'].append(size)
             ds.save_batch(b, img_generated)
@@ -643,16 +643,16 @@ def openSimulation(name_root:str, global_size:float, use_cache:bool=True)->Simul
     LOGGER.log(f"Opening {len(files)} simulations")
     names = [f.split("/")[-1] for f in files]
     sims = []
-    if use_cache and os.path.exists(CACHES_FOLDER+"np_memory"):
-        LOGGER.log("Merge using cached data")
+    if use_cache and os.path.exists(CACHES_FOLDER+"sim_memory"):
+        LOGGER.log("Merged using cached data")
         sim = Simulation_DC(names[0], global_size, init=True)
         sim_len = int(len(names)**(1/3))
-        sim.data = np.memmap(CACHES_FOLDER+"np_memory", dtype='float32', mode='r', shape=(sim.data.shape[0]*sim_len,sim.data.shape[1]*sim_len,sim.data.shape[2]*sim_len))
+        sim.data = np.memmap(CACHES_FOLDER+"sim_memory", dtype='float32', mode='r', shape=(sim.data.shape[0]*sim_len,sim.data.shape[1]*sim_len,sim.data.shape[2]*sim_len))
         sim.nres = sim.nres*sim_len
         sim.relative_size = sim.relative_size*sim_len
         sim.center = np.array([0.5,0.5,0.5])
         sim.cell_size = (sim.global_size*sim.relative_size/sim.nres) * u.parsec
-        sim.cell_size = sim.cell_size.to(u.cm)
+        sim.cell_size = sim.cell_size.to(u.cm).value
         sim.size = sim.global_size*sim.relative_size
         sim.axis = ([sim.center[0]*sim.global_size-sim.size/2,sim.center[0]*sim.global_size+sim.size/2],[sim.center[1]*sim.global_size-sim.size/2,sim.center[1]*sim.global_size+sim.size/2],[sim.center[2]*sim.global_size-sim.size/2,sim.center[2]*sim.global_size+sim.size/2])  
         return sim
@@ -667,10 +667,11 @@ def openSimulation(name_root:str, global_size:float, use_cache:bool=True)->Simul
     return sim
 
 if __name__ == "__main__":
-    sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
-    sim.init(loadTemp=True, loadVel=True)
-    #sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
-    sim.plotSlice(axis=2, enable_slider=True)
+    #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=True)
+    #sim.init(loadTemp=True, loadVel=True)
+    sim = openSimulation("orionMHD_lowB_multi", global_size=66.0948)
+    #sim.plotSlice(axis=2, enable_slider=True)
+    sim.generate_batch(name="highres_2",number=1000,what_to_compute={"cospectra":False, "density":False,"context":10})
     #sim.plot(derivate=2, axis=0)
     #plt.figure()
     #sim.plot_correlation(method=compute_mass_weighted_density, contour_levels=3)

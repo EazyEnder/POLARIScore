@@ -11,21 +11,22 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .architectures.nn_BaseModule import BaseModule
-from ..utils.batch_utils import *
-from ..config import *
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
+from POLARIScore.utils.batch_utils import *
+from POLARIScore.config import *
 import uuid
 from . import *
-from .architectures.nn_UNet import *
-from .architectures.nn_CAUNet import ContextAwareUNet
-from .architectures.nn_FCN import FCN
-from .architectures.nn_MultiNet import MultiNet
-from .architectures.nn_PPV import PPV, Test
-from .architectures.nn_KNet import *
-from .utils.nn_utils import compute_batch_accuracy
-from ..utils.utils import moving_average, applyBaseline
+from POLARIScore.networks.architectures.nn_UNet import *
+from POLARIScore.networks.architectures.nn_CAUNet import ContextAwareUNet
+from POLARIScore.networks.architectures.nn_FCN import FCN
+from POLARIScore.networks.architectures.nn_MultiNet import MultiNet
+from POLARIScore.networks.architectures.nn_PPV import PPV, Test
+from POLARIScore.networks.architectures.nn_KNet import *
+from POLARIScore.networks.utils.nn_utils import compute_batch_accuracy
+from POLARIScore.utils.utils import moving_average, applyBaseline
+from POLARIScore.networks.addons.ExpMA import ExponentialMovingAverage
 import json
-from ..objects.Dataset import getDataset, Dataset
+from POLARIScore.objects.Dataset import getDataset, Dataset
 import shutil
 from typing import List, Dict, Union, Tuple, Callable
 
@@ -104,6 +105,13 @@ class Trainer():
         self.cache_threshold:float = 2.
         """If validation error is lower that this value and if cache option is enable then the model is saved as 'cache_model'
         (and each time the validation error is lower than the previous minimum)."""
+
+        self.ema:bool = False
+        """Enable Exponential Moving Average for model weights"""
+        self.ema_handler:Union[ExponentialMovingAverage,None] = None
+        """Handler of Expoential Moving Average if enabled"""
+        self.ema_warmup:int = 200
+        """Ema warmup, number of epochs before ema begins"""
         
         self.baseline:Tuple[List[float],List[float]] = None
         """Baseline : (...predictions, ...residuals)"""
@@ -221,6 +229,12 @@ class Trainer():
                 loss.backward()
                 epoch_loss += loss.item()
             self.optimizer.step()
+            if self.ema:
+                if total_epoch > self.ema_warmup:
+                    if(self.ema_handler is None):
+                        self.ema_handler = ExponentialMovingAverage()
+                        self.ema_handler.register_model(self.model)
+                    self.ema_handler.update(self.model)
             epoch_loss /= minbatch_nbr if minbatch_nbr != 0 else 1 
             self.scheduler.step(epoch_loss)
             self.training_losses.append((total_epoch, epoch_loss))
@@ -230,6 +244,7 @@ class Trainer():
                 with torch.no_grad():
                     #self.model.eval()
                     val_total_loss = 0
+                    eval_model = self._get_eval_model(epoch=total_epoch)
                     for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
                         printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
                         used_batch = self.validation_set.get(indexes=list(range(len(self.validation_set.batch)))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
@@ -239,7 +254,7 @@ class Trainer():
                                                                                 target_names=self.target_names, input_names=self.input_names, norms=self.norms)
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
-                        validation_output = self.model(*v_input_tensor)
+                        validation_output = eval_model(*v_input_tensor)
                         v_loss = 0
                         try:
                             v_loss = self.loss_method(validation_output,v_target_tensor).item()
@@ -268,6 +283,15 @@ class Trainer():
             
         self.last_epoch = total_epoch
         self.learning_rate = self.scheduler.get_last_lr()[0]
+
+    def _get_eval_model(self, epoch:Union[int, None]=None):
+        if self.ema and self.ema_handler is not None and (epoch is None or epoch > self.ema_warmup):
+            ema_model =self.ema_handler.copy_ema_model(self.model)
+            ema_model.eval()
+            eval_model = ema_model
+        else:
+            eval_model = self.model
+        return eval_model
 
     def create_baseline(self,n:int=1000, force_compute:bool=False, log:bool=True)->Tuple[List[float],List[float]]:
         """
@@ -465,7 +489,7 @@ class Trainer():
         batch_size = len(dataset.batch)
         minbatch_nbr = int(np.floor(batch_size/batch_number))
         for b in range(minbatch_nbr if minbatch_nbr > 1 else 1):
-            printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
+            #printProgressBar(b, minbatch_nbr, length=10, prefix=f"{b}/{minbatch_nbr}")
             used_batch = dataset.get(indexes=list(range(batch_size))[b*batch_number:(b+1)*batch_number if minbatch_nbr > 1 else -1])
             if batch_number == 1:
                 used_batch = [used_batch]
@@ -475,18 +499,18 @@ class Trainer():
                 input_tensor = [input_tensor]
             if not(type(target_tensor) is list):
                 target_tensor = [target_tensor]
-            output = self.model(*input_tensor)
+            output = self._get_eval_model()(*input_tensor)
             target_tensor = [self.model.shape_tensor(t, reverse=True, name=self.target_names[ti], norms=self.norms) for ti,t in enumerate(target_tensor)] 
             output = output if type(output) is list else [output]
             output = [self.model.shape_tensor(o, reverse=True, name=self.target_names[oi], norms=self.norms) for oi,o in enumerate(output)]
-            for i in range(len(target_tensor[0])):
-                l1 = [target_tensor[j][i] for j in len(target_tensor)]
-                l2 = [output[j][i] for j in len(output)]
+            for i in range(len(target_tensor)):
+                l1 = target_tensor[i]
+                l2 = output[i]
                 result_batch.append((l1,l2))
 
         return result_batch
     
-    def predict_tensor(self, inputs:Union[np.ndarray,List[np.ndarray]], input_names:Union[str,List[str],None]=None, output_names:Union[str,List[str],None]=None):
+    def predict_tensor(self, inputs:Union[np.ndarray,List[np.ndarray]], input_names:Union[str,List[str],None]=None, output_names:Union[str,List[str],None]=None, return_tensor:bool=False):
         """
         Apply a model to inputs
         Args:
@@ -501,8 +525,10 @@ class Trainer():
 
         inputs = inputs if type(inputs) is list else [inputs]
         input_tensors = [self.model.shape_tensor(inputs[i], name=input_names[i] if input_names else None) for i in range(len(inputs))]
-        outputs = self.model(*input_tensors)
+        outputs = self._get_eval_model()(*input_tensors)
         outputs = outputs if type(outputs) is list else [outputs]
+        if return_tensor:
+            return outputs
         return [self.model.shape_tensor(outputs[i], name=output_names[i] if output_names else None, reverse=True) for i in range(len(outputs))]
 
     def plot_sim_validation(self, simulation, plot_total=False, save=False):
@@ -599,10 +625,10 @@ class Trainer():
         plt.suptitle(self.model_name)
         
         ax1 = plt.subplot(2,2,1)
-        self.plot_prediction_correlation(ax=ax1, save=save)
+        self.plot_prediction_correlation(ax=ax1, save=False)
 
         ax2 = plt.subplot(2,2,2)
-        self. plot_residuals(ax=ax2, save=save)
+        self. plot_residuals(ax=ax2, save=False)
 
         ax3 = plt.subplot(2,2,3)
         self.plot_losses(ax=ax3, save=save)
@@ -655,6 +681,9 @@ class Trainer():
             return
         
         torch.save(self.model.state_dict(),os.path.join(model_path,model_name+".pth"))
+        if self.ema and self.ema_handler is not None:
+            ema_path = os.path.join(model_path, f"{model_name}_ema.pth")
+            torch.save(self.ema_handler.state_dict(), ema_path)
 
         loss_method_name = ""
         try:
@@ -708,9 +737,15 @@ def load_trainer(model_name, load_model=True):
     
     trainer = Trainer(model_name=settings["model_name"])
     if "training_set" in settings and not(settings["training_set"] is None):
-        trainer.training_set = getDataset(settings["training_set"])
+        try:
+            trainer.training_set = getDataset(settings["training_set"])
+        except Exception as e:
+            LOGGER.warn(f"Couldn't load training set: {e}")
     if "validation_set" in settings and not(settings["validation_set"] is None):
-        trainer.validation_set = getDataset(settings["validation_set"])
+        try:
+            trainer.validation_set = getDataset(settings["validation_set"])
+        except Exception as e:
+            LOGGER.warn(f"Couldn't load validation set: {e}")
 
     network_options = NETWORK_OPTIONS
     network_convblock_options = CONVBLOCK_OPTIONS
@@ -727,8 +762,11 @@ def load_trainer(model_name, load_model=True):
     trainer.validation_losses = settings["validation_losses"]
     trainer.input_names = settings["input_names"] if "input_names" in settings else ["cdens"]
     trainer.target_names = settings["target_names"] if "target_names" in settings else (settings["target_name"] if "target_name" in settings else "vdens")
-
     trainer.optimizer_name = settings["optimizer"]
+
+    ema_state_path = os.path.join(model_path, f"{folder_model_name}_ema.pth")
+    if os.path.exists(ema_state_path):
+        trainer.ema = True
 
     if load_model:
         model = trainer.network(**trainer.network_settings)
@@ -742,6 +780,12 @@ def load_trainer(model_name, load_model=True):
                 model.load_state_dict(torch.load(os.path.join(model_path,trainer.model_name+f"_epoch{trainer.last_epoch}.pth"), map_location=trainer.device))
         model.to(trainer.device)
         trainer.init(model=model)
+        if os.path.exists(ema_state_path):
+            if(trainer.ema_handler is None):
+                trainer.ema_handler = ExponentialMovingAverage()
+                trainer.ema_handler.register_model(trainer.model)
+            trainer.ema_handler.load_state_dict(torch.load(ema_state_path, map_location=trainer.device))
+            LOGGER.log(f"EMA state loaded for {model_name}.")
 
     LOGGER.log(f"{model_name} loaded")
 
@@ -799,32 +843,75 @@ def plot_models_residuals_extended(trainers = []):
     plt.tight_layout()
     return fig, ax
 
-def plot_models_accuracy(trainers = [], ax = None, sigmas = (0.,1.,20), show_errors = False):
+def plot_models_accuracy(trainers=[], ax=None, sigmas=(0., 1., 20), show_errors=False, bins=None, dens=None, use_linestyles=False):
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
 
+    sigmas = np.linspace(sigmas[0], sigmas[1], sigmas[2])
     colors = FIGURE_CMAP(np.linspace(FIGURE_CMAP_MIN, FIGURE_CMAP_MAX, len(trainers)))
-    ax = plt.subplot(1,1,1)
-    sigmas = np.linspace(sigmas[0],sigmas[1],sigmas[2])
-    for i,t in enumerate(trainers):
-        accuracies = []
-        accuracies_error = []
-        for s in sigmas:
-            acc_mean, acc_std = compute_batch_accuracy(t.get_prediction_batch(),sigma=s)
-            accuracies.append(acc_mean)
-            accuracies_error.append(acc_std)
-        accuracies = np.array(accuracies)
-        accuracies_error = np.array(accuracies_error)
-        if show_errors:
-            ax.fill_between(sigmas,np.clip(accuracies-accuracies_error,0.,1.),np.clip(accuracies+accuracies_error,0.,1.), color=colors[i], alpha=0.2)
-        ax.scatter(sigmas, accuracies, color=colors[i], label=t.model_name)
-        #ax.errorbar(sigmas, accuracies, yerr=accuracies_error, color=colors[i])
-        ax.plot(sigmas, accuracies, color=colors[i])
+    linestyles = ['-', '--', '-.', ':']  # line styles to cycle through
+
+    for i, t in enumerate(trainers):
+        if bins is None:
+            accuracies, accuracies_error = [], []
+            for s in sigmas:
+                acc_mean, acc_std = compute_batch_accuracy(t.get_prediction_batch(), sigma=s, bins=None, col_dens=dens)
+                accuracies.append(acc_mean)
+                accuracies_error.append(acc_std)
+            accuracies = np.array(accuracies)
+            accuracies_error = np.array(accuracies_error)
+
+            style = linestyles[i % len(linestyles)] if use_linestyles else '-'
+            color = 'black' if use_linestyles else colors[i]
+
+            if show_errors:
+                ax.fill_between(
+                    sigmas,
+                    np.clip(accuracies - accuracies_error, 0., 1.),
+                    np.clip(accuracies + accuracies_error, 0., 1.),
+                    color=color,
+                    alpha=0.15 if use_linestyles else 0.2
+                )
+            ax.plot(sigmas, accuracies, linestyle=style, color=color, label=t.model_name)
+            ax.scatter(sigmas, accuracies, color=color, s=15)
+
+        else:
+            # Multiple bins per trainer
+            all_bin_means, all_bin_stds = [], []
+            for s in sigmas:
+                result = compute_batch_accuracy(t.get_prediction_batch(), sigma=s, bins=bins, col_dens=dens)
+                means = [r[0] for r in result]
+                stds = [r[1] for r in result]
+                all_bin_means.append(means)
+                all_bin_stds.append(stds)
+
+            all_bin_means = np.array(all_bin_means)
+            all_bin_stds = np.array(all_bin_stds)
+            n_bins = all_bin_means.shape[1]
+
+            for b in range(n_bins):
+                acc_mean = all_bin_means[:, b]
+                acc_std = all_bin_stds[:, b]
+                style = linestyles[b % len(linestyles)] if use_linestyles else '-'
+                color = 'black' if use_linestyles else plt.cm.viridis(b / (n_bins - 1))
+                label = f"{t.model_name} - bin {b+1}"
+
+                if show_errors:
+                    ax.fill_between(
+                        sigmas,
+                        np.clip(acc_mean - acc_std, 0., 1.),
+                        np.clip(acc_mean + acc_std, 0., 1.),
+                        color=color,
+                        alpha=0.1 if use_linestyles else 0.15
+                    )
+                ax.plot(sigmas, acc_mean, linestyle=style, color=color, label=label)
+                ax.scatter(sigmas, acc_mean, color=color, s=15)
+
     ax.set_xlabel("Error allowed (in log10)")
     ax.set_ylabel("Accuracy")
-    plt.legend()
+    ax.legend(fontsize=8)
     plt.tight_layout()
 
     return fig, ax
@@ -1021,18 +1108,6 @@ if __name__ == "__main__":
             if flag:
                 loss += 0.1* torch.mean((column_y_true - column_y_pred)**2)
             return loss
-        
-    def batch_loss(output, target):
-        per_image_loss = torch.mean((output - target) ** 2, dim=[1, 2, 3])
-        weights = per_image_loss / (torch.max(per_image_loss) + 1e-6)
-        weighted_loss = torch.sum(per_image_loss * weights)
-        return torch.sum(weighted_loss)
-
-    def column_density_loss(output, target):
-        
-        loss = torch.mean(torch.log(torch.abs(torch.sum(torch.exp(output), dim=4)-torch.sum(torch.exp(target), dim=4))+1)**2)   
-
-        return loss
     
     def MSELoss2outputs(output, target):
         o1 = output[0]
@@ -1041,41 +1116,32 @@ if __name__ == "__main__":
         t2 = target[1]
         return torch.mean((o1 - t1) ** 2)+0.1*torch.mean((o2 - t2) ** 2)
     
-    ds = getDataset("batch_orionMHD_lowB_0.39_512_13CO_max")
+    ds = getDataset("batch_highres_2")
     #ds = ds.downsample(channel_names=["cospectra"], target_depths=[128], methods=["mean"])
-    ds1, ds2 = ds.split(cutoff=0.7)
+    ds1, ds2 = ds.split(cutoff=0.8)
 
-    trainer = Trainer(ContextAwareUNet, ds1, ds2, model_name="ContextAwareUNet")
+
+    trainer = Trainer(UneK, ds1, ds2, model_name="UneK")
     #trainer.norms = {
     #    "cdens": DATA_NORMALIZATION_CDENS,
     #    "vdens": DATA_NORMALIZATION_VDENS,
     #}
-    trainer.training_set = ds1
-    trainer.validation_set = ds2
-    trainer.network_settings["base_filters"] = 64
-    trainer.network_settings["num_layers"] = 4
-    trainer.training_random_transform = False
-    trainer.optimizer_name = "Adam"
-    trainer.target_names = ["vdens"]
-    trainer.input_names = ["cdens","cdens_context"]
-    trainer.init()
-    trainer.train(1500,batch_number=16,compute_validation=10)
-    trainer.save()
-    trainer.plot(save=True)
-    trainer.plot_validation(save=True)
-    #plot_models_accuracy([trainer,trainer2])
-
-    #lis = ["MultiNet_13CO_max","MultiNet_13CO_max_proj","MultiNet_13CO_max_moments","MultiNet_13CO_max_wout"]
-    #ts = [load_trainer(l) for l in lis]
-    #for t in ts:
-    #    t.model_name = t.model_name.replace("_max","")
-    #fig, ax = plot_models_accuracy(ts, show_errors=True)
-    #fig2, ax2, _ = plot_models_residuals(ts)
-
-    #trainer = load_trainer("UneK_highres_fingercrossed")
-    #fig, ax=  trainer.plot_residuals()
-    #fig.savefig(os.path.join(FIGURE_FOLDER,"unek_residuals_notfitted.jpg"))    
-
+    #trainer = load_trainer("cached_model")
+    #trainer.training_set = ds1
+    #trainer.validation_set = ds2
+    #trainer.network_settings["base_filters"] = 64
+    #trainer.network_settings["num_layers"] = 4
+    #trainer.network_settings["convBlock"] = DoubleConvBlock
+    #trainer.training_random_transform = True
+    #trainer.optimizer_name = "Adam"
+    #trainer.target_names = ["vdens"]
+    #trainer.input_names = ["cdens"]
+    #trainer.init()
+    #trainer.train(1000,batch_number=4,compute_validation=10)
+    #trainer.save()
+    #trainer.plot(save=True)
+    #trainer.plot_validation(save=True)
+    #plot_models_accuracy([load_trainer("UneK"),load_trainer("UNet")], sigmas=(0,1,20), bins=[0,2,4,8], use_linestyles=True) 
 
     """How to create and use baseline on a model
     #trainer = load_trainer("UneK_highres_fingercrossed")  

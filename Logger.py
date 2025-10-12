@@ -1,4 +1,4 @@
-from .config import EXPORT_FOLDER
+from POLARIScore.config import EXPORT_FOLDER
 import os
 from datetime import datetime
 from typing import List

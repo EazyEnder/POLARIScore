@@ -1,10 +1,11 @@
 import uuid
 import os
 import sys
+import re
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ..config import *
-from ..utils import plot_lines
+from POLARIScore.config import *
+from POLARIScore.utils.utils import plot_lines
 import json
 import glob
 import matplotlib.pyplot as plt
@@ -14,6 +15,7 @@ from matplotlib.widgets import Slider
 from typing import Dict, List, Union, Tuple, Literal
 import ast
 import re
+from POLARIScore.utils.utils import NumpyEncoder, numpy_decoder
 
 BATCH_CAN_CONTAINS = ["cdens","vdens","cospectra","density","cdens_context","physize"]
 """ 
@@ -27,7 +29,7 @@ Contains:
 """
 
 def _formate_name(name:str):
-    return name.split("_")[-1]
+    return name
 
 def _open_batch(batch_name:str):
     assert os.path.exists(TRAINING_BATCH_FOLDER), LOGGER.error(f"Can't open batch {batch_name}, no folder exists.")
@@ -39,8 +41,7 @@ def _open_batch(batch_name:str):
     imgs = [[] for _ in range(len(np.unique([int(f.split("_")[0]) for f in files])))]
     order = []
     for bc in BATCH_CAN_CONTAINS:
-        pot_files = [f for f in files if bc == f.split(".")[0].split("_")[-1]]
-
+        pot_files = [f for f in files if bc == f.split(".")[0].split("_", 1)[1]]
         if len(pot_files) <= 0 :
             continue
 
@@ -127,10 +128,10 @@ class Dataset():
 
         settings = {}
         with open(os.path.join( os.path.join(TRAINING_BATCH_FOLDER,name),'settings.json')) as file:
-            settings = json.load(file)
+            settings = json.load(file, object_hook=numpy_decoder)
 
         if "areas_explored" in settings:
-            self.settings["areas_explored"] = eval(settings["areas_explored"].replace('array', 'np.array'))
+            self.settings["areas_explored"] = eval(settings["areas_explored"].replace('array', 'np.array')) if type(settings["areas_explored"]) is str else settings["areas_explored"]
         if "img_size" in settings:
             self.settings["img_size"] = settings["img_size"]
 
@@ -196,6 +197,8 @@ class Dataset():
                     dic2[k] = v
             return (dic1, dic2)
         b1_settings, b2_settings = split_dict(self.settings)
+        b1_settings["order"] = self.settings["order"]
+        b2_settings["order"] = self.settings["order"]
         b1_data, b2_data = split_dict(self.data)
                     
         b1 = Dataset()
@@ -316,7 +319,7 @@ class Dataset():
         if not(os.path.exists(batch_path)):
             os.mkdir(batch_path)
         with open(os.path.join(batch_path,'settings.json'), 'w') as file:
-            json.dump(self.settings, file, indent=4)
+            json.dump(self.settings, file, indent=4, cls=NumpyEncoder)
 
     def save_data(self):
         if not(os.path.exists(TRAINING_BATCH_FOLDER)):
@@ -325,7 +328,7 @@ class Dataset():
         if not(os.path.exists(batch_path)):
             os.mkdir(batch_path)
         with open(os.path.join(batch_path,'data.json'), 'w') as file:
-            json.dump(self.data, file, indent=4)
+            json.dump(self.data, file, indent=4, cls=NumpyEncoder)
     
     def save_diagnostic(self,channels:Union[str,List[str],None]='cdens')->Dict:
         """
@@ -340,6 +343,7 @@ class Dataset():
 
         batch = self.get()
         map_indexes = self.get_element_index(channels)
+        map_indexes = map_indexes if type(map_indexes) is list else [map_indexes]
         result_dicts = {}
         for i,b in enumerate(batch):
             temp_dict = {"index": i}
@@ -347,11 +351,11 @@ class Dataset():
                 data = np.array(b[map_index]).flatten()
                 stats = {
                     "type": channels[j],
-                    "mean": np.mean(data),
-                    "std_log10": np.std(np.log10(data)),
-                    "min": np.min(data),
-                    "max": np.max(data),
-                    "median": np.median(data),
+                    "mean": float(np.mean(data)),
+                    "std_log10": float(np.std(np.log10(data))),
+                    "min": float(np.min(data)),
+                    "max": float(np.max(data)),
+                    "median": float(np.median(data)),
                 }
                 if len(channels) == 1:
                     temp_dict.update(stats)
@@ -368,8 +372,9 @@ class Dataset():
         if os.path.exists(path):
             LOGGER.warn(f"Previous diagnostic file was removed for dataset {self.name}.")
             os.remove(path)
+        print(result_dicts)
         with open(path, "w") as file:
-            json.dump(result_dicts, file, indent=4)
+            json.dump(result_dicts, file, indent=4, cls=NumpyEncoder)
         LOGGER.log(f"Diagnostic of {self.name} saved to {path}.")
 
         return result_dicts
@@ -641,7 +646,7 @@ class Dataset():
 
 if __name__ == "__main__":
 
-    #from objects.Simulation_DC import Simulation_DC
+    #from POLARIScore.objects.Simulation_DC import Simulation_DC
     #sim = Simulation_DC(name="orionMHD_lowB_0.39_512", global_size=66.0948, init=False)
     #sim.init(loadTemp=True, loadVel=True)
     #sim.plot(axis=1)

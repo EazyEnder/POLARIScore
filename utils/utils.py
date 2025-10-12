@@ -13,7 +13,7 @@ try:
     gputil_available = True
 except ImportError:
     gputil_available = False
-from ..config import LOGGER
+from POLARIScore.config import LOGGER
 
 def convert_pc_to_index(pc:float,nres:int,size:float,start:float=0.)->int:
     """
@@ -257,3 +257,27 @@ def get_system_info():
     }
 
     return system_info
+
+import json
+import numpy as np
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return {
+                "__ndarray__": True,
+                "dtype": str(obj.dtype),
+                "shape": obj.shape,
+                "data": obj.tolist(),
+            }
+        elif isinstance(obj, (np.integer, np.int32, np.int64)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float32, np.float64)):
+            return float(obj)
+        else:
+            return super().default(obj)
+
+def numpy_decoder(obj):
+    if "__ndarray__" in obj:
+        return np.array(obj["data"], dtype=obj["dtype"]).reshape(obj["shape"])
+    return obj

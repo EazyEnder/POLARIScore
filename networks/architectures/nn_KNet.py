@@ -1,15 +1,15 @@
 import os
 import sys
 
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..utils.fastkanconv import FastKANConvLayer
-from .nn_UNet import ConvBlock, UNet
-from .nn_BaseModule import BaseModule
+from POLARIScore.networks.utils.fastkanconv import FastKANConvLayer
+from POLARIScore.networks.architectures.nn_UNet import ConvBlock, UNet
+from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
 
     
 class KanConvBlock(nn.Module):

@@ -5,7 +5,7 @@ import os
 import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
-from ...config import LOGGER
+from POLARIScore.config import LOGGER
 from typing import Union, List
 
 class BaseModule(nn.Module):
@@ -22,16 +22,28 @@ class BaseModule(nn.Module):
         """
 
         if reverse:
-            tensor = tensor.cpu().detach().numpy()
+            tensor = tensor.squeeze(0).squeeze(0).cpu().detach().numpy()
 
         if name is not None and 'norms' in args and name in args['norms']:
             tensor = args['norms'][name][0 if not(reverse) else 1](tensor)
         else:
-            tensor = np.log(1.+tensor) if not(reverse) else np.exp(tensor)-1.
+            tensor = np.log(1.+np.clip(tensor, a_min=0, a_max=None)) if not(reverse) else np.exp(tensor)-1.
+        
+        if(reverse):
+            np.clip(tensor,a_min=1.,a_max=None)
+        if(np.isinf(tensor).any()):
+            tensor = np.zeros_like(tensor)+1
             
         if reverse:
             return tensor
-        return torch.from_numpy(tensor).float().unsqueeze(1).to(self.device)
+        
+        rslt = torch.from_numpy(tensor).float()
+        #TODO adapt to 3D tensors (B,C,H,W,D)
+        if(len(tensor.shape)==2):
+            rslt = rslt.unsqueeze(0)
+        if len(tensor.shape)<4:
+            rslt = rslt.unsqueeze(1)
+        return rslt.to(self.device)
 
     def shape_batch(self, batch, target_indexes:Union[int,List[int]]=[], input_indexes:Union[int, List[int]]=[], target_names:Union[str,List[str],None]=None, input_names:Union[str,List[str],None]=None, **args):
         """
