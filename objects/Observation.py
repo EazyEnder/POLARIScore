@@ -3,10 +3,7 @@ import sys
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from POLARIScore.utils.physics_utils import PC_TO_CM
-if __name__ == "__main__":
-    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    sys.path.append(parent_dir)
+from POLARIScore.utils.physics_utils import PC_TO_CM, plot_lognorm, plot_imf_chabrier, dcmf_func, CONVERT_NH_TO_EXTINCTION
 from POLARIScore.config import *
 import matplotlib.pyplot as plt 
 import numpy as np
@@ -21,6 +18,9 @@ import re
 from POLARIScore.networks.Trainer import Trainer
 from POLARIScore.objects.Dataset import getDataset
 from typing import Dict, List, Tuple, Union
+from scipy.stats import lognorm
+from scipy.optimize import curve_fit
+from POLARIScore.scripts.plotORIONsimDCMF import plot_sim_dcmf
 
 def _crop(wcs, lims):
     ra_min, ra_max, dec_min, dec_max = lims
@@ -224,7 +224,7 @@ class Observation():
                     "peak_n": float(properties[13+offset_index])*1e4*2,
                     "average_n": float(properties[14+offset_index])*1e4*2,
                     "mass": float(properties[6+offset_index]),
-                    "radius_pc": float(properties[4+offset_index]),
+                    "radius_pc": float(properties[5+offset_index]),
                     "comment": properties[18+offset_index] if len(properties) > (18+offset_index) else "" 
                 }
 
@@ -474,7 +474,7 @@ class Observation():
         ax.hist(predicted_densities, bins=10, alpha=0.5, label="Predicted Densities")
         ax.hist(derived_densities, bins=10, alpha=0.5, label="Derived Densities")
         
-        ax.set_xlabel("$\log_{10}(n_H) [cm^{-3}]$")
+        ax.set_xlabel(r"$\log_{10}(n_H) [cm^{-3}]$")
 
         ax.legend()
 
@@ -501,66 +501,103 @@ class Observation():
 
         return fig, ax
 
-    def plot_dcmf(self, ax=None, bins=10):
+    def plot_dcmf(self, ax=None, bins:int=10, ext_lims:Tuple[Union[float,None],Union[float,None]]=[None,None]):
         """
         Plot the dense core mass function
         Args:
             ax: matplotlib axis
             bins: number of bins in the DCMF
+            ext_lims: Choose only the dense cores between the two extinctions Av given.
         """
+
+        if ext_lims[0] is None:
+            ext_lims[0] = 0.
+        if ext_lims[1] is None:
+            ext_lims[1] = 1000.
+
         derived_cores = self.get_cores()
-        derived_densities = []
-        derived_mass = []
+        predicted_densities = np.array(self.get_predicted_density_at_cores(), dtype=np.float64)
+        derived_densities =  np.array([c["average_n"] for c in self.get_cores()], dtype=np.float64)
+        mask = (~np.isnan(predicted_densities)) & (predicted_densities > 0) & (derived_densities > 0)
+
+        extinctions = []
         derived_radius = []
         for i in range(len(derived_cores)):
-            #if(derived_cores[i]['peak_ncol'] < 1e22):
-            #    continue
-            derived_densities.append(derived_cores[i]['average_n'])
-            derived_mass.append(derived_cores[i]['mass'])
+            extinctions.append(CONVERT_NH_TO_EXTINCTION(derived_cores[i]['peak_ncol']))
             derived_radius.append(derived_cores[i]['radius_pc'])
+        extinctions = np.array(extinctions)[mask]
+        derived_radius = np.array(derived_radius, dtype=np.float64)[mask]
+        predicted_densities = predicted_densities[mask]
+        derived_densities = derived_densities[mask]
 
         def _get_dcmf(masses:np.ndarray):
-            logM = np.log10(masses)
+            logM = np.log10(masses[(extinctions >= ext_lims[0]) & (extinctions <= ext_lims[1])])
             hist, bin_edges = np.histogram(logM, bins=bins)
             bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
             dcmf = hist / (bin_edges[1:] - bin_edges[:-1])
             return dcmf, bin_centers
+        
+        def _compute_dcmf(radius,densities):
+            m_H = 1.67e-24  # g
+            mu = 1.4        # mean molecular weight for H (not H2)
+            pc_to_cm = PC_TO_CM
+            Msun = 1.989e33 # g
+            rslt_masses = []
+            for n, r_pc in zip(densities, radius):
+                r_cm = r_pc * pc_to_cm
+                volume = (4/3) * np.pi * (r_cm**3)
+                artificial_factor = 1. #!!!~1.35, Why can't find the same mass as them ? Bcs they use a diff distribution (like gaussian) ?
+                mass = mu * m_H *n* volume*artificial_factor
+                mass_Msun = mass / Msun
+                rslt_masses.append(mass_Msun)
+            rslt_masses = np.array(rslt_masses, dtype=np.float64)
+            return rslt_masses
 
         if ax is None:
             fig, ax = plt.subplots()
         else:
             fig = ax.figure()
 
+        derived_mass = _compute_dcmf(derived_radius,derived_densities)
         derived_dcmf, derived_bin_centers = _get_dcmf(derived_mass)
-        ax.plot(10**derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="Konyves")
+        derived_bin_centers = 10**derived_bin_centers
 
-        if(self.prediction is not None):
-            predicted_densities, _ = self._get_cores_predicted_values()
-            predicted_densities = 10**predicted_densities
-            m_H = 1.67e-24  # g
-            mu = 1.4        # mean molecular weight for H (not H2)
-            pc_to_cm = PC_TO_CM
-            Msun = 1.989e33 # g
-            predicted_masses = []
-            for n, r_pc in zip(predicted_densities, derived_radius):
-                r_cm = r_pc * pc_to_cm
-                volume = (4/3) * np.pi * (r_cm**3)
-                mass = mu * m_H *n* volume
-                mass_Msun = mass / Msun
-                predicted_masses.append(mass_Msun)
-            predicted_masses = np.array(predicted_masses)
+        ax.plot(derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="(Könyves et al, 2020)")
+        ax.scatter(derived_bin_centers, derived_dcmf, color="blue")
+        popt, _ = curve_fit(dcmf_func, derived_bin_centers, derived_dcmf,
+                        p0=[np.max(derived_dcmf), 1.5, np.std(np.log(derived_mass)), 2.3, 1.6])
+        amp_fit, mu_fit, sigma_fit, alpha_fit ,cutoff_fit = popt
+        LOGGER.log(f"Best DCMF fit for estimated cores: amp={amp_fit:.2e}, mu={mu_fit:.3f}, sigma={sigma_fit:.3f}, alpha={alpha_fit}, cutoff={cutoff_fit}")
+        func = lambda X: dcmf_func(X, popt[0], popt[1], popt[2], popt[3], popt[4])
+        plot_function(func, ax=ax, scatter=False, logspace=True, lims= (0.01, 100), color="blue", linestyle="--")
+
+        LOGGER.log(f"DCMF with {len(derived_radius[(extinctions >= ext_lims[0]) & (extinctions <= ext_lims[1])])} cores.")
+
+        if(self.prediction is not None):            
+            predicted_masses = np.array(_compute_dcmf(derived_radius, predicted_densities))
             predicted_dcmf, predicted_bin_centers = _get_dcmf(predicted_masses)
-            ax.plot(10**predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="UNet")
+            predicted_bin_centers = 10**predicted_bin_centers
+            ax.plot(predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="Neural Network")
+            ax.scatter(predicted_bin_centers, predicted_dcmf, color="red")
+            popt, _ = curve_fit(dcmf_func, predicted_bin_centers[predicted_bin_centers>0.03], predicted_dcmf[predicted_bin_centers>0.03],
+                        p0=[np.max(predicted_dcmf), 0.22, np.std(np.log(predicted_masses)), 2.3, 3.6])
 
+            amp_fit, mu_fit, sigma_fit, alpha_fit ,cutoff_fit = popt
+            LOGGER.log(f"Best DCMF fit for predicted cores: amp={amp_fit:.2e}, mu={mu_fit:.3f}, sigma={sigma_fit:.3f}, alpha={alpha_fit}, cutoff={cutoff_fit}")
+            func = lambda X: dcmf_func(X, popt[0], popt[1], popt[2], popt[3], popt[4])
+            plot_function(func, ax=ax, scatter=False, logspace=True, lims= (0.01, 100), color="red", linestyle="--")
 
+        plot_sim_dcmf(ax, factor=0.035)
+        plot_imf_chabrier(ax)
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlabel(r"Mass [$M_\odot$]")
         ax.set_ylabel(r"$dN/d\log M$")
-        ax.set_title("Dense Core Mass Function (DCMF)")
 
         ax.set_xlim([0.01, 100])
         ax.set_ylim([0.8,600])
+
+        plt.legend()
 
         return fig, ax
 
@@ -631,8 +668,8 @@ class Observation():
         if mov_average > 1 and show_errors:
             ax.fill_between(column_densities,residuals-residuals_std,residuals+residuals_std, color=line.get_color(), alpha=0.2)
         
-        ax.set_xlabel("$\log_{10}(N_{col})$")
-        ax.set_ylabel("$\log_{10}(n_{pred})-\log_{10}(n_{estimated})$")
+        ax.set_xlabel(r"$\log_{10}(N_{col})$")
+        ax.set_ylabel(r"$\log_{10}(n_{pred})-\log_{10}(n_{estimated})$")
 
         ax.legend()
 
@@ -731,56 +768,8 @@ if __name__ == "__main__":
 
     #script_data_and_figures("Taurus_L1495", normcol=[0.5e21,3e22], normvol=[1e1,2.5e4], save_fig=True, plot_cores=False, show=True)
 
-    #fig, ax = plt.subplots()
-
     obs = Observation("OrionB","column_density_map")
-    from networks.Trainer import load_trainer
-    trainer = load_trainer("UNet")
-    #downsample_factor=obs.find_scale(3.3,128,400)
-    obs.predict(trainer,patch_size=(512,512), overlap=0.5, nan_value=-1., apply_baseline=True)
-    obs.save()
     obs.load()
-    cropped_region = [Angle("5h49m").deg, Angle("5h45").deg, Angle("-0d19m").deg, Angle("0d53m").deg]
-    script_data_and_figures("OrionB", suffix="NGC20712068_cores", normcol=[1e21,None], normvol=[0.5e1,1e5], save_fig=False, crop=cropped_region, show=True, plot_cores=True)
-    obs.plot_cores_error()
-    #obs.plot_dcmf(bins=10)
-    #obs.plot_cores_hist2d()
-    #obs.plot_cores_hist()
-    #obs.serialize_cores()
-    #obs.plot_validity_with_model("batch_highres", patch_size=(512,512))
+    obs.plot_dcmf(bins=10)
+    #obs.plot_cores_error(mov_average=15)
     plt.show()
-
-    """
-    from batch_utils import plot_batch_correlation
-    obs = Observation('OrionB',"column_density_map")
-    obs.load()
-    fig, ax = plot_batch_correlation([(obs.data,obs.prediction)],show_yx=False)
-    ax.set_xlabel(r"Column density ($log_{10}(cm^{-2})$)")
-    ax.set_ylabel(r"Mass-weighted density ($log_{10}(cm^{-3})$)")
-
-    X = np.linspace(20, 24, 50)
-    ox,oy = 21.6, 2.12
-    gamma = 3
-    Y = X * gamma + (oy-gamma*ox)
-    ax.plot(X,Y, color="black")
-
-    fig.tight_layout()
-    #fig.savefig(FIGURE_FOLDER+f"obs_{names[1].lower()}_correlation.jpg")
-
-    plt.show()
-    """
-    
-    """
-    for n in names:
-        obs = Observation(n,"column_density_map")
-        obs.load()
-        
-        #fig, ax = obs.plot_validity_with_model("batch_highres_2", patch_size=(512, 512))
-        #fig.savefig(FIGURE_FOLDER+f"obs_{n.lower()}_validity.jpg")
-
-        #obs.serialize_cores()
-        #obs.plot_cores_hist(ax=ax)
-        obs.plot_cores_error(ax=ax, alpha=0.75, movAverage=10)
-
-    fig.savefig(FIGURE_FOLDER+"observation_errors.jpg")
-    """

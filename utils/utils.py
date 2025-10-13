@@ -179,15 +179,19 @@ def dictsToString(dicts:List[Dict])->str:
         string = string + "\n"
     return string
 
-def plot_function(function:Callable, ax=None, res:int=100, lims:Tuple[float]=[0,1], **args):
+def plot_function(function:Callable, ax=None, res:int=100, lims:Tuple[float]=[0,1], logspace=False, scatter=False, **args):
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.figure
     X = np.linspace(lims[0],lims[1],res)
+    if logspace:
+        X = np.logspace(np.log10(lims[0]),np.log10(lims[1]),res)
     Y = function(X)
 
     ax.plot(X,Y,**args)
+    if scatter:
+        ax.scatter(X,Y,color="black")
     ax.grid(True)
     
     return fig, ax

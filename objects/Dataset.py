@@ -2,8 +2,6 @@ import uuid
 import os
 import sys
 import re
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
 from POLARIScore.config import *
 from POLARIScore.utils.utils import plot_lines
 import json

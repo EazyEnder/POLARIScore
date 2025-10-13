@@ -1,8 +1,5 @@
 import os
 import sys
-if __name__ == "__main__":
-    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    sys.path.append(parent_dir)
 from POLARIScore.utils.utils import *
 from POLARIScore.config import *
 from POLARIScore.utils.physics_utils import PC_TO_CM
