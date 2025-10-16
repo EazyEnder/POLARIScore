@@ -15,7 +15,6 @@ from POLARIScore.networks.architectures.nn_BaseModule import BaseModule
 from POLARIScore.utils.batch_utils import *
 from POLARIScore.config import *
 import uuid
-from . import *
 from POLARIScore.networks.architectures.nn_UNet import *
 from POLARIScore.networks.architectures.nn_CAUNet import ContextAwareUNet
 from POLARIScore.networks.architectures.nn_FCN import FCN
@@ -25,6 +24,7 @@ from POLARIScore.networks.architectures.nn_KNet import *
 from POLARIScore.networks.utils.nn_utils import compute_batch_accuracy
 from POLARIScore.utils.utils import moving_average, applyBaseline
 from POLARIScore.networks.addons.ExpMA import ExponentialMovingAverage
+from POLARIScore.networks.addons.EarlyStopping import EarlyStopping
 import json
 from POLARIScore.objects.Dataset import getDataset, Dataset
 import shutil
@@ -54,7 +54,7 @@ class Trainer():
     """
     Allows training of models and experiments with them.
     """
-    def __init__(self,network=None,training_set:Dataset=None,validation_set:Dataset=None,learning_rate:float=0.001,model_name:str=None,auto_save:int=0):
+    def __init__(self,network=None,training_set:Dataset=None,validation_set:Dataset=None,model_name:str=None,segmentation:bool=False,auto_save:int=0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         """device: gpu or cpu"""
 
@@ -71,7 +71,7 @@ class Trainer():
         """Network class name used for the model"""
         if not(network is None):
             self.network_type = network.__name__
-        self.learning_rate:float = learning_rate
+        self.learning_rate:float = 0.001
         """Not constant step size at each iteration during training while moving toward a minimum of a loss function."""
         self.training_set:Dataset = training_set
         """Dataset with the data used for training, i.e used for training/rectify the model weights."""
@@ -91,6 +91,11 @@ class Trainer():
         self.norms:Dict[str,Tuple[Callable[[np.ndarray],np.ndarray],Callable[[np.ndarray],np.ndarray]]] = {} 
         """Normalizations, dict of tuple of function which map physical quantity to normed and invert"""
 
+        self.segmentation:bool = segmentation
+        """Segmentation mode, if true the trainer will use classical settings of a classification problem and change some parameters in compatible models
+          else the goal is assumed to be a regression."""
+        if self.segmentation:
+            LOGGER.warn("Segmentation mode is on.")
 
         self.training_random_transform:bool = False
 
@@ -112,11 +117,14 @@ class Trainer():
         """Handler of Expoential Moving Average if enabled"""
         self.ema_warmup:int = 200
         """Ema warmup, number of epochs before ema begins"""
+
+        self.early_stopping = EarlyStopping()
         
         self.baseline:Tuple[List[float],List[float]] = None
         """Baseline : (...predictions, ...residuals)"""
 
         if not(self.network is None):
+            self.network_settings["segmentation"] = self.segmentation
             self.model = network(**self.network_settings).to(self.device)
             if self.optimizer_name in (str(type(torch.optim.Adam)),"Adam"):
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
@@ -124,7 +132,7 @@ class Trainer():
                 self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, momentum=0.5)
             self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
 
-        self.loss_method = nn.MSELoss()
+        self.loss_method = nn.MSELoss() if self.segmentation else nn.CrossEntropyLoss
         self.training_losses:List[float] = []
         self.validation_losses:List[float] = []
         self.last_epoch:int = 0
@@ -153,7 +161,7 @@ class Trainer():
         self.scheduler = ReduceLROnPlateau(self.optimizer, 'min', patience=50, factor=0.75, threshold=0.005)
         return True
 
-    def train(self, epoch_number:int=50, batch_number:int=32, compute_validation:int=10, cache:bool=True):
+    def train(self, epoch_number:int=50, batch_number:int=32, compute_validation:int=10, cache:bool=True, early_stopping:bool=True):
         """
         Train the model (check trainer variables for settings)
 
@@ -162,6 +170,7 @@ class Trainer():
             batch_number(int, default: 32): How many images will be processed at a time in the GPU/CPU.
             compute_validation(int, default:10): compute validation losses each x epochs.
             cache(bool, default:True): If the validation loss is less than a previous epoch, the model will be saved in a cache.
+            early_stopping(bool, default:True): Stop the training when the model isn't better in a timeframe. You can change the settings of early stopping (e.g patience and delta) by define a new ES: self.early_stopping = EarlyStopping(your_settings).
         """
         LOGGER.log(f"Training started with {str(epoch_number)} epochs on network {self.network_type} with mini-batch of size {batch_number}, model has {sum(p.numel() for p in self.model.parameters())} parameters.")
    
@@ -210,7 +219,7 @@ class Trainer():
                 if batch_number == 1:
                     used_batch = [used_batch]
                 t_input, t_target = self.model.shape_batch(used_batch, self.training_set.get_element_index(self.target_names), self.training_set.get_element_index(self.input_names),
-                                                          target_names=self.target_names, input_names=self.input_names, norms=self.norms)
+                                                          target_names=self.target_names, input_names=self.input_names, norms=self.norms, segmentation=self.segmentation)
                 if not(type(t_input) is list):
                     t_input = [t_input]
 
@@ -251,7 +260,7 @@ class Trainer():
                         if batch_number == 1:
                             used_batch = [used_batch]
                         v_input_tensor, v_target_tensor = self.model.shape_batch(used_batch, self.validation_set.get_element_index(self.target_names), self.validation_set.get_element_index(self.input_names),
-                                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms)
+                                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms, segmentation=self.segmentation)
                         if not(type(v_input_tensor) is list):
                             v_input_tensor = [v_input_tensor]
                         validation_output = eval_model(*v_input_tensor)
@@ -268,6 +277,13 @@ class Trainer():
                     #self.model.train()
                 val_total_loss /= minbatch_nbr if minbatch_nbr > 0 else 1
                 self.validation_losses.append((total_epoch,val_total_loss))
+                if early_stopping and self.early_stopping is not None:
+                    self.early_stopping(val_total_loss, epoch=total_epoch)
+            if early_stopping and self.early_stopping is not None:
+                if self.early_stopping.early_stop:
+                    LOGGER.warn("Early stop at epoch: {total_epoch}.")
+                    break
+
             if self.auto_save > 0 and total_epoch % self.auto_save == 0:
                 self.last_epoch = total_epoch
                 self.save()
@@ -494,15 +510,15 @@ class Trainer():
             if batch_number == 1:
                 used_batch = [used_batch]
             input_tensor, target_tensor = self.model.shape_batch(used_batch, dataset.get_element_index(self.target_names), dataset.get_element_index(self.input_names),
-                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms)
+                                                                target_names=self.target_names, input_names=self.input_names, norms=self.norms, segmentation=self.segmentation)
             if not(type(input_tensor) is list):
                 input_tensor = [input_tensor]
             if not(type(target_tensor) is list):
                 target_tensor = [target_tensor]
             output = self._get_eval_model()(*input_tensor)
-            target_tensor = [self.model.shape_tensor(t, reverse=True, name=self.target_names[ti], norms=self.norms) for ti,t in enumerate(target_tensor)] 
+            target_tensor = [self.model.shape_tensor(t, reverse=True, name=self.target_names[ti], norms=self.norms, segmentation=self.segmentation) for ti,t in enumerate(target_tensor)] 
             output = output if type(output) is list else [output]
-            output = [self.model.shape_tensor(o, reverse=True, name=self.target_names[oi], norms=self.norms) for oi,o in enumerate(output)]
+            output = [self.model.shape_tensor(o, reverse=True, name=self.target_names[oi], norms=self.norms, segmentation=self.segmentation) for oi,o in enumerate(output)]
             for i in range(len(target_tensor)):
                 l1 = target_tensor[i]
                 l2 = output[i]
@@ -529,7 +545,7 @@ class Trainer():
         outputs = outputs if type(outputs) is list else [outputs]
         if return_tensor:
             return outputs
-        return [self.model.shape_tensor(outputs[i], name=output_names[i] if output_names else None, reverse=True) for i in range(len(outputs))]
+        return [self.model.shape_tensor(outputs[i], name=output_names[i] if output_names else None, reverse=True) for i in range(len(outputs), segmentation=self.segmentation)]
 
     def plot_sim_validation(self, simulation, plot_total=False, save=False):
         sim_col_dens = simulation._compute_c_density()
@@ -703,6 +719,7 @@ class Trainer():
             "loss_method": loss_method_name,
             "optimizer": str(type(self.optimizer)),
             "learning_rate": str(self.learning_rate),
+            "is_segmentation": self.segmentation,
             "scheduler": str(type(self.scheduler)),
             "total_epoch": str(self.last_epoch),
             "input_names": self.input_names,
@@ -735,7 +752,7 @@ def load_trainer(model_name, load_model=True):
     with open(os.path.join(model_path,'settings.json')) as file:
         settings = json.load(file)
     
-    trainer = Trainer(model_name=settings["model_name"])
+    trainer = Trainer(model_name=settings["model_name"], segmentation=bool(settings["is_segmentation"]))
     if "training_set" in settings and not(settings["training_set"] is None):
         try:
             trainer.training_set = getDataset(settings["training_set"])

@@ -225,6 +225,7 @@ class Observation():
                     "average_n": float(properties[14+offset_index])*1e4*2,
                     "mass": float(properties[6+offset_index]),
                     "radius_pc": float(properties[5+offset_index]),
+                    "bonnorebert": float(properties[16+offset_index]),
                     "comment": properties[18+offset_index] if len(properties) > (18+offset_index) else "" 
                 }
 
@@ -244,6 +245,8 @@ class Observation():
                     continue
                 if "tentative" in der_dict["comment"] or "SED" in der_dict["comment"] or "N region" in der_dict["comment"]:
                     continue
+                if der_dict["bonnorebert"] > 2:
+                    continue
                 core = {**obs_dict, **der_dict}
                 cores.append(core)
                 break
@@ -252,7 +255,7 @@ class Observation():
 
         return cores
 
-    def plot_cores(self,ax,cores:Union[List[Dict],None]=None,norm=None,vol_density:bool=False,show_text:bool=False):
+    def plot_cores(self,ax,cores:Union[List[Dict],None]=None,norm=None,vol_density:bool=False,show_text:bool=False, lims:Tuple[Union[None,float],Union[None,float]]=[None,None]):
         """
         Plot the cores as dots on a Matplotlib Axes.
         Args:
@@ -261,6 +264,7 @@ class Observation():
             norm (matplotlib.colors.Normalize): matplotlib norm
             vol_density (bool): If True, treat the provided quantities as volume densities.
             show_text (bool): If True, annotate each dot with its value next to it.
+            lims: A core is drawn only if his column density is in lims
         """
         if cores is None:
             cores = self.cores
@@ -269,6 +273,19 @@ class Observation():
             if cores is None:
                 LOGGER.warn("Can't get the dense cores")
                 return
+        if lims[0] is not None or lims[1] is not None:
+            resulted_cores = []
+            for i,c in enumerate(cores):
+                flag = True
+                if lims[0] is not None and c["peak_ncol"] < lims[0]:
+                    flag = False
+                if flag and lims[1] is not None and c["peak_ncol"] > lims[1]:
+                    flag = False
+                if flag:
+                    resulted_cores.append(c)
+            cores = resulted_cores
+        LOGGER.log(f"Plot {len(cores)} cores.")
+            
         ra = [c["ra"] for c in cores]
         dec = [c["dec"] for c in cores]
         if vol_density:
@@ -279,7 +296,7 @@ class Observation():
         world_coords = SkyCoord(ra, dec, unit="deg", frame="fk5")
         x_pix, y_pix = skycoord_to_pixel(world_coords, ax.wcs)
 
-        radius = np.array([c["radius"] for c in cores]) / 3600
+        radius = np.array([c["radius"] if c["radius"] > 0. else 1. for c in cores]) / 3600
 
         pixel_scale = np.mean(np.abs(ax.wcs.pixel_scale_matrix.diagonal()))
 
@@ -335,17 +352,26 @@ class Observation():
         return values
         
     
-    def plot(self, data:np.ndarray=None, norm=None, plot_cores:bool=False, crop:Union[Tuple[float,float,float,float],None]=None, force_vol:bool=False, force_col:bool=False):
+    def plot(self, data:np.ndarray=None, norm=None, plot_cores:Union[bool,Tuple[Union[float,None],Union[float,None]]]=False, crop:Union[Tuple[float,float,float,float],None]=None, force_vol:bool=False, force_col:bool=False):
         """
         Plot observation.
         Args:
             data: by default column densities of the observation, but can be predicted densities...
             norm: matplotlib norm
-            plot_cores:
+            plot_cores: can be a bool or a Tuple of float. If this is a tuple, this sets the column densities limit where a core will be drawn
             crop: [ra_min, ra_max, dec_min, dec_max]
             force_vol: Force volume density labels.
             force_col: Force column density labels.
         """
+
+        if(plot_cores is not None):
+            plot_cores_lims = [0, 1e23]
+            if(type(plot_cores) is not bool):
+                if((type(plot_cores) is tuple or type(plot_cores) is list) and len(plot_cores) >= 2):
+                    plot_cores_lims = plot_cores
+                plot_cores = True
+                
+        
         fig = plt.figure(figsize=(10,10))
         ax = plt.subplot(projection=self.wcs)
         data = self.data if data is None else data
@@ -364,7 +390,7 @@ class Observation():
         fig.tight_layout()
 
         if plot_cores:
-            self.plot_cores(ax, norm=norm, vol_density=flag_vol_density)
+            self.plot_cores(ax, norm=norm, vol_density=flag_vol_density, lims=plot_cores_lims)
 
         if not(crop is None):
             x_min, x_max, y_min, y_max = _crop(self.wcs, crop)
@@ -562,7 +588,7 @@ class Observation():
         derived_dcmf, derived_bin_centers = _get_dcmf(derived_mass)
         derived_bin_centers = 10**derived_bin_centers
 
-        ax.plot(derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label="(Könyves et al, 2020)")
+        ax.plot(derived_bin_centers, derived_dcmf, drawstyle="steps-mid", color="blue", label=f"{self.name} (Könyves et al, 2020)")
         ax.scatter(derived_bin_centers, derived_dcmf, color="blue")
         popt, _ = curve_fit(dcmf_func, derived_bin_centers, derived_dcmf,
                         p0=[np.max(derived_dcmf), 1.5, np.std(np.log(derived_mass)), 2.3, 1.6])
@@ -577,10 +603,10 @@ class Observation():
             predicted_masses = np.array(_compute_dcmf(derived_radius, predicted_densities))
             predicted_dcmf, predicted_bin_centers = _get_dcmf(predicted_masses)
             predicted_bin_centers = 10**predicted_bin_centers
-            ax.plot(predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label="Neural Network")
+            ax.plot(predicted_bin_centers, predicted_dcmf, drawstyle="steps-mid", color="red", label=f"{self.name} (Neural Network)")
             ax.scatter(predicted_bin_centers, predicted_dcmf, color="red")
             popt, _ = curve_fit(dcmf_func, predicted_bin_centers[predicted_bin_centers>0.03], predicted_dcmf[predicted_bin_centers>0.03],
-                        p0=[np.max(predicted_dcmf), 0.22, np.std(np.log(predicted_masses)), 2.3, 3.6])
+                        p0=[np.max(predicted_dcmf), 0.22, np.std(np.log(predicted_masses)), 2.3, 300.6])
 
             amp_fit, mu_fit, sigma_fit, alpha_fit ,cutoff_fit = popt
             LOGGER.log(f"Best DCMF fit for predicted cores: amp={amp_fit:.2e}, mu={mu_fit:.3f}, sigma={sigma_fit:.3f}, alpha={alpha_fit}, cutoff={cutoff_fit}")
@@ -770,6 +796,8 @@ if __name__ == "__main__":
 
     obs = Observation("OrionB","column_density_map")
     obs.load()
+    #fig, axes = obs.plot(norm=LogNorm(vmin=1e21, vmax= 1e24),plot_cores=(None, 10**22.2), force_col=True)
+    #fig.savefig(FIGURE_FOLDER+"OrionB_Test.jpg")
     obs.plot_dcmf(bins=10)
     #obs.plot_cores_error(mov_average=15)
     plt.show()

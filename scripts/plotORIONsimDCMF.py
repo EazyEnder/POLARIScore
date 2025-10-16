@@ -60,7 +60,7 @@ def plot_sim_dcmf(ax=None,factor=1.,fit=False):
         func = lambda X: _dcmf_func(X, popt[0], popt[1], popt[2], popt[3], popt[4])*factor
         plot_function(func, ax=ax, scatter=False, logspace=True, lims= (0.01, 100), color="green", linestyle="--")
 
-    ax.plot(10**derived_bin_centers, derived_dcmf*factor, drawstyle="steps-mid", color="green", label="Simulation")
+    ax.plot(10**derived_bin_centers, derived_dcmf*factor, drawstyle="steps-mid", color="green", label="Sim (Ntormousi & Hennebelle, 2019)")
     ax.scatter(10**derived_bin_centers, derived_dcmf*factor, color="green")
 
     if ax_was_none:
